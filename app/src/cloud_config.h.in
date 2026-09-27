@@ -2,5 +2,6 @@
 
 namespace visual::cloud {
 inline constexpr wchar_t kPlannerBaseUrl[] = L"@VISUAL_DOXA_CLOUD_URL@";
+inline constexpr wchar_t kAssistantBaseUrl[] = L"@VISUAL_ASSISTANT_CLOUD_URL@";
 inline constexpr wchar_t kClientToken[] = L"@VISUAL_DOXA_CLOUD_TOKEN@";
 }

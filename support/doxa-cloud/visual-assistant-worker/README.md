@@ -11,9 +11,10 @@ Current development backend:
 Secrets required in Cloudflare:
 
 - `DIFY_API_KEY` - key belonging to the dedicated Visual Assistant Dify app.
-- `VISUAL_ROUTE_TOKEN` - high-entropy development route token. Visual's configured endpoint is `/v1/ask/<token>`.
+- `VISUAL_ROUTE_TOKEN` - high-entropy development-only route token for `/v1/ask/<token>`.
+- `DOXA_CLIENT_TOKEN` - shared alpha client credential for the packaged `/v1/ask` bearer-authenticated route.
 
-Neither secret belongs in Git or in the Visual executable. The route-token scheme is a development control, not the final Doxa device-authentication design.
+`DIFY_API_KEY` and `VISUAL_ROUTE_TOKEN` stay server-side. Alpha Visual builds contain the existing Doxa client credential so fresh installs can use `/v1/ask` without per-machine setup. This is intentionally temporary: a shared embedded client credential is not the final Doxa device-authentication design.
 
 ## Generated Worker and knowledge grounding
 
@@ -41,6 +42,12 @@ Verify that the checked-in mirror still matches its canonical source files:
 A source change to an allowlisted file intentionally makes `-Check` fail until the snapshot is regenerated and reviewed.
 
 ## Contract
+
+Packaged alpha route:
+
+`POST /v1/ask` with `Authorization: Bearer <DOXA_CLIENT_TOKEN>`.
+
+Development override route:
 
 `POST /v1/ask/<VISUAL_ROUTE_TOKEN>`
 

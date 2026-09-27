@@ -14,10 +14,10 @@ BEGIN
         BLOCK "040904B0"
         BEGIN
             VALUE "CompanyName", "Standivarius\0"
-            VALUE "FileDescription", "Visual low-vision magnification software\0"
+            VALUE "FileDescription", "Standivarius - Visual low-vision magnification software\0"
             VALUE "FileVersion", "@VISUAL_VERSION_SEMVER@\0"
             VALUE "InternalName", "Visual\0"
-            VALUE "ProductName", "Visual\0"
+            VALUE "ProductName", "Standivarius - Visual\0"
             VALUE "ProductVersion", "@VISUAL_VERSION_SEMVER@\0"
         END
     END

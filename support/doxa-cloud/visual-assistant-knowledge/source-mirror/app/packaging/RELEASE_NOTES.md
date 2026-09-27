@@ -1,5 +1,14 @@
 # Unreleased
 
+# Visual 0.1.0-alpha.7
+
+Visual 0.1.0-alpha.7 packages the current low-vision workspace and grounded Ask Visual work for cross-machine testing.
+
+Ask Visual now works from a fresh installed release without a Dell-specific environment variable. The installed app uses the Doxa-owned Cloudflare `doxa-visual-assistant` service by default, authenticated with the existing release-time Doxa client credential; Dify/Muse credentials remain server-side. `VISUAL_ASSISTANT_ENDPOINT` remains a developer override only. Local help remains available if the cloud path fails.
+
+The visible installer/product branding is now `Standivarius - Visual` while the internal Velopack package identity remains `Standivarius.Visual`, preserving update compatibility with earlier public alphas.
+
+Ask Visual is grounded with deterministic retrieval from curated official ZoomText/SuperNova/Windows Magnifier references plus a generated read-only mirror of selected current Visual source/docs. The model receives only relevant excerpts, not repository access, and migration questions combine incumbent evidence with current Visual implementation evidence.
 Ask Visual is now grounded with deterministic retrieval from curated official ZoomText/SuperNova/Windows Magnifier references plus a generated read-only mirror of selected current Visual source/docs. The model receives only relevant excerpts, not repository access, and migration questions combine incumbent evidence with current Visual implementation evidence.
 
 Ask Visual's online fallback is now validated through the dedicated `doxa-visual-assistant` Cloudflare Worker and Dify `Visual Assistant` app using `Muse Spark 1.3 Contributor`. Hosted responses run asynchronously and the client now allows up to 45 seconds for the receive phase; local help remains the fail-soft fallback.

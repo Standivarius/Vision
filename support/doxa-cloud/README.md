@@ -14,12 +14,13 @@ The tracked Worker source is in `visual-assistant-worker/`. The deployed develop
 
 The dedicated Dify app is `Visual Assistant` (app ID `c94b6e55-3f7f-4b8f-a2d2-99fe960959a1`) and is currently configured to use `Muse Spark 1.3 Contributor`.
 
-Cloudflare stores two Secrets for the Worker:
+Cloudflare stores three Secrets for the Worker:
 
 - `DIFY_API_KEY` - the dedicated Visual Assistant Dify app key;
-- `VISUAL_ROUTE_TOKEN` - a high-entropy development route token.
+- `VISUAL_ROUTE_TOKEN` - a high-entropy development-only route token.
+- `DOXA_CLIENT_TOKEN` - the shared alpha client credential accepted by the packaged `/v1/ask` route.
 
-Neither secret belongs in Visual, Git, `wrangler.toml`, logs or support bundles. Visual receives only the protected HTTPS endpoint through its user-level `VISUAL_ASSISTANT_ENDPOINT` setting.
+`DIFY_API_KEY` and `VISUAL_ROUTE_TOKEN` remain server-side and never belong in Visual, Git, `wrangler.toml`, logs or support bundles. Alpha release builds embed the existing `DOXA_CLIENT_TOKEN` client credential so a fresh install can call the Doxa-owned `/v1/ask` route without Dell-specific configuration. This shared client credential is an alpha mechanism and is not the final per-device authentication design. `VISUAL_ASSISTANT_ENDPOINT` remains a developer/test override only.
 
 The Worker allowlists the structured Visual context fields before sending anything to Dify. It deliberately drops unknown client fields such as raw monitor device identifiers. Screenshots, document contents and typed text are not part of the contract.
 

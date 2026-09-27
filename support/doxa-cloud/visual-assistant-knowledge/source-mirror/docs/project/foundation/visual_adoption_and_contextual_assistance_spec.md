@@ -229,7 +229,7 @@ Initial context supplied to the model should be structured and minimal, for exam
 
 Do not send screenshots, document contents, typed text or arbitrary screen data by default.
 
-The current Cloudflare development deployment also requires a high-entropy `VISUAL_ROUTE_TOKEN` in the protected request path. This is only a development abuse-control measure; production Doxa authentication must not rely on a single shared client secret.
+Release builds now use the Doxa-owned `/v1/ask` route authenticated with the existing build-time Doxa client credential; the high-entropy `VISUAL_ROUTE_TOKEN` path remains a development-only override. The shared build-time client credential is acceptable for alpha testing but is not the final production device-authentication design.
 
 The model/provider must remain behind a provider-neutral server boundary. As of 2026-09-27, the validated development backend is a dedicated Cloudflare `doxa-visual-assistant` gateway to the Dify `Visual Assistant` app using Muse Spark 1.3 Contributor. NVIDIA/Nemotron remains a planned replaceable backend once credentials are available; Visual must not be coupled to either provider.
 

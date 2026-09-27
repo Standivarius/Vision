@@ -27,6 +27,7 @@ configure_file(src/version.h.in ${VISUAL_GENERATED_DIR}/visual_version.h @ONLY)
 configure_file(src/version.rc.in ${VISUAL_GENERATED_DIR}/visual_version.rc @ONLY)
 
 set(VISUAL_DOXA_CLOUD_URL "https://doxa-installer-planner.marius-moldovan.workers.dev" CACHE STRING "Doxa installer planner base URL")
+set(VISUAL_ASSISTANT_CLOUD_URL "https://doxa-visual-assistant.marius-moldovan.workers.dev" CACHE STRING "Doxa Visual Assistant base URL")
 if(NOT DEFINED VISUAL_DOXA_CLOUD_TOKEN OR VISUAL_DOXA_CLOUD_TOKEN STREQUAL "")
     set(VISUAL_DOXA_CLOUD_TOKEN "$ENV{DOXA_CLOUD_CLIENT_TOKEN}")
 endif()
@@ -90,7 +91,7 @@ target_link_libraries(visual_app PRIVATE
     oleaut32
     uiautomationcore
 )
-target_compile_definitions(visual_app PRIVATE UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX)
+target_compile_definitions(visual_app PRIVATE UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX VISUAL_ASSISTANT_PACKAGED_DEFAULT=1)
 target_compile_options(visual_app PRIVATE /W4 /permissive- /EHsc)
 add_custom_command(TARGET visual_app POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different

@@ -1,6 +1,7 @@
 #include "assistant_client.h"
 
 #include "core/help_catalog.h"
+#include "visual_cloud_config.h"
 
 #include <windows.h>
 #include <winhttp.h>
@@ -97,7 +98,7 @@ struct HttpResult {
     std::string error;
 };
 
-HttpResult post_json(const std::wstring& endpoint, const std::string& body) {
+HttpResult post_json(const std::wstring& endpoint, const std::string& body, const std::wstring& bearer_token) {
     HttpResult result{};
 
     URL_COMPONENTSW parts{};
@@ -145,8 +146,13 @@ HttpResult post_json(const std::wstring& endpoint, const std::string& body) {
         return result;
     }
 
-    const wchar_t headers[] = L"Content-Type: application/json\r\nAccept: application/json\r\n";
-    const BOOL sent = WinHttpSendRequest(request, headers, static_cast<DWORD>(-1L),
+    std::wstring headers = L"Content-Type: application/json\r\nAccept: application/json\r\n";
+    if (!bearer_token.empty()) {
+        headers += L"Authorization: Bearer ";
+        headers += bearer_token;
+        headers += L"\r\n";
+    }
+    const BOOL sent = WinHttpSendRequest(request, headers.c_str(), static_cast<DWORD>(-1L),
                                          const_cast<char*>(body.data()), static_cast<DWORD>(body.size()),
                                          static_cast<DWORD>(body.size()), 0);
     if (!sent || !WinHttpReceiveResponse(request, nullptr)) {
@@ -191,12 +197,24 @@ AnswerResult generic_local_fallback(bool remote_available) {
 
 std::wstring configured_endpoint() {
     DWORD needed = GetEnvironmentVariableW(L"VISUAL_ASSISTANT_ENDPOINT", nullptr, 0);
-    if (needed == 0) return {};
-    std::wstring value(static_cast<std::size_t>(needed), L'\0');
-    const DWORD written = GetEnvironmentVariableW(L"VISUAL_ASSISTANT_ENDPOINT", value.data(), needed);
-    if (written == 0 || written >= needed) return {};
-    value.resize(written);
+    if (needed != 0) {
+        std::wstring value(static_cast<std::size_t>(needed), L'\0');
+        const DWORD written = GetEnvironmentVariableW(L"VISUAL_ASSISTANT_ENDPOINT", value.data(), needed);
+        if (written != 0 && written < needed) {
+            value.resize(written);
+            return value;
+        }
+    }
+
+#if defined(VISUAL_ASSISTANT_PACKAGED_DEFAULT)
+    std::wstring value = visual::cloud::kAssistantBaseUrl;
+    while (!value.empty() && value.back() == L'/') value.pop_back();
+    if (value.empty() || visual::cloud::kClientToken[0] == L'\0') return {};
+    value += L"/v1/ask";
     return value;
+#else
+    return {};
+#endif
 }
 
 bool remote_configured() {
@@ -217,7 +235,8 @@ AnswerResult answer_question(const std::wstring& question, const std::string& co
     const std::string body = std::string("{\"schema_version\":\"1\",\"intent\":\"ask_visual\",\"question\":\"")
         + json_escape(utf8_question) + "\",\"context\":" + (context_json.empty() ? "{}" : context_json) + "}";
 
-    const auto http = post_json(endpoint, body);
+    const std::wstring bearer_token = visual::cloud::kClientToken;
+    const auto http = post_json(endpoint, body, bearer_token);
     if (!http.error.empty() || http.status < 200 || http.status >= 300) return generic_local_fallback(true);
 
     const auto answer_utf8 = json_string_field(http.body, "answer");

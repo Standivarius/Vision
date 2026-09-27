@@ -240,10 +240,15 @@ async function callDify(env, question, context, knowledge) {
   };
 }
 
-function authorizedPath(url, env) {
-  if (!env.VISUAL_ROUTE_TOKEN) return false;
-  const expected = `/v1/ask/${env.VISUAL_ROUTE_TOKEN}`;
-  return url.pathname === expected;
+function authorizedRequest(request, url, env) {
+  if (env.VISUAL_ROUTE_TOKEN) {
+    const expected = `/v1/ask/${env.VISUAL_ROUTE_TOKEN}`;
+    if (url.pathname === expected) return true;
+  }
+
+  if (url.pathname !== "/v1/ask" || !env.DOXA_CLIENT_TOKEN) return false;
+  const auth = request.headers.get("authorization") || "";
+  return auth === `Bearer ${env.DOXA_CLIENT_TOKEN}`;
 }
 
 export { normalizeContext, retrieveKnowledge, buildQuery };
@@ -263,7 +268,7 @@ export default {
         configured_model_id: APP_IDENTITY.configuredModelId,
         configured_model_name: APP_IDENTITY.configuredModelName,
         model_identity_source: "worker_config",
-        retrieval_version: "2-diverse-evidence",
+        retrieval_version: "3-packaged-cloud-auth",
         knowledge: {
           schema_version: KNOWLEDGE_BUNDLE.schema_version,
           chunk_count: KNOWLEDGE_BUNDLE.chunk_count,
@@ -272,7 +277,7 @@ export default {
       });
     }
 
-    if (request.method !== "POST" || !authorizedPath(url, env)) {
+    if (request.method !== "POST" || !authorizedRequest(request, url, env)) {
       return json({ error: "not_found" }, 404);
     }
 

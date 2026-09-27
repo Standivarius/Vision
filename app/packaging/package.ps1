@@ -110,7 +110,7 @@ try{
         '--packDir',$stage,
         '--mainExe','visual_app.exe',
         '--packAuthors','Standivarius',
-        '--packTitle','Visual Alpha',
+        '--packTitle','Standivarius - Visual',
         '--channel','alpha',
         '--framework','vcredist143-x64',
         '--releaseNotes',(Join-Path $PSScriptRoot 'RELEASE_NOTES.md'),

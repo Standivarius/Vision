@@ -1,17 +1,17 @@
 {
     "schema_version":  "1",
-    "generated_utc":  "2026-09-27T11:36:51.5986627Z",
-    "source_tree_sha256":  "a3f4ceeace086dbcfb11edc51cf597a18d3b474b07640f98933dccaa22b4fdd8",
+    "generated_utc":  "2026-09-27T11:59:42.1685695Z",
+    "source_tree_sha256":  "002640b2abf392513914fd5c56663017b6e523858f56c6084b6e1ecd2e288b4f",
     "files":  [
                   {
                       "path":  "app/README.md",
-                      "bytes":  13542,
-                      "sha256":  "b8a7edba5b21b95c5a5bc11f3cc70f13716d4ef421e6c2d5955fac489c9047bc"
+                      "bytes":  13853,
+                      "sha256":  "458bb47252170d55f112907fdf1c8433ae539f484d186684bf2875d1cef9804d"
                   },
                   {
                       "path":  "app/packaging/RELEASE_NOTES.md",
-                      "bytes":  5622,
-                      "sha256":  "767a368cb31466e6652ffe0c3de026a2414568abac4c7a7f170c6d9fbf78ade4"
+                      "bytes":  6751,
+                      "sha256":  "3ee68245ae8ecd7535d2aa0126639cd732aae272ee8639dc2344aee6b44222fe"
                   },
                   {
                       "path":  "app/src/main.cpp",
@@ -30,8 +30,8 @@
                   },
                   {
                       "path":  "app/src/assistant_client.cpp",
-                      "bytes":  9455,
-                      "sha256":  "804e1a619bdaed09b7ce05e33342eb401511bf286b5bd7df97b01e8fe3987ef1"
+                      "bytes":  10122,
+                      "sha256":  "cf83324fd97f249294a2e28fec5c7f52487e368b9d112378d0bab4307ec3b7a4"
                   },
                   {
                       "path":  "app/src/assistant_client.h",
@@ -120,8 +120,8 @@
                   },
                   {
                       "path":  "docs/project/foundation/visual_adoption_and_contextual_assistance_spec.md",
-                      "bytes":  17508,
-                      "sha256":  "096776901d92cbad53dcefccfff3a9a48efcc2b439ff7ff8a469f17ca676a908"
+                      "bytes":  17587,
+                      "sha256":  "78e96a1d1b9cb28a4e2c64275a9fffa483ef37af0356e6bd44c8b1dc7575a0da"
                   }
               ]
 }
