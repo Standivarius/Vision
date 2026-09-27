@@ -1,5 +1,12 @@
 # Unreleased
 
+# Visual 0.1.0-alpha.10
+
+Ask Visual now gives a much more obvious in-progress state while an online answer is being prepared. The question field and Ask button are temporarily disabled, the button reads `Working...`, the main answer area displays a prominent working message, and the footer reports that Visual is waiting for the answer. The controls restore when the answer arrives.
+
+The Ask Visual question field also now supports the standard `Ctrl+A` select-all shortcut, so a question can be selected and cleared with Delete or Backspace instead of deleting it character by character.
+
+Ask Visual remains intentionally one-shot in this alpha: each question is a new request using current Visual state and freshly retrieved knowledge; previous questions/answers are not retained as conversation history.
 # Visual 0.1.0-alpha.9
 
 Visual 0.1.0-alpha.9 is a release-infrastructure-only republish of the alpha.8 application content. The provenance generator now ignores non-version Windows SDK include directories (such as `wdf`) before sorting SDK versions. There are no intended magnifier or Ask Visual behavior changes relative to the alpha.7/alpha.8 candidates.

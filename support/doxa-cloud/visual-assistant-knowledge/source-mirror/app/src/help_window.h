@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "core/help_catalog.h"
 
@@ -30,6 +30,7 @@ public:
 
 private:
     static LRESULT CALLBACK window_proc(HWND hwnd, UINT message, WPARAM w_param, LPARAM l_param);
+    static LRESULT CALLBACK question_edit_proc(HWND hwnd, UINT message, WPARAM w_param, LPARAM l_param);
     LRESULT handle_message(UINT message, WPARAM w_param, LPARAM l_param);
     void create_controls();
     void layout_controls(int client_width, int client_height);
@@ -48,6 +49,7 @@ private:
 
     HWND intro_{};
     HWND question_edit_{};
+    WNDPROC question_edit_original_proc_{};
     HWND ask_button_{};
     HWND answer_title_{};
     HWND answer_edit_{};

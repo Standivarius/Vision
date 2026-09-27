@@ -109,6 +109,8 @@ Installed Visual now has a provider-neutral Doxa cloud fallback by default. Rele
 
 The online path is intentionally non-critical: if the Doxa cloud service is unavailable, local Visual help continues to work.
 
+Each Ask Visual submission is currently independent: previous questions and answers are not retained or sent as conversation history. Every request uses the current Visual state plus freshly retrieved product/implementation evidence.
+
 The online fallback is grounded before the model call. The Doxa gateway retrieves only relevant excerpts from a curated set of official ZoomText, SuperNova and Windows Magnifier material plus a generated read-only mirror of selected current Visual source/docs. The cloud model has no repository or filesystem access and cannot modify the mirror. Current Visual source/docs take precedence for claims about Visual; incumbent documentation is used to interpret incumbent terminology and behavior, not to manufacture feature parity.
 
 **Validated development backend (2026-09-27):** `doxa-visual-assistant` Cloudflare Worker -> dedicated Dify `Visual Assistant` app -> `Muse Spark 1.3 Contributor`. This is a replaceable server-side backend, not a client dependency. The packaged alpha uses the Doxa client credential on an authenticated `/v1/ask` route. A high-entropy route-token endpoint remains available only for development testing. The shared client credential is still an alpha mechanism rather than the final per-device production authentication design. Hosted responses can take materially longer than local help, so the asynchronous online request allows up to 45 seconds for a response while the Visual UI remains responsive.

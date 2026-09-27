@@ -1,17 +1,17 @@
 {
     "schema_version":  "1",
-    "generated_utc":  "2026-09-27T12:23:24.1936477Z",
-    "source_tree_sha256":  "5d22fa55a28d2e5e9439d4732f1027fee7a454afa7b7cba7457c1b618ae2a616",
+    "generated_utc":  "2026-09-27T12:45:49.7709086Z",
+    "source_tree_sha256":  "7f182650f4f3c5729ddbe9ea8e3d0fbbb4d0a29de6c51ad5bb0d3896a0cc2d51",
     "files":  [
                   {
                       "path":  "app/README.md",
-                      "bytes":  13853,
-                      "sha256":  "458bb47252170d55f112907fdf1c8433ae539f484d186684bf2875d1cef9804d"
+                      "bytes":  14090,
+                      "sha256":  "487f762cb765fa7610346064a744f653a5b90bafc219cbd0d1587bc57b1ca703"
                   },
                   {
                       "path":  "app/packaging/RELEASE_NOTES.md",
-                      "bytes":  7472,
-                      "sha256":  "575ea15ed3c90eeefdc2e757275ba2e8f363fb0bda7290c5f661680ad5dc6e64"
+                      "bytes":  8282,
+                      "sha256":  "6e38b5638c99d7f7e0e45c1bc7d2ce07df47800c4a73136e63635164b54a9a39"
                   },
                   {
                       "path":  "app/src/main.cpp",
@@ -40,13 +40,13 @@
                   },
                   {
                       "path":  "app/src/help_window.cpp",
-                      "bytes":  12813,
-                      "sha256":  "e39c4891f43ca0d45be1115b80d817afc531dc82be2c6083e7f67a8a537f794c"
+                      "bytes":  14151,
+                      "sha256":  "08b42281b59ca3e0d7d5f4de1f1876dd0085bdc207cfd9dd0c70f1030b8b9eea"
                   },
                   {
                       "path":  "app/src/help_window.h",
-                      "bytes":  1499,
-                      "sha256":  "fb2ab13ba8243e3aaac3800618808256f46f7ffc20d08865c47c5d02432f1853"
+                      "bytes":  1647,
+                      "sha256":  "176be9fe6f9175cc505ac15adb0ad3f7bf09323b3625754fbf90e9d3133c786b"
                   },
                   {
                       "path":  "app/src/hint_window.cpp",

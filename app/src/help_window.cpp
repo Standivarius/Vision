@@ -109,6 +109,18 @@ void HelpWindow::destroy() noexcept {
     busy_ = false;
 }
 
+LRESULT CALLBACK HelpWindow::question_edit_proc(HWND hwnd, UINT message, WPARAM w_param, LPARAM l_param) {
+    auto* self = reinterpret_cast<HelpWindow*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
+    if (message == WM_KEYDOWN && (GetKeyState(VK_CONTROL) & 0x8000) != 0 &&
+        (w_param == L'A' || w_param == L'a')) {
+        SendMessageW(hwnd, EM_SETSEL, 0, -1);
+        return 0;
+    }
+    if (self && self->question_edit_original_proc_) {
+        return CallWindowProcW(self->question_edit_original_proc_, hwnd, message, w_param, l_param);
+    }
+    return DefWindowProcW(hwnd, message, w_param, l_param);
+}
 LRESULT CALLBACK HelpWindow::window_proc(HWND hwnd, UINT message, WPARAM w_param, LPARAM l_param) {
     HelpWindow* self = reinterpret_cast<HelpWindow*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
     if (message == WM_NCCREATE) {
@@ -147,11 +159,13 @@ LRESULT HelpWindow::handle_message(UINT message, WPARAM w_param, LPARAM l_param)
     case kAnswerReadyMessage: {
         std::unique_ptr<AsyncAnswer> answer(reinterpret_cast<AsyncAnswer*>(l_param));
         busy_ = false;
+        if (question_edit_) EnableWindow(question_edit_, TRUE);
         if (ask_button_) {
             EnableWindow(ask_button_, TRUE);
             SetWindowTextW(ask_button_, L"&Ask");
         }
         if (answer) show_answer(answer->result.title, answer->result.answer, answer->result.status);
+        if (question_edit_) SetFocus(question_edit_);
         return 0;
     }
     case WM_CLOSE:
@@ -179,6 +193,9 @@ void HelpWindow::create_controls() {
         SS_LEFT | SS_NOPREFIX, -1);
     question_edit_ = make_control(hwnd_, L"EDIT", L"",
         WS_TABSTOP | WS_BORDER | ES_AUTOHSCROLL, kIdQuestion);
+    SetWindowLongPtrW(question_edit_, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
+    question_edit_original_proc_ = reinterpret_cast<WNDPROC>(
+        SetWindowLongPtrW(question_edit_, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(&HelpWindow::question_edit_proc)));
     ask_button_ = make_control(hwnd_, L"BUTTON", L"&Ask", BS_DEFPUSHBUTTON | WS_TABSTOP, kIdAsk);
 
     make_control(hwnd_, L"BUTTON", L"Screen Roles", BS_PUSHBUTTON | WS_TABSTOP, kIdScreenRoles);
@@ -260,9 +277,14 @@ void HelpWindow::ask() {
 
     std::string context = context_provider_ ? context_provider_() : std::string("{}");
     busy_ = true;
+    EnableWindow(question_edit_, FALSE);
     EnableWindow(ask_button_, FALSE);
     SetWindowTextW(ask_button_, L"Working...");
-    SetWindowTextW(status_, L"Looking for the smallest useful answer...");
+    SetWindowTextW(answer_title_, L"Working...");
+    SetWindowTextW(answer_edit_,
+        L"Ask Visual is checking Visual help and the online product knowledge.\r\n\r\nThis can take a few seconds.");
+    SetWindowTextW(status_, L"Working - waiting for Ask Visual...");
+    RedrawWindow(hwnd_, nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW | RDW_ALLCHILDREN);
 
     const HWND target = hwnd_;
     std::thread([target, question, context = std::move(context)]() mutable {
