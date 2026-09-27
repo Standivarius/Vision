@@ -17,6 +17,7 @@ $SourceFiles = @(
     'app/README.md',
     'app/packaging/RELEASE_NOTES.md',
     'app/src/main.cpp',
+    'app/src/velopack_entry.cpp',
     'app/src/context_overlay.cpp',
     'app/src/context_overlay.h',
     'app/src/assistant_client.cpp',

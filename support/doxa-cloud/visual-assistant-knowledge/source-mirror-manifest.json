@@ -1,22 +1,27 @@
 {
     "schema_version":  "1",
-    "generated_utc":  "2026-09-27T12:45:49.7709086Z",
-    "source_tree_sha256":  "7f182650f4f3c5729ddbe9ea8e3d0fbbb4d0a29de6c51ad5bb0d3896a0cc2d51",
+    "generated_utc":  "2026-09-27T13:40:03.1145850Z",
+    "source_tree_sha256":  "1f81a4939cfe4de33af3828b4e08d111a2de45bf044eb58152074d29185d5efe",
     "files":  [
                   {
                       "path":  "app/README.md",
-                      "bytes":  14090,
-                      "sha256":  "487f762cb765fa7610346064a744f653a5b90bafc219cbd0d1587bc57b1ca703"
+                      "bytes":  14414,
+                      "sha256":  "4026cec6e352393efdb00bee8bb7162c8eaaa58aa116cd97b6538f44ae13a826"
                   },
                   {
                       "path":  "app/packaging/RELEASE_NOTES.md",
-                      "bytes":  8282,
-                      "sha256":  "6e38b5638c99d7f7e0e45c1bc7d2ce07df47800c4a73136e63635164b54a9a39"
+                      "bytes":  9016,
+                      "sha256":  "7112c067409b1852df160cb8541390bd4d3e7af33b417fd7998c9e1ef4508ca9"
                   },
                   {
                       "path":  "app/src/main.cpp",
-                      "bytes":  63652,
-                      "sha256":  "b43f48d66dc42e8823fcbafd9a07a6c5338c6b17eb2c8109f9e15f950aa575cc"
+                      "bytes":  64130,
+                      "sha256":  "cbaaba036a3630a7b1aed04846dd4dfccde235a2e07a1446e77d804bde648b1f"
+                  },
+                  {
+                      "path":  "app/src/velopack_entry.cpp",
+                      "bytes":  8659,
+                      "sha256":  "d8acdfec4f5f9b1de040ade014c4e770df23e1f2f6ce2bd0e4ac71a9f5dd668a"
                   },
                   {
                       "path":  "app/src/context_overlay.cpp",

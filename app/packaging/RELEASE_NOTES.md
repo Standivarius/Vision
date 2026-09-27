@@ -1,5 +1,10 @@
 # Unreleased
 
+# Visual 0.1.0-alpha.11
+
+Visual now enforces a single normal application instance. Starting Visual while it is already running exits the second launch immediately instead of creating another Detail renderer and Context/View Locator overlay. This prevents doubled translucent shading, overlapping locator frames and the second process silently failing to own the global shortcuts.
+
+Global Ctrl+Alt shortcut registration is now checked instead of ignored. If Visual cannot register its documented shortcuts, startup fails with a clear error rather than leaving a running instance without Ctrl+Alt+Q. The bounded graphics health-check no longer registers product-wide hotkeys, so diagnostics cannot compete with the running application.
 # Visual 0.1.0-alpha.10
 
 Ask Visual now gives a much more obvious in-progress state while an online answer is being prepared. The question field and Ask button are temporarily disabled, the button reads `Working...`, the main answer area displays a prominent working message, and the footer reports that Visual is waiting for the answer. The controls restore when the answer arrives.

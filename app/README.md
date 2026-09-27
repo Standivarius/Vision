@@ -82,6 +82,8 @@ Command-line monitor indices remain engineering overrides. Normal runs use the p
 - `Ctrl+Alt+H` - open Visual Help / Ask Visual
 - `Ctrl+Alt+Q` - exit Visual
 
+Visual is single-instance for normal interactive use. Launching it again while an instance is already running does not create another Detail renderer or Context overlay; the second launch exits immediately. The graphics health-check is exempt from the product-instance guard and does not register global product hotkeys.
+
 The settings UI also provides 1.5x magnification. Right-click the Detail window for the compact Visual menu.
 
 ## Visual Settings and Context view

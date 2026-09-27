@@ -885,17 +885,31 @@ void show_help() noexcept {
     if (g_helpWindow) g_helpWindow->show();
 }
 
-void register_hotkeys(HWND hwnd) noexcept {
+bool register_hotkeys(HWND hwnd) noexcept {
     constexpr UINT modifiers = MOD_CONTROL | MOD_ALT | MOD_NOREPEAT;
-    RegisterHotKey(hwnd, kHotkeyZoom1, modifiers, '1');
-    RegisterHotKey(hwnd, kHotkeyZoom2, modifiers, '2');
-    RegisterHotKey(hwnd, kHotkeyZoom3, modifiers, '3');
-    RegisterHotKey(hwnd, kHotkeyZoom4, modifiers, '4');
-    RegisterHotKey(hwnd, kHotkeyTracking, modifiers, 'T');
-    RegisterHotKey(hwnd, kHotkeySettings, modifiers, 'S');
-    RegisterHotKey(hwnd, kHotkeyHelp, modifiers, 'H');
-    RegisterHotKey(hwnd, kHotkeyNormalReturn, modifiers, '0');
-    RegisterHotKey(hwnd, kHotkeyExit, modifiers, 'Q');
+    struct Binding { int id; UINT key; };
+    constexpr Binding bindings[] = {
+        {kHotkeyZoom1, '1'},
+        {kHotkeyZoom2, '2'},
+        {kHotkeyZoom3, '3'},
+        {kHotkeyZoom4, '4'},
+        {kHotkeyTracking, 'T'},
+        {kHotkeySettings, 'S'},
+        {kHotkeyHelp, 'H'},
+        {kHotkeyNormalReturn, '0'},
+        {kHotkeyExit, 'Q'},
+    };
+
+    std::size_t registered = 0;
+    for (; registered < std::size(bindings); ++registered) {
+        if (!RegisterHotKey(hwnd, bindings[registered].id, modifiers, bindings[registered].key)) {
+            for (std::size_t i = 0; i < registered; ++i) {
+                UnregisterHotKey(hwnd, bindings[i].id);
+            }
+            return false;
+        }
+    }
+    return true;
 }
 
 void unregister_hotkeys(HWND hwnd) noexcept {
@@ -1033,7 +1047,10 @@ WindowPlacement create_detail_window(HINSTANCE instance, const MonitorRecord& de
     HWND hwnd = CreateWindowExW(exStyle, kWindowClass, L"Visual - Detail", style, x, y, width, height,
                                 nullptr, nullptr, instance, nullptr);
     if (!hwnd) winrt::throw_last_error();
-    register_hotkeys(hwnd);
+    if (!g_healthCheckMode.load(std::memory_order_relaxed) && !register_hotkeys(hwnd)) {
+        DestroyWindow(hwnd);
+        throw std::runtime_error("Visual could not register its Ctrl+Alt shortcuts. Another application may already be using one of them.");
+    }
     SetWindowPos(hwnd, singleMonitor ? HWND_TOPMOST : HWND_TOP, x, y, width, height, SWP_SHOWWINDOW | SWP_NOACTIVATE);
     ShowWindow(hwnd, SW_SHOWNOACTIVATE);
     UpdateWindow(hwnd);
