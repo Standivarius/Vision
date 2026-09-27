@@ -1,5 +1,8 @@
 # Unreleased
 
+# Visual 0.1.0-alpha.8
+
+Visual 0.1.0-alpha.8 is a packaging-only republish of the alpha.7 application content after correcting CI CMake selection. Release builds now prefer the Visual Studio-bundled CMake discovered with `vswhere`, matching the release input audit. There are no intended magnifier or Ask Visual behavior changes relative to the alpha.7 candidate.
 # Visual 0.1.0-alpha.7
 
 Visual 0.1.0-alpha.7 packages the current low-vision workspace and grounded Ask Visual work for cross-machine testing.

@@ -13,13 +13,20 @@ if(-not$Version){
     $Version=$versionMatch.Groups[1].Value
 }
 
-$cmakeCommand=Get-Command cmake.exe -ErrorAction SilentlyContinue
-if($cmakeCommand){
-    $cmake=$cmakeCommand.Source
-}else{
-    $cmake='C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe'
+$cmake=$null
+$vswhere='C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe'
+if(Test-Path $vswhere){
+    $vsRoot=(& $vswhere -latest -products '*' -property installationPath).Trim()
+    if($vsRoot){
+        $vsCmake=Join-Path $vsRoot 'Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe'
+        if(Test-Path $vsCmake){$cmake=$vsCmake}
+    }
 }
-if(-not(Test-Path $cmake)){throw "CMake not found: $cmake"}
+if(-not$cmake){
+    $cmakeCommand=Get-Command cmake.exe -ErrorAction SilentlyContinue
+    if($cmakeCommand){$cmake=$cmakeCommand.Source}
+}
+if(-not$cmake -or -not(Test-Path $cmake)){throw 'CMake not found in Visual Studio or PATH.'}
 
 # The native Velopack SDK is pinned independently from the .NET vpk packaging tool.
 # It is downloaded once into an ignored repository-local cache and reused by later builds.
