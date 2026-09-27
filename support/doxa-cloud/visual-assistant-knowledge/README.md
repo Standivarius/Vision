@@ -4,7 +4,7 @@ This directory is the curated/read-only knowledge boundary for the optional clou
 
 ## Why it exists
 
-Muse should be able to interpret:
+The hosted Ask Visual model should be able to interpret:
 
 1. the user's question;
 2. Visual's minimal structured runtime state;
@@ -60,9 +60,9 @@ A source change to an allowlisted file makes `-Check` fail until the mirror is d
 
 ## Retrieval
 
-The generated `../visual-assistant-worker/worker.js` contains the curated evidence and source-mirror chunks. The Worker performs deterministic lexical/synonym retrieval locally before calling Dify. Typical requests send at most seven chunks and roughly 12 KB of retrieved evidence rather than the full mirror.
+The generated `../visual-assistant-worker/worker.js` contains the curated evidence and source-mirror chunks. The Worker performs deterministic lexical/synonym retrieval locally before calling the configured hosted model. Typical requests send at most seven chunks and roughly 12 KB of retrieved evidence rather than the full mirror.
 
-This gives Muse enough implementation context to explain current behavior while keeping repository exposure bounded and auditable.
+This gives the hosted model enough implementation context to explain current behavior while keeping repository exposure bounded and auditable.
 
 ## Updating incumbent material
 

@@ -231,7 +231,7 @@ Do not send screenshots, document contents, typed text or arbitrary screen data 
 
 Release builds now use the Doxa-owned `/v1/ask` route authenticated with the existing build-time Doxa client credential; the high-entropy `VISUAL_ROUTE_TOKEN` path remains a development-only override. The shared build-time client credential is acceptable for alpha testing but is not the final production device-authentication design.
 
-The model/provider must remain behind a provider-neutral server boundary. As of 2026-09-27, the validated development backend is a dedicated Cloudflare `doxa-visual-assistant` gateway to the Dify `Visual Assistant` app using Muse Spark 1.3 Contributor. NVIDIA/Nemotron remains a planned replaceable backend once credentials are available; Visual must not be coupled to either provider.
+The model/provider must remain behind a provider-neutral server boundary. As of 2026-09-27, the hosted Ask Visual backend uses the dedicated Cloudflare `doxa-visual-assistant` gateway with NVIDIA NIM `nvidia/nemotron-3-super-120b-a12b` as primary and the Dify `Visual Assistant` app using Muse Spark 1.3 Contributor as a temporary fallback. Visual must not be coupled to either provider.
 
 ## Implemented knowledge grounding
 
@@ -251,7 +251,7 @@ For each remote question, the Worker performs deterministic lexical/synonym retr
 
 The mirror manifest stores per-file SHA-256 hashes and an aggregate source-tree digest. `build-knowledge.ps1 -Check` fails when an allowlisted canonical file has changed since the snapshot was generated. The Worker's `/health` response exposes the non-secret retrieval version, chunk count and source-tree digest; each answer also returns non-secret retrieved chunk IDs for validation.
 
-This satisfies the useful part of "code access" without giving the model direct codebase access: Muse can interpret selected current implementation excerpts but cannot enumerate, alter or exfiltrate arbitrary repository content.
+This satisfies the useful part of "code access" without giving the hosted model direct codebase access: the selected model can interpret current implementation excerpts but cannot enumerate, alter or exfiltrate arbitrary repository content.
 ## Assistance infrastructure to implement once, not feature-by-feature
 
 When the implementation pass begins, add one small reusable assistance layer rather than ad-hoc MessageBoxes throughout the product.
@@ -317,7 +317,7 @@ Build the product seam but keep the first version intentionally small:
 5. allowlisted answer intents initially: explain, locate, guide, troubleshoot;
 6. no arbitrary command execution.
 
-The backend/model remains separately replaceable. The current development backend is Dify/Muse; NVIDIA Nemotron can be evaluated next when credentials are available.
+The backend/model remains separately replaceable. NVIDIA Nemotron is now the primary hosted Ask Visual model, while Dify/Muse remains a temporary fallback during validation.
 
 ### D. Validate before expanding
 

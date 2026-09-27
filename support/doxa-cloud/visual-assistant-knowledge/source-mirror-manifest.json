@@ -1,12 +1,12 @@
 {
     "schema_version":  "1",
-    "generated_utc":  "2026-09-27T13:40:03.1145850Z",
-    "source_tree_sha256":  "1f81a4939cfe4de33af3828b4e08d111a2de45bf044eb58152074d29185d5efe",
+    "generated_utc":  "2026-09-27T17:37:36.4666586Z",
+    "source_tree_sha256":  "5a35afdcb9d85fc2d9f5674a6743b7844ed9cd9e7861fb4894dbe582b98c4258",
     "files":  [
                   {
                       "path":  "app/README.md",
-                      "bytes":  14414,
-                      "sha256":  "4026cec6e352393efdb00bee8bb7162c8eaaa58aa116cd97b6538f44ae13a826"
+                      "bytes":  14485,
+                      "sha256":  "fd84f4100eb1c9b6bdec77650ba4c10b62b0ee911a590399d21680d2b5f31800"
                   },
                   {
                       "path":  "app/packaging/RELEASE_NOTES.md",
@@ -125,8 +125,8 @@
                   },
                   {
                       "path":  "docs/project/foundation/visual_adoption_and_contextual_assistance_spec.md",
-                      "bytes":  17587,
-                      "sha256":  "78e96a1d1b9cb28a4e2c64275a9fffa483ef37af0356e6bd44c8b1dc7575a0da"
+                      "bytes":  17609,
+                      "sha256":  "31efea9122db67eed40b792023807fe3ed7e1bf8ee913e162a94e2b99dc74f24"
                   }
               ]
 }

@@ -10,11 +10,13 @@ Current development backend:
 
 Secrets required in Cloudflare:
 
+- `NVIDIA_API_KEY` - NVIDIA API key used by the primary hosted NIM request.
+
 - `DIFY_API_KEY` - key belonging to the dedicated Visual Assistant Dify app.
 - `VISUAL_ROUTE_TOKEN` - high-entropy development-only route token for `/v1/ask/<token>`.
 - `DOXA_CLIENT_TOKEN` - shared alpha client credential for the packaged `/v1/ask` bearer-authenticated route.
 
-`DIFY_API_KEY` and `VISUAL_ROUTE_TOKEN` stay server-side. Alpha Visual builds contain the existing Doxa client credential so fresh installs can use `/v1/ask` without per-machine setup. This is intentionally temporary: a shared embedded client credential is not the final Doxa device-authentication design.
+`NVIDIA_API_KEY`, `DIFY_API_KEY` and `VISUAL_ROUTE_TOKEN` stay server-side. Alpha Visual builds contain the existing Doxa client credential so fresh installs can use `/v1/ask` without per-machine setup. This is intentionally temporary: a shared embedded client credential is not the final Doxa device-authentication design.
 
 ## Generated Worker and knowledge grounding
 
