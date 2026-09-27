@@ -1,7 +1,7 @@
 {
     "schema_version":  "1",
-    "generated_utc":  "2026-09-27T12:15:15.1692083Z",
-    "source_tree_sha256":  "fc5d07610f21d8c7305daee677d333caa93dd7005027b935f8ee5af9f29e989e",
+    "generated_utc":  "2026-09-27T12:23:24.1936477Z",
+    "source_tree_sha256":  "5d22fa55a28d2e5e9439d4732f1027fee7a454afa7b7cba7457c1b618ae2a616",
     "files":  [
                   {
                       "path":  "app/README.md",
@@ -10,8 +10,8 @@
                   },
                   {
                       "path":  "app/packaging/RELEASE_NOTES.md",
-                      "bytes":  7115,
-                      "sha256":  "704680c14f4a63324ea301cafa25d1793496bd618ebed40bba477e730880248b"
+                      "bytes":  7472,
+                      "sha256":  "575ea15ed3c90eeefdc2e757275ba2e8f363fb0bda7290c5f661680ad5dc6e64"
                   },
                   {
                       "path":  "app/src/main.cpp",

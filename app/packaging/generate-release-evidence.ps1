@@ -39,7 +39,11 @@ if(Test-Path $vswhere){
     if($raw){$vs=[ordered]@{installationVersion=$raw[0].installationVersion;displayVersion=$raw[0].catalog.productDisplayVersion;installationPath=$raw[0].installationPath}}
 }
 $sdkRoot='C:\Program Files (x86)\Windows Kits\10\Include'
-$windowsSdk=if(Test-Path $sdkRoot){@(Get-ChildItem $sdkRoot -Directory | Select-Object -ExpandProperty Name | Sort-Object {[version]$_} | Select-Object -Last 1)[0]}else{$null}
+$windowsSdk=$null
+if(Test-Path $sdkRoot){
+    $sdkVersions=@(Get-ChildItem $sdkRoot -Directory | Select-Object -ExpandProperty Name | Where-Object {$_ -match '^\d+(?:\.\d+){1,3}$'} | Sort-Object {[version]$_})
+    if($sdkVersions.Count-gt0){$windowsSdk=$sdkVersions[-1]}
+}
 $dotnetExe=Join-Path $repoRoot ("tools\dotnet\{0}\dotnet.exe" -f (@($lock.dependencies|Where-Object id -eq 'dotnet-sdk')[0].version))
 $dotnetVersion=if(Test-Path $dotnetExe){(& $dotnetExe --version).Trim()}else{$null}
 $cloudTokenEmbedded=$false

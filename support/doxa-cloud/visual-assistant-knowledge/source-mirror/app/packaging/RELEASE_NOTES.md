@@ -1,5 +1,8 @@
 # Unreleased
 
+# Visual 0.1.0-alpha.9
+
+Visual 0.1.0-alpha.9 is a release-infrastructure-only republish of the alpha.8 application content. The provenance generator now ignores non-version Windows SDK include directories (such as `wdf`) before sorting SDK versions. There are no intended magnifier or Ask Visual behavior changes relative to the alpha.7/alpha.8 candidates.
 # Visual 0.1.0-alpha.8
 
 Visual 0.1.0-alpha.8 is a packaging-only republish of the alpha.7 application content after correcting CI CMake selection. Release builds now prefer the Visual Studio-bundled CMake discovered with `vswhere`, matching the release input audit. There are no intended magnifier or Ask Visual behavior changes relative to the alpha.7 candidate.
