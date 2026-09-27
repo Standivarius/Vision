@@ -23,6 +23,8 @@ Neither secret belongs in Visual, Git, `wrangler.toml`, logs or support bundles.
 
 The Worker allowlists the structured Visual context fields before sending anything to Dify. It deliberately drops unknown client fields such as raw monitor device identifiers. Screenshots, document contents and typed text are not part of the contract.
 
+Before an online question is sent to Dify, the Worker also retrieves a small evidence set from `visual-assistant-knowledge/`: curated official incumbent terminology/behavior plus an explicit read-only mirror of current Visual source/docs. The model never receives repository access. Current Visual source/docs are authoritative for Visual implementation claims; official incumbent evidence applies only to the named product; project migration research is lower-authority interpretation. Regenerate with `visual-assistant-knowledge\build-knowledge.ps1` and use `-Check` to detect a stale mirror.
+
 The route-token scheme is a **development control**, not the production Doxa authentication design. A production service still needs device/client authentication that does not rely on one shared client secret.
 
 Muse/Dify is the currently validated development backend because the NVIDIA API credential is not yet available. The Visual client remains provider-neutral so NVIDIA/Nemotron can replace the server-side backend later without embedding a provider credential or model-specific contract in Visual.

@@ -1,0 +1,127 @@
+{
+    "schema_version":  "1",
+    "generated_utc":  "2026-09-27T11:36:51.5986627Z",
+    "source_tree_sha256":  "a3f4ceeace086dbcfb11edc51cf597a18d3b474b07640f98933dccaa22b4fdd8",
+    "files":  [
+                  {
+                      "path":  "app/README.md",
+                      "bytes":  13542,
+                      "sha256":  "b8a7edba5b21b95c5a5bc11f3cc70f13716d4ef421e6c2d5955fac489c9047bc"
+                  },
+                  {
+                      "path":  "app/packaging/RELEASE_NOTES.md",
+                      "bytes":  5622,
+                      "sha256":  "767a368cb31466e6652ffe0c3de026a2414568abac4c7a7f170c6d9fbf78ade4"
+                  },
+                  {
+                      "path":  "app/src/main.cpp",
+                      "bytes":  63652,
+                      "sha256":  "b43f48d66dc42e8823fcbafd9a07a6c5338c6b17eb2c8109f9e15f950aa575cc"
+                  },
+                  {
+                      "path":  "app/src/context_overlay.cpp",
+                      "bytes":  7163,
+                      "sha256":  "3a073953e80750ef836585fab83759fe40cb6ee4a4dfa3ede90f53ec08d52331"
+                  },
+                  {
+                      "path":  "app/src/context_overlay.h",
+                      "bytes":  1267,
+                      "sha256":  "f81b05d78f33600d60ce0d43dae215efdabba2cdb8ad91096aee0ea8df7855d8"
+                  },
+                  {
+                      "path":  "app/src/assistant_client.cpp",
+                      "bytes":  9455,
+                      "sha256":  "804e1a619bdaed09b7ce05e33342eb401511bf286b5bd7df97b01e8fe3987ef1"
+                  },
+                  {
+                      "path":  "app/src/assistant_client.h",
+                      "bytes":  775,
+                      "sha256":  "971c7d8af7d7878198c62251eb0b15cb795250aebee3a1835ea52c70255a582f"
+                  },
+                  {
+                      "path":  "app/src/help_window.cpp",
+                      "bytes":  12813,
+                      "sha256":  "e39c4891f43ca0d45be1115b80d817afc531dc82be2c6083e7f67a8a537f794c"
+                  },
+                  {
+                      "path":  "app/src/help_window.h",
+                      "bytes":  1499,
+                      "sha256":  "fb2ab13ba8243e3aaac3800618808256f46f7ffc20d08865c47c5d02432f1853"
+                  },
+                  {
+                      "path":  "app/src/hint_window.cpp",
+                      "bytes":  5372,
+                      "sha256":  "3b00cf7a9108586ed16e3197aa205662d9b8105aceafea0e5d7cc3c5bdd30555"
+                  },
+                  {
+                      "path":  "app/src/hint_window.h",
+                      "bytes":  948,
+                      "sha256":  "26977c2c393712f0bdb0348c6f43a24e816caee8924de0e7018b836e5232ec3f"
+                  },
+                  {
+                      "path":  "app/src/settings_store.cpp",
+                      "bytes":  7715,
+                      "sha256":  "4592cf8cc42996c2da51f92e210361ec182fc90c792eaf38ffdeb7895be4c789"
+                  },
+                  {
+                      "path":  "app/src/settings_store.h",
+                      "bytes":  774,
+                      "sha256":  "aae89fedad0e9e5937278250560af91f7d60d42cbb3d2a41c5b32de7afaf2a1d"
+                  },
+                  {
+                      "path":  "app/src/settings_window.cpp",
+                      "bytes":  21663,
+                      "sha256":  "3591f954b35cb33f6305e485dd8743d304602961ca58dd96c1571552f56280ff"
+                  },
+                  {
+                      "path":  "app/src/settings_window.h",
+                      "bytes":  2515,
+                      "sha256":  "52b511601f3ee4c029ea82bd3c0653448040ffd30054eb5060d4d27be9d5dba5"
+                  },
+                  {
+                      "path":  "app/src/core/help_catalog.h",
+                      "bytes":  8923,
+                      "sha256":  "5ee08154faf5684ff0504136ea69dd9e168d827bb670b9708df6b38e3faf30b8"
+                  },
+                  {
+                      "path":  "app/src/core/settings_model.h",
+                      "bytes":  3346,
+                      "sha256":  "d84dd260cc534201ba510981fa88929096e2388400f22dc5270263dacb9ca1ad"
+                  },
+                  {
+                      "path":  "app/src/core/view_controller.h",
+                      "bytes":  5361,
+                      "sha256":  "a555386a10f6271a4eb47901be0bd3b232874d0b3706b12b04055f0ccddd2b0c"
+                  },
+                  {
+                      "path":  "app/src/core/viewport_policy.h",
+                      "bytes":  4692,
+                      "sha256":  "6b633c9755fbbc30a69819c01c58e882a4181b2b17e8446588de313e02040632"
+                  },
+                  {
+                      "path":  "app/src/core/locator_model.h",
+                      "bytes":  1184,
+                      "sha256":  "0f2a3bd9a9bd3c92a63b8cf12b9df0147b9a8012e63f0cb93b21785171c5f6c0"
+                  },
+                  {
+                      "path":  "app/src/core/poi_evidence.h",
+                      "bytes":  4811,
+                      "sha256":  "3d739db9403cec760b24dd725e7795eb424841b82839e4056dc27e3704858a13"
+                  },
+                  {
+                      "path":  "app/src/tracking/uia_evidence_provider.h",
+                      "bytes":  11016,
+                      "sha256":  "6c735e73e6abcb574cd8a371c32b00875d4d505c54e9510080992ffe0bb0431e"
+                  },
+                  {
+                      "path":  "app/src/tracking/win32_evidence_provider.h",
+                      "bytes":  4909,
+                      "sha256":  "0b71ec2649b775d47d3ad05cd39e4ba6f4ae20313187e55d6ec74122451870c6"
+                  },
+                  {
+                      "path":  "docs/project/foundation/visual_adoption_and_contextual_assistance_spec.md",
+                      "bytes":  17508,
+                      "sha256":  "096776901d92cbad53dcefccfff3a9a48efcc2b439ff7ff8a469f17ca676a908"
+                  }
+              ]
+}

@@ -1,0 +1,255 @@
+[
+    {
+        "id":  "zoomtext-getting-started-tracking",
+        "kind":  "incumbent-official",
+        "product":  "ZoomText",
+        "title":  "ZoomText activity following and basic mental model",
+        "source_url":  "https://support.freedomscientific.com/Services/TrainingAndCertification/ZoomTextGettingStarted",
+        "source_name":  "Freedom Scientific - Getting Started with ZoomText",
+        "source_date_note":  "Official support page accessed 2026-09-27",
+        "keywords":  [
+                         "zoomtext",
+                         "tracking",
+                         "follow",
+                         "mouse",
+                         "pointer",
+                         "type",
+                         "typing",
+                         "focus",
+                         "zoom level",
+                         "2x"
+                     ],
+        "content":  "Freedom Scientific describes ZoomText as normally running in the background while its magnified/enhanced view follows the user\u0027s activity. Moving the mouse pointer, typing text and navigating applications move the point of interest into view. The current getting-started material also describes Full view at 2x as the normal starting presentation. Use this as incumbent behavior only; it does not imply Visual implements every ZoomText behavior."
+    },
+    {
+        "id":  "zoomtext-freeze-view",
+        "kind":  "incumbent-official",
+        "product":  "ZoomText",
+        "title":  "ZoomText Freeze View",
+        "source_url":  "https://support.freedomscientific.com/content/documents/manuals/ZoomText/ZoomText_User_Guide_English_US.pdf",
+        "source_name":  "Freedom Scientific - ZoomText User Guide",
+        "source_date_note":  "Current official guide located 2026-09-27",
+        "keywords":  [
+                         "zoomtext",
+                         "freeze",
+                         "freeze view",
+                         "pinned",
+                         "monitor",
+                         "clock",
+                         "four",
+                         "4",
+                         "window"
+                     ],
+        "content":  "ZoomText Freeze View lets a user select an area of the screen to monitor while the main Full zoom window continues tracking normal on-screen activity. The current guide says up to four Freeze Views can be created and positioned on screen. Freeze View is therefore a persistent magnified-region feature, not merely a second normal Windows monitor. When mapping to Visual, explicitly say that Visual does not currently implement an equivalent frozen magnified region."
+    },
+    {
+        "id":  "zoomtext-multiple-monitors",
+        "kind":  "incumbent-official",
+        "product":  "ZoomText",
+        "title":  "ZoomText multiple-monitor zoom window types",
+        "source_url":  "https://support.freedomscientific.com/content/documents/manuals/ZoomText/ZoomText_User_Guide_English_US.pdf",
+        "source_name":  "Freedom Scientific - ZoomText User Guide",
+        "source_date_note":  "Current official guide located 2026-09-27",
+        "keywords":  [
+                         "zoomtext",
+                         "multiple monitors",
+                         "multi monitor",
+                         "span",
+                         "clone",
+                         "zoom with 1x",
+                         "multiview",
+                         "full",
+                         "lens",
+                         "docked"
+                     ],
+        "content":  "For an extended Windows desktop, the current ZoomText guide lists Span, Clone, Zoom with 1x, MultiView Local and MultiView Global as available zoom-window types. For one monitor or duplicated displays it lists Full, Overlay, Lens, Line and Docked positions. These names are useful migration vocabulary; do not claim Visual implements them unless the current Visual source evidence says so."
+    },
+    {
+        "id":  "zoomtext-overview-view-locator",
+        "kind":  "incumbent-official",
+        "product":  "ZoomText",
+        "title":  "ZoomText Overview Mode and View Locator",
+        "source_url":  "https://support.freedomscientific.com/content/documents/manuals/ZoomText/ZoomText_User_Guide_English_UK.pdf",
+        "source_name":  "Freedom Scientific - ZoomText User Guide (Overview Mode section)",
+        "source_date_note":  "Official guide section located 2026-09-27",
+        "keywords":  [
+                         "zoomtext",
+                         "overview",
+                         "overview mode",
+                         "view locator",
+                         "locator",
+                         "rectangle",
+                         "orientation",
+                         "1x"
+                     ],
+        "content":  "ZoomText Overview Mode temporarily turns magnification off and displays a View Locator on the normal screen so the user can choose a new area to magnify. The locator can be configured in shape and colour. Visual deliberately reuses the familiar term View Locator for its Context-screen frame, but Visual\u0027s persistent Context/Detail two-screen behavior is not the same workflow as ZoomText Overview Mode."
+    },
+    {
+        "id":  "supernova-magnification-views",
+        "kind":  "incumbent-official",
+        "product":  "SuperNova",
+        "title":  "SuperNova magnification and view modes",
+        "source_url":  "https://learn.yourdolphin.com/supernova-magnifier-screen-reader?lesson=magnification",
+        "source_name":  "Dolphin Learning Zone - SuperNova Magnification",
+        "source_date_note":  "Official learning page accessed 2026-09-27",
+        "keywords":  [
+                         "supernova",
+                         "magnification",
+                         "zoom",
+                         "overview mode",
+                         "fixed window",
+                         "magnifying glass",
+                         "resizing glass",
+                         "split screen",
+                         "full screen"
+                     ],
+        "content":  "Dolphin documents Full Screen as SuperNova\u0027s default magnified-window style and describes Overview Mode for locating the magnified area relative to the unmagnified screen. Other documented modes include Fixed Window, Magnifying Glass, Resizing Glass and Split Screen. These are incumbent terms for migration support; they are not Visual features unless current Visual evidence says otherwise."
+    },
+    {
+        "id":  "supernova-multiple-monitors",
+        "kind":  "incumbent-official",
+        "product":  "SuperNova",
+        "title":  "SuperNova multiple-monitor behavior",
+        "source_url":  "https://learn.yourdolphin.com/supernova-magnifier-speech?lesson=multiple-monitors",
+        "source_name":  "Dolphin Learning Zone - Multiple Monitors",
+        "source_date_note":  "Official learning page accessed 2026-09-27",
+        "keywords":  [
+                         "supernova",
+                         "multiple monitors",
+                         "extended desktop",
+                         "span",
+                         "side by side",
+                         "presentation mode",
+                         "standard view",
+                         "unmagnified"
+                     ],
+        "content":  "Dolphin recommends Extended Desktop for multiple monitors and documents options including Span and side-by-side applications. Presentation Mode can keep one monitor magnified while secondary displays show an unmagnified view. This can help explain a user\u0027s prior mental model, but Visual\u0027s Context/Detail roles are its own behavior and should be described from current Visual evidence."
+    },
+    {
+        "id":  "supernova-transition-terminology",
+        "kind":  "incumbent-official",
+        "product":  "SuperNova",
+        "title":  "Dolphin terminology conversions for ZoomText users",
+        "source_url":  "https://yourdolphin.com/SuperNova/Getting-Started",
+        "source_name":  "Dolphin - Getting Started with SuperNova",
+        "source_date_note":  "Official page accessed 2026-09-27",
+        "keywords":  [
+                         "zoomtext",
+                         "supernova",
+                         "terminology",
+                         "freeze window",
+                         "hooked area",
+                         "color enhancements",
+                         "colour schemes",
+                         "cursor enhancements",
+                         "focus enhancements",
+                         "dual monitors",
+                         "multiple monitors"
+                     ],
+        "content":  "Dolphin publishes a transition terminology table. Relevant mappings include ZoomText Color Enhancements to SuperNova Colour Schemes, Cursor Enhancements to Cursor Highlighting Options, Focus Enhancements to Focus Highlighting Options, Dual Monitors to Multiple Monitors, and Freeze Window to Hooked Area. This is strong evidence for interpreting a user\u0027s incumbent vocabulary, not for claiming those features exist in Visual."
+    },
+    {
+        "id":  "windows-magnifier-follow",
+        "kind":  "incumbent-official",
+        "product":  "Windows Magnifier",
+        "title":  "Windows Magnifier follow settings",
+        "source_url":  "https://support.microsoft.com/en-us/accessibility/windows/magnifier/use-magnifier-to-make-things-on-the-screen-easier-to-see",
+        "source_name":  "Microsoft Support - Use Magnifier",
+        "source_date_note":  "Official support page accessed 2026-09-27",
+        "keywords":  [
+                         "windows magnifier",
+                         "follow",
+                         "mouse pointer",
+                         "keyboard focus",
+                         "text cursor",
+                         "narrator cursor",
+                         "tracking"
+                     ],
+        "content":  "Windows Magnifier exposes independent follow choices for Mouse pointer, Keyboard focus, Text cursor and Narrator cursor. This provides familiar mainstream terminology for explaining Visual\u0027s Pointer, Text Cursor and Keyboard Focus tracking options. Visual does not expose a Narrator-cursor tracking option in the current implementation."
+    },
+    {
+        "id":  "windows-magnifier-views-1x",
+        "kind":  "incumbent-official",
+        "product":  "Windows Magnifier",
+        "title":  "Windows Magnifier views and 1x toggle",
+        "source_url":  "https://support.microsoft.com/en-us/accessibility/windows/magnifier/magnifier-keyboard-shortcuts-and-touch-gestures",
+        "source_name":  "Microsoft Support - Magnifier keyboard shortcuts",
+        "source_date_note":  "Official support page accessed 2026-09-27",
+        "keywords":  [
+                         "windows magnifier",
+                         "1x",
+                         "full screen",
+                         "docked",
+                         "lens",
+                         "ctrl alt minus",
+                         "temporary",
+                         "entire screen",
+                         "invert"
+                     ],
+        "content":  "Microsoft documents Full screen, Docked and Lens views, a shortcut that toggles between the configured magnification and 1x, and a temporary whole-screen view while zoomed in. These are useful comparison points. Visual\u0027s Ctrl+Alt+0 1x View / Return behavior must be described from current Visual evidence rather than assumed identical to Windows Magnifier."
+    },
+    {
+        "id":  "visual-migration-research-principle",
+        "kind":  "project-research",
+        "product":  "Visual research",
+        "title":  "Visual migration research - transfer before invention",
+        "source_url":  "repo:artifacts/2026-09-27__low_vision_magnifier_mental_models_and_migration_research_v0.1.md",
+        "source_name":  "Visual / Doxa mental-model and migration research v0.1",
+        "source_date_note":  "Project research artifact dated 2026-09-27",
+        "keywords":  [
+                         "migration",
+                         "mental model",
+                         "terminology",
+                         "zoomtext",
+                         "supernova",
+                         "context",
+                         "detail",
+                         "learning",
+                         "transfer"
+                     ],
+        "content":  "The project research recommends reusing familiar low-vision magnifier terminology where semantics genuinely match, explaining new Context/Detail screen-role concepts explicitly, and avoiding legacy feature parity for its own sake. Treat this as product-design interpretation, not as an authority on current competitor implementation or current Visual code. Current Visual source/docs outrank this research for statements about what Visual actually does."
+    },
+    {
+        "id":  "supernova-automatic-tracking",
+        "kind":  "incumbent-official",
+        "product":  "SuperNova",
+        "title":  "SuperNova automatic tracking",
+        "source_url":  "https://yourdolphin.com/product/features?id=1\u0026pid=1",
+        "source_name":  "Dolphin - SuperNova Magnifier Features",
+        "source_date_note":  "Official current feature page accessed 2026-09-27",
+        "keywords":  [
+                         "supernova",
+                         "tracking",
+                         "automatic tracking",
+                         "mouse pointer",
+                         "type",
+                         "typing",
+                         "tab",
+                         "focus",
+                         "follow"
+                     ],
+        "content":  "Dolphin describes SuperNova automatic tracking as following activity while the user moves the mouse pointer, types text, or tabs between links. Use this to interpret a SuperNova user\u0027s expectation that the magnified view follows the active point of work. It does not by itself establish Visual behavior; current Visual source and state remain authoritative for Visual."
+    },
+    {
+        "id":  "supernova-hooked-areas",
+        "kind":  "incumbent-official",
+        "product":  "SuperNova",
+        "title":  "SuperNova Hooked Areas",
+        "source_url":  "https://learn.yourdolphin.com/supernova-magnifier?lesson=hooked-areas",
+        "source_name":  "Dolphin Learning Zone - Hooked Areas",
+        "source_date_note":  "Official current learning page accessed 2026-09-27",
+        "keywords":  [
+                         "supernova",
+                         "hooked area",
+                         "hooked areas",
+                         "freeze",
+                         "persistent",
+                         "magnified region",
+                         "formula bar",
+                         "clock",
+                         "modify",
+                         "toggle"
+                     ],
+        "content":  "Dolphin describes Hooked Areas as separately positioned magnified regions that can keep selected information visible while the main magnifier follows work elsewhere. The current learning material documents creating, positioning, resizing, changing the displayed content, changing its magnification, toggling it, and modifying or deleting it. A Hooked Area is not anchored to the focused object and may need adjustment if the application layout or screen resolution changes. Visual currently has no equivalent persistent magnified-region feature."
+    }
+]
