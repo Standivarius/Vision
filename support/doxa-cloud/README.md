@@ -4,6 +4,28 @@
 
 The second PC authenticates to this proxy with an expendable lab token. The proxy holds the model-provider credential and calls either Dify Cloud or Meta/Muse. Provider credentials never belong in the pilot ZIP.
 
+## Visual Assistant development gateway
+
+Visual's optional `Ask Visual` fallback now has a separate cloud path from the installer planner:
+
+`Visual -> doxa-visual-assistant Cloudflare Worker -> Dify Visual Assistant -> Muse Spark 1.3 Contributor`
+
+The tracked Worker source is in `visual-assistant-worker/`. The deployed development Worker is `doxa-visual-assistant` at the account's `marius-moldovan.workers.dev` subdomain.
+
+The dedicated Dify app is `Visual Assistant` (app ID `c94b6e55-3f7f-4b8f-a2d2-99fe960959a1`) and is currently configured to use `Muse Spark 1.3 Contributor`.
+
+Cloudflare stores two Secrets for the Worker:
+
+- `DIFY_API_KEY` - the dedicated Visual Assistant Dify app key;
+- `VISUAL_ROUTE_TOKEN` - a high-entropy development route token.
+
+Neither secret belongs in Visual, Git, `wrangler.toml`, logs or support bundles. Visual receives only the protected HTTPS endpoint through its user-level `VISUAL_ASSISTANT_ENDPOINT` setting.
+
+The Worker allowlists the structured Visual context fields before sending anything to Dify. It deliberately drops unknown client fields such as raw monitor device identifiers. Screenshots, document contents and typed text are not part of the contract.
+
+The route-token scheme is a **development control**, not the production Doxa authentication design. A production service still needs device/client authentication that does not rely on one shared client secret.
+
+Muse/Dify is the currently validated development backend because the NVIDIA API credential is not yet available. The Visual client remains provider-neutral so NVIDIA/Nemotron can replace the server-side backend later without embedding a provider credential or model-specific contract in Visual.
 ## Current lab app
 
 The installer pilot now uses the published Dify Chatflow `Doxa Installer Planner` (app ID `4568517a-3cec-4f05-a4f4-add9f177206a`) with the `Muse Spark 1.3 Contributor` model through the verified OpenAI-compatible provider.

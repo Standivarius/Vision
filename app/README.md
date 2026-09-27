@@ -108,6 +108,8 @@ Visual now uses small, suppressible contextual hints for the genuinely new parts
 Ask Visual has an optional provider-neutral HTTPS fallback. It is disabled unless `VISUAL_ASSISTANT_ENDPOINT` is present in the Visual process environment. Visual sends only the user question plus a minimal structured state object (zoom, tracking/highlight flags, colour mode, monitor count and role-assignment booleans). It does not send monitor device IDs, screenshots, document contents or typed text. No model/provider credential is embedded in Visual. The endpoint is expected to return JSON containing an `answer` string and optional `title`.
 
 The online path is intentionally non-critical: if it is unconfigured or unavailable, local Visual help continues to work.
+
+**Validated development backend (2026-09-27):** `doxa-visual-assistant` Cloudflare Worker -> dedicated Dify `Visual Assistant` app -> `Muse Spark 1.3 Contributor`. This is a replaceable server-side backend, not a client dependency. The current development endpoint uses a high-entropy route token and is not the final production device-authentication design. Hosted responses can take materially longer than local help, so the asynchronous online request allows up to 45 seconds for a response while the Visual UI remains responsive.
 ## Tracking and viewport evidence
 
 Candidate POI sources include recent pointer movement, UIA TextPattern caret, Win32 caret, UIA keyboard focus and Win32 keyboard focus. Recent pointer movement is treated as short-lived direct intent; when it stops, semantic evidence can resume. Cached semantic evidence keeps its original timestamp.

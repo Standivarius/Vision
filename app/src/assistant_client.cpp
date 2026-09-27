@@ -127,7 +127,7 @@ HttpResult post_json(const std::wstring& endpoint, const std::string& body) {
         result.error = "session_failed";
         return result;
     }
-    WinHttpSetTimeouts(session, 3500, 3500, 3500, 7000);
+    WinHttpSetTimeouts(session, 5000, 5000, 5000, 45000);
 
     HINTERNET connect = WinHttpConnect(session, host_name.c_str(), parts.nPort, 0);
     if (!connect) {

@@ -70,8 +70,8 @@ The incumbent research treats **Context / Detail** as a reasonable new Visual/Do
 
 For the current two-screen Visual line, retain the terms for now but always pair them with explanatory subtitles:
 
-- **Context â€” 1x overview**
-- **Detail â€” magnified view**
+- **Context - 1x overview**
+- **Detail - magnified view**
 
 Do not assume these names are final for the future three-screen Doxa workspace. BCS/user feedback may change them.
 
@@ -134,9 +134,9 @@ If OS High Contrast integration is added later, expose it as a distinct Windows 
 
 Use concise descriptions beside the controls instead:
 
-- Context â€” 1x overview
-- Detail â€” magnified view
-- Reference â€” optional normal Windows screen
+- Context - 1x overview
+- Detail - magnified view
+- Reference - optional normal Windows screen
 
 Reference is currently only an assigned/persisted role; Visual does not manage its content.
 
@@ -172,7 +172,7 @@ Suggested copy:
 
 Suggested copy:
 
-> View Locator â€” this frame shows the area currently enlarged on Detail.
+> View Locator - this frame shows the area currently enlarged on Detail.
 
 ### 3. 1x View / Return confirmation
 
@@ -190,9 +190,9 @@ Suggested copy:
 
 Suggested descriptions:
 
-- Pointer â€” follow deliberate mouse movement.
-- Text Cursor â€” follow where you type or edit text.
-- Keyboard Focus â€” follow the active control when navigating with the keyboard.
+- Pointer - follow deliberate mouse movement.
+- Text Cursor - follow where you type or edit text.
+- Keyboard Focus - follow the active control when navigating with the keyboard.
 
 ### 5. Migration/help vocabulary
 
@@ -229,7 +229,9 @@ Initial context supplied to the model should be structured and minimal, for exam
 
 Do not send screenshots, document contents, typed text or arbitrary screen data by default.
 
-The model/provider must remain behind a provider-neutral server boundary. NVIDIA/Nemotron can be tested as the first backend, but Visual must not be coupled to a particular free model endpoint.
+The current Cloudflare development deployment also requires a high-entropy `VISUAL_ROUTE_TOKEN` in the protected request path. This is only a development abuse-control measure; production Doxa authentication must not rely on a single shared client secret.
+
+The model/provider must remain behind a provider-neutral server boundary. As of 2026-09-27, the validated development backend is a dedicated Cloudflare `doxa-visual-assistant` gateway to the Dify `Visual Assistant` app using Muse Spark 1.3 Contributor. NVIDIA/Nemotron remains a planned replaceable backend once credentials are available; Visual must not be coupled to either provider.
 
 ## Assistance infrastructure to implement once, not feature-by-feature
 
@@ -296,7 +298,7 @@ Build the product seam but keep the first version intentionally small:
 5. allowlisted answer intents initially: explain, locate, guide, troubleshoot;
 6. no arbitrary command execution.
 
-The backend/model can be evaluated separately, including NVIDIA Nemotron.
+The backend/model remains separately replaceable. The current development backend is Dify/Muse; NVIDIA Nemotron can be evaluated next when credentials are available.
 
 ### D. Validate before expanding
 
