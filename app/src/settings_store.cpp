@@ -122,4 +122,28 @@ bool save_settings(const std::filesystem::path& path, const visual::core::Visual
     }
 }
 
+
+AssistanceState load_assistance_state(const std::filesystem::path& path) {
+    AssistanceState state{};
+    if (!std::filesystem::exists(path)) return state;
+    state.screen_roles_explained = read_bool(path, L"Assistance", L"ScreenRolesExplained", false);
+    state.view_locator_explained = read_bool(path, L"Assistance", L"ViewLocatorExplained", false);
+    state.one_x_return_explained = read_bool(path, L"Assistance", L"OneXReturnExplained", false);
+    return state;
+}
+
+bool save_assistance_state(const std::filesystem::path& path, const AssistanceState& state) noexcept {
+    try {
+        std::filesystem::create_directories(path.parent_path());
+        bool ok = true;
+        ok = write_bool(path, L"Assistance", L"ScreenRolesExplained", state.screen_roles_explained) && ok;
+        ok = write_bool(path, L"Assistance", L"ViewLocatorExplained", state.view_locator_explained) && ok;
+        ok = write_bool(path, L"Assistance", L"OneXReturnExplained", state.one_x_return_explained) && ok;
+        WritePrivateProfileStringW(nullptr, nullptr, nullptr, path.c_str());
+        return ok;
+    } catch (...) {
+        return false;
+    }
+}
+
 } // namespace visual::settings

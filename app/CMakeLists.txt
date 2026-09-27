@@ -63,6 +63,9 @@ add_executable(visual_app WIN32
     src/settings_store.cpp
     src/settings_window.cpp
     src/context_overlay.cpp
+    src/hint_window.cpp
+    src/help_window.cpp
+    src/assistant_client.cpp
     app.manifest
     ${VISUAL_GENERATED_DIR}/visual_version.rc
 )
@@ -136,6 +139,17 @@ target_link_libraries(visual_settings_store_tests PRIVATE visual_core shell32 ol
 target_compile_definitions(visual_settings_store_tests PRIVATE UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX)
 target_compile_options(visual_settings_store_tests PRIVATE /W4 /permissive- /EHsc)
 add_test(NAME settings_store_tests COMMAND visual_settings_store_tests)
+
+add_executable(visual_help_catalog_tests tests/help_catalog_tests.cpp)
+target_link_libraries(visual_help_catalog_tests PRIVATE visual_core)
+target_compile_options(visual_help_catalog_tests PRIVATE /W4 /permissive- /EHsc)
+add_test(NAME help_catalog_tests COMMAND visual_help_catalog_tests)
+
+add_executable(visual_assistant_client_tests tests/assistant_client_tests.cpp src/assistant_client.cpp)
+target_link_libraries(visual_assistant_client_tests PRIVATE visual_core winhttp)
+target_compile_definitions(visual_assistant_client_tests PRIVATE UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX)
+target_compile_options(visual_assistant_client_tests PRIVATE /W4 /permissive- /EHsc)
+add_test(NAME assistant_client_tests COMMAND visual_assistant_client_tests)
 
 add_test(NAME diagnostics_json COMMAND visual_diagnostics)
 set_tests_properties(diagnostics_json PROPERTIES PASS_REGULAR_EXPRESSION "\\\"schema_version\\\": \\\"1\\\"")

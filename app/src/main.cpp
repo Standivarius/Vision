@@ -20,6 +20,9 @@
 #include "settings_store.h"
 #include "settings_window.h"
 #include "context_overlay.h"
+#include "help_window.h"
+#include "hint_window.h"
+#include "core/help_catalog.h"
 #include "tracking/win32_evidence_provider.h"
 #include "tracking/uia_evidence_provider.h"
 
@@ -80,6 +83,10 @@ visual::core::VisualSettings g_settings{};
 std::filesystem::path g_settingsPath{};
 visual::ui::SettingsWindow* g_settingsWindow{};
 visual::ui::ContextOverlay* g_contextOverlay{};
+visual::ui::HelpWindow* g_helpWindow{};
+visual::ui::HintWindow* g_hintWindow{};
+std::mutex g_assistanceMutex;
+visual::settings::AssistanceState g_assistanceState{};
 
 struct PendingContextView {
     visual::core::ScreenRect viewport{};
@@ -229,6 +236,48 @@ void persist_current_settings() noexcept {
         }
         if (!path.empty()) (void)visual::settings::save_settings(path, copy);
     } catch (...) {}
+}
+
+enum class AssistanceHint {
+    ScreenRoles,
+    OneXReturn,
+};
+
+void persist_assistance_state() noexcept {
+    try {
+        visual::settings::AssistanceState copy{};
+        std::filesystem::path path;
+        {
+            std::scoped_lock lock(g_assistanceMutex);
+            copy = g_assistanceState;
+            path = g_settingsPath;
+        }
+        if (!path.empty()) (void)visual::settings::save_assistance_state(path, copy);
+    } catch (...) {}
+}
+
+bool claim_assistance_hint(AssistanceHint hint) noexcept {
+    bool claimed = false;
+    {
+        std::scoped_lock lock(g_assistanceMutex);
+        switch (hint) {
+        case AssistanceHint::ScreenRoles:
+            if (!g_assistanceState.screen_roles_explained || !g_assistanceState.view_locator_explained) {
+                g_assistanceState.screen_roles_explained = true;
+                g_assistanceState.view_locator_explained = true;
+                claimed = true;
+            }
+            break;
+        case AssistanceHint::OneXReturn:
+            if (!g_assistanceState.one_x_return_explained) {
+                g_assistanceState.one_x_return_explained = true;
+                claimed = true;
+            }
+            break;
+        }
+    }
+    if (claimed) persist_assistance_state();
+    return claimed;
 }
 
 void adopt_settings(const visual::core::VisualSettings& settings, bool persist) noexcept {
@@ -773,6 +822,7 @@ constexpr int kHotkeyZoom3 = 103;
 constexpr int kHotkeyZoom4 = 104;
 constexpr int kHotkeyTracking = 110;
 constexpr int kHotkeySettings = 111;
+constexpr int kHotkeyHelp = 112;
 constexpr int kHotkeyNormalReturn = 120;
 constexpr int kHotkeyExit = 199;
 
@@ -809,6 +859,10 @@ void toggle_normal_return() noexcept {
     } else {
         g_previousMagnifiedZoom.store(current, std::memory_order_relaxed);
         g_zoom.store(1.0, std::memory_order_relaxed);
+        if (g_hintWindow && claim_assistance_hint(AssistanceHint::OneXReturn)) {
+            g_hintWindow->show(L"1x View / Return",
+                L"You are at 1x. Press Ctrl+Alt+0 again to return to your previous zoom and exact position.");
+        }
     }
 }
 
@@ -827,6 +881,10 @@ void show_settings() noexcept {
     if (g_settingsWindow) g_settingsWindow->show();
 }
 
+void show_help() noexcept {
+    if (g_helpWindow) g_helpWindow->show();
+}
+
 void register_hotkeys(HWND hwnd) noexcept {
     constexpr UINT modifiers = MOD_CONTROL | MOD_ALT | MOD_NOREPEAT;
     RegisterHotKey(hwnd, kHotkeyZoom1, modifiers, '1');
@@ -835,6 +893,7 @@ void register_hotkeys(HWND hwnd) noexcept {
     RegisterHotKey(hwnd, kHotkeyZoom4, modifiers, '4');
     RegisterHotKey(hwnd, kHotkeyTracking, modifiers, 'T');
     RegisterHotKey(hwnd, kHotkeySettings, modifiers, 'S');
+    RegisterHotKey(hwnd, kHotkeyHelp, modifiers, 'H');
     RegisterHotKey(hwnd, kHotkeyNormalReturn, modifiers, '0');
     RegisterHotKey(hwnd, kHotkeyExit, modifiers, 'Q');
 }
@@ -846,6 +905,7 @@ void unregister_hotkeys(HWND hwnd) noexcept {
     UnregisterHotKey(hwnd, kHotkeyZoom4);
     UnregisterHotKey(hwnd, kHotkeyTracking);
     UnregisterHotKey(hwnd, kHotkeySettings);
+    UnregisterHotKey(hwnd, kHotkeyHelp);
     UnregisterHotKey(hwnd, kHotkeyNormalReturn);
     UnregisterHotKey(hwnd, kHotkeyExit);
 }
@@ -860,17 +920,19 @@ void show_detail_context_menu(HWND hwnd, LPARAM l_param) noexcept {
     HMENU menu = CreatePopupMenu();
     if (!menu) return;
     AppendMenuW(menu, MF_STRING, 1, L"Visual Settings...\tCtrl+Alt+S");
-    AppendMenuW(menu, MF_STRING, 2, L"Normal view / Return\tCtrl+Alt+0");
-    AppendMenuW(menu, MF_STRING | (g_trackingEnabled.load(std::memory_order_relaxed) ? MF_CHECKED : 0), 3, L"Follow activity\tCtrl+Alt+T");
+    AppendMenuW(menu, MF_STRING, 2, L"1x View / Return\tCtrl+Alt+0");
+    AppendMenuW(menu, MF_STRING | (g_trackingEnabled.load(std::memory_order_relaxed) ? MF_CHECKED : 0), 3, L"Tracking\tCtrl+Alt+T");
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(menu, MF_STRING, 4, L"Exit Visual\tCtrl+Alt+Q");
+    AppendMenuW(menu, MF_STRING, 4, L"Help / Ask Visual\tCtrl+Alt+H");
+    AppendMenuW(menu, MF_STRING, 5, L"Exit Visual\tCtrl+Alt+Q");
     SetForegroundWindow(hwnd);
     const UINT command = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_RIGHTBUTTON, point.x, point.y, 0, hwnd, nullptr);
     DestroyMenu(menu);
     if (command == 1) show_settings();
     else if (command == 2) toggle_normal_return();
     else if (command == 3) toggle_tracking();
-    else if (command == 4) DestroyWindow(hwnd);
+    else if (command == 4) show_help();
+    else if (command == 5) DestroyWindow(hwnd);
 }
 
 LRESULT CALLBACK window_proc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
@@ -883,6 +945,7 @@ LRESULT CALLBACK window_proc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lPar
         if (wParam == '4') { set_zoom(4); return 0; }
         if (wParam == 'T') { toggle_tracking(); return 0; }
         if (wParam == 'S') { show_settings(); return 0; }
+        if (wParam == 'H') { show_help(); return 0; }
         if (wParam == '0') { toggle_normal_return(); return 0; }
         break;
     case WM_HOTKEY:
@@ -892,6 +955,7 @@ LRESULT CALLBACK window_proc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lPar
         if (wParam == kHotkeyZoom4) { set_zoom(4); return 0; }
         if (wParam == kHotkeyTracking) { toggle_tracking(); return 0; }
         if (wParam == kHotkeySettings) { show_settings(); return 0; }
+        if (wParam == kHotkeyHelp) { show_help(); return 0; }
         if (wParam == kHotkeyNormalReturn) { toggle_normal_return(); return 0; }
         if (wParam == kHotkeyExit) { DestroyWindow(hwnd); return 0; }
         break;
@@ -1034,9 +1098,14 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
 
         g_settingsPath = visual::settings::default_settings_path();
         auto persistedSettings = visual::settings::load_settings(g_settingsPath);
+        auto persistedAssistance = visual::settings::load_assistance_state(g_settingsPath);
         {
             std::scoped_lock lock(g_settingsMutex);
             g_settings = persistedSettings;
+        }
+        {
+            std::scoped_lock lock(g_assistanceMutex);
+            g_assistanceState = persistedAssistance;
         }
         apply_runtime_settings(persistedSettings);
         if (options.zoomSpecified) {
@@ -1118,20 +1187,58 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
             }
         }
 
+        visual::ui::HintWindow hintWindow;
+        visual::ui::HelpWindow helpWindow;
         visual::ui::SettingsWindow settingsWindow;
         if (!options.healthCheck) {
+            const RECT contextRect = monitors[static_cast<std::size_t>(sourceIndex)].rect;
+            if (hintWindow.create(instance, contextRect)) {
+                g_hintWindow = &hintWindow;
+                telemetry.event("assistance_hint_ui_ready");
+            } else {
+                telemetry.event("assistance_hint_ui_unavailable");
+            }
+
+            const int monitorCount = static_cast<int>(monitors.size());
+            if (helpWindow.create(instance, window.hwnd, contextRect,
+                                  [monitorCount, singleMonitor]() {
+                                      visual::core::VisualSettings current{};
+                                      {
+                                          std::scoped_lock lock(g_settingsMutex);
+                                          current = g_settings;
+                                      }
+                                      current.zoom = g_zoom.load(std::memory_order_relaxed);
+                                      current.tracking_enabled = g_trackingEnabled.load(std::memory_order_relaxed);
+                                      current.follow_pointer = g_followPointer.load(std::memory_order_relaxed);
+                                      current.follow_caret = g_followCaret.load(std::memory_order_relaxed);
+                                      current.follow_focus = g_followFocus.load(std::memory_order_relaxed);
+                                      current.show_pointer_locator = g_showPointerLocator.load(std::memory_order_relaxed);
+                                      current.show_caret_locator = g_showCaretLocator.load(std::memory_order_relaxed);
+                                      current.show_focus_locator = g_showFocusLocator.load(std::memory_order_relaxed);
+                                      current.show_context_indicator = g_showContextIndicator.load(std::memory_order_relaxed);
+                                      current.shade_context_indicator = g_shadeContextIndicator.load(std::memory_order_relaxed);
+                                      current.visual_mode = visual::core::sanitize_visual_mode(g_visualMode.load(std::memory_order_relaxed));
+                                      return visual::core::build_assistant_context_json(current, monitorCount, singleMonitor);
+                                  })) {
+                g_helpWindow = &helpWindow;
+                telemetry.event("help_ui_ready");
+            } else {
+                telemetry.event("help_ui_unavailable");
+            }
+
             visual::core::VisualSettings uiSettings{};
             {
                 std::scoped_lock lock(g_settingsMutex);
                 uiSettings = g_settings;
             }
             const auto monitorOptions = make_monitor_options(monitors);
-            if (settingsWindow.create(instance, window.hwnd, monitors[static_cast<std::size_t>(sourceIndex)].rect,
+            if (settingsWindow.create(instance, window.hwnd, contextRect,
                                       monitorOptions, uiSettings,
                                       [&](const visual::core::VisualSettings& next, bool displayRolesChanged) {
                                           adopt_settings(next, true);
                                           telemetry.event(displayRolesChanged ? "settings_saved_display_restart_required" : "settings_applied");
-                                      })) {
+                                      },
+                                      []() { show_help(); })) {
                 g_settingsWindow = &settingsWindow;
                 telemetry.event("settings_ui_ready");
             } else {
@@ -1141,6 +1248,13 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
 
         CaptureRunner capture(renderer, telemetry, monitors[static_cast<std::size_t>(sourceIndex)], window.hwnd);
         capture.start();
+        if (!options.healthCheck && !singleMonitor && g_hintWindow
+            && claim_assistance_hint(AssistanceHint::ScreenRoles)) {
+            g_hintWindow->show(L"Context and Detail",
+                L"Context keeps the full 1x workspace visible. Detail is magnified. The View Locator frame on Context shows exactly what Detail is displaying.",
+                8500);
+            telemetry.event("assistance_hint_screen_roles");
+        }
         if (options.healthCheck) {
             const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(options.healthTimeoutMs);
             while (std::chrono::steady_clock::now() < deadline) {
@@ -1174,6 +1288,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
 
         MSG msg{};
         while (GetMessageW(&msg, nullptr, 0, 0) > 0) {
+            if (helpWindow.hwnd() && IsDialogMessageW(helpWindow.hwnd(), &msg)) continue;
             if (settingsWindow.hwnd() && IsDialogMessageW(settingsWindow.hwnd(), &msg)) continue;
             TranslateMessage(&msg);
             DispatchMessageW(&msg);
@@ -1181,6 +1296,10 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         capture.stop();
         g_settingsWindow = nullptr;
         settingsWindow.destroy();
+        g_helpWindow = nullptr;
+        helpWindow.destroy();
+        g_hintWindow = nullptr;
+        hintWindow.destroy();
         g_contextOverlay = nullptr;
         contextOverlay.destroy();
 

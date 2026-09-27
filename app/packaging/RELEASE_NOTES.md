@@ -1,6 +1,8 @@
 # Unreleased
 
-Visual now has the first user-facing low-vision workspace layer on top of the proven capture/tracking engine. It adds 1.5x and 3x zoom, an accessible native settings window, persisted Context/Detail/Reference display roles, independent pointer/caret/focus follow and marker controls, a capture-excluded Context-screen Detail View rectangle, and Normal/High contrast/Inverted/Grayscale Detail appearance modes. Monitor-role changes apply on the next Visual start; the other settings apply live.
+Visual now aligns its main settings terminology more closely with established magnifier concepts: Zoom Level, Tracking, Text Cursor, View Locator, Colour & Contrast and 1x View / Return. It also adds small persistent-suppression contextual hints and a native Visual Help / Ask Visual surface with local ZoomText/SuperNova migration vocabulary. Known questions stay local; an optional provider-neutral HTTPS fallback can be enabled with `VISUAL_ASSISTANT_ENDPOINT`, without embedding a provider credential or sending screenshots/document content.
+
+Visual now has the first user-facing low-vision workspace layer on top of the proven capture/tracking engine. It adds 1.5x and 3x zoom, an accessible native settings window, persisted Context/Detail/Reference display roles, independent Pointer/Text Cursor/Keyboard Focus tracking and highlight controls, a capture-excluded Context-screen View Locator, and Normal/Increase Contrast/Inverted Colours/Grayscale Detail modes. Monitor-role changes apply on the next Visual start; the other settings apply live.
 
 The installer/update engine remains separate from these Visual workspace features.
 

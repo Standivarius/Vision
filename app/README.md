@@ -6,9 +6,9 @@ This folder contains the integrated Visual Windows application runtime used for 
 
 Visual is currently a functional low-vision workspace alpha:
 
-- a Context display remains the source/work surface and shows the current Detail View region;
+- a Context display remains the source/work surface and shows the current View Locator region;
 - a Detail display shows the magnified working view;
-- Detail follows deliberate pointer movement, text caret or keyboard focus;
+- Detail follows deliberate pointer movement, Text Cursor activity or Keyboard Focus;
 - the viewport uses comfort margins rather than constant recentering;
 - pointer, caret and focus tracking/markers can be controlled independently;
 - Detail is non-activating so the source application keeps keyboard focus; settings and display roles persist across launches.
@@ -77,8 +77,9 @@ Command-line monitor indices remain engineering overrides. Normal runs use the p
 - `Ctrl+Alt+3` - 3x
 - `Ctrl+Alt+4` - 4x
 - `Ctrl+Alt+0` - temporary normal view / exact return
-- `Ctrl+Alt+T` - follow activity on/off
+- `Ctrl+Alt+T` - tracking on/off
 - `Ctrl+Alt+S` - open Visual Settings
+- `Ctrl+Alt+H` - open Visual Help / Ask Visual
 - `Ctrl+Alt+Q` - exit Visual
 
 The settings UI also provides 1.5x magnification. Right-click the Detail window for the compact Visual menu.
@@ -87,17 +88,26 @@ The settings UI also provides 1.5x magnification. Right-click the Detail window 
 
 `Visual Settings` is a native keyboard-accessible Win32 settings window. It persists under `%LOCALAPPDATA%\Standivarius\Visual\settings.ini` and exposes a deliberately small user-facing set rather than engineering timing parameters:
 
-- magnification: 1x, 1.5x, 2x, 3x or 4x;
-- master follow-activity plus independent pointer, text-caret and keyboard-focus following;
-- independent high-visibility pointer, caret and focus markers;
-- a Context-screen **Detail View** rectangle showing the exact source region currently enlarged on Detail, with optional translucent shading;
-- Normal, High contrast, Inverted colours and Grayscale appearance modes on Detail;
+- **Zoom Level**: 1x, 1.5x, 2x, 3x or 4x;
+- **Tracking** with independent Pointer, Text Cursor and Keyboard Focus following;
+- independent Pointer Locator, Text Cursor Highlight and Focus Highlight controls;
+- a Context-screen **View Locator** showing the exact source region currently enlarged on Detail, with optional translucent shading;
+- **Colour & Contrast** modes: Normal, Increase Contrast, Inverted Colours and Grayscale;
 - persisted Context, Detail and optional Reference screen roles.
 
-The Detail View indicator is a separate layered window marked `WDA_EXCLUDEFROMCAPTURE`, so it stays visible on Context without being recursively captured into Detail. If Windows cannot apply capture exclusion, Visual does not show the indicator.
+The View Locator is a separate layered window marked `WDA_EXCLUDEFROMCAPTURE`, so it stays visible on Context without being recursively captured into Detail. If Windows cannot apply capture exclusion, Visual does not show the indicator.
 
-Tracking, marker, magnification, appearance and Detail View settings apply live. Physical Context/Detail/Reference role changes are restart-bound by design so the active Windows Graphics Capture session is not rebuilt from the settings dialog.
+Tracking, highlights, Zoom Level, Colour & Contrast and View Locator settings apply live. Physical Context/Detail/Reference role changes are restart-bound by design so the active Windows Graphics Capture session is not rebuilt from the settings dialog.
 
+## Contextual help and Ask Visual
+
+Visual now uses small, suppressible contextual hints for the genuinely new parts of the product rather than a mandatory onboarding flow. The first two-screen run explains Context, Detail and the View Locator once, and the first `1x View / Return` use explains that the same command restores the previous zoom and exact viewport. The acknowledgement state is stored locally in the existing `settings.ini` under `[Assistance]`.
+
+`Visual Help / Ask Visual` opens with `Ctrl+Alt+H`, from Visual Settings, or from the Detail right-click menu. Known questions are answered locally from a small terminology/help catalog, including ZoomText/SuperNova migration vocabulary such as Freeze View / Hooked Areas. Visual explicitly states when no equivalent feature exists rather than pretending a Reference screen is the same thing.
+
+Ask Visual has an optional provider-neutral HTTPS fallback. It is disabled unless `VISUAL_ASSISTANT_ENDPOINT` is present in the Visual process environment. Visual sends only the user question plus a minimal structured state object (zoom, tracking/highlight flags, colour mode, monitor count and role-assignment booleans). It does not send monitor device IDs, screenshots, document contents or typed text. No model/provider credential is embedded in Visual. The endpoint is expected to return JSON containing an `answer` string and optional `title`.
+
+The online path is intentionally non-critical: if it is unconfigured or unavailable, local Visual help continues to work.
 ## Tracking and viewport evidence
 
 Candidate POI sources include recent pointer movement, UIA TextPattern caret, Win32 caret, UIA keyboard focus and Win32 keyboard focus. Recent pointer movement is treated as short-lived direct intent; when it stops, semantic evidence can resume. Cached semantic evidence keeps its original timestamp.

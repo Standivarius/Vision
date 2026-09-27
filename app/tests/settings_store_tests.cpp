@@ -1,4 +1,4 @@
-﻿#include "settings_store.h"
+#include "settings_store.h"
 
 #include <filesystem>
 #include <iostream>
@@ -56,6 +56,16 @@ int main() {
     require(actual.context_monitor_device == expected.context_monitor_device, "context_monitor", "context monitor did not round-trip", failures);
     require(actual.detail_monitor_device == expected.detail_monitor_device, "detail_monitor", "detail monitor did not round-trip", failures);
     require(actual.reference_monitor_device == expected.reference_monitor_device, "reference_monitor", "reference monitor did not round-trip", failures);
+
+    visual::settings::AssistanceState expected_assistance{};
+    expected_assistance.screen_roles_explained = true;
+    expected_assistance.view_locator_explained = true;
+    expected_assistance.one_x_return_explained = false;
+    require(visual::settings::save_assistance_state(path, expected_assistance), "assistance_save", "assistance state save failed", failures);
+    const auto actual_assistance = visual::settings::load_assistance_state(path);
+    require(actual_assistance.screen_roles_explained, "assistance_screen_roles", "screen-role explanation state did not round-trip", failures);
+    require(actual_assistance.view_locator_explained, "assistance_view_locator", "View Locator explanation state did not round-trip", failures);
+    require(!actual_assistance.one_x_return_explained, "assistance_one_x", "1x hint state changed during round-trip", failures);
 
     std::filesystem::remove(path, ec);
 

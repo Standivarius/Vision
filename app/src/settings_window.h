@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "core/settings_model.h"
 
@@ -18,6 +18,7 @@ struct MonitorOption {
 class SettingsWindow {
 public:
     using ApplyCallback = std::function<void(const visual::core::VisualSettings&, bool display_roles_changed)>;
+    using HelpCallback = std::function<void()>;
 
     SettingsWindow() = default;
     SettingsWindow(const SettingsWindow&) = delete;
@@ -29,7 +30,8 @@ public:
                 const RECT& preferred_monitor_rect,
                 const std::vector<MonitorOption>& monitors,
                 const visual::core::VisualSettings& initial,
-                ApplyCallback callback);
+                ApplyCallback callback,
+                HelpCallback help_callback);
     void show();
     void hide() noexcept;
     void destroy() noexcept;
@@ -56,17 +58,20 @@ private:
     std::vector<MonitorOption> monitors_;
     visual::core::VisualSettings settings_{};
     ApplyCallback callback_{};
+    HelpCallback help_callback_{};
 
     HWND zoom_combo_{};
     HWND tracking_enabled_{};
     HWND follow_pointer_{};
     HWND follow_caret_{};
     HWND follow_focus_{};
+    HWND tracking_note_{};
     HWND marker_pointer_{};
     HWND marker_caret_{};
     HWND marker_focus_{};
     HWND context_indicator_{};
     HWND context_shade_{};
+    HWND locator_note_{};
     HWND appearance_combo_{};
     HWND context_monitor_combo_{};
     HWND detail_monitor_combo_{};
