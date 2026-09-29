@@ -15,7 +15,7 @@ This file is the canonical work-item index. Stable IDs should be copied into whi
 | ID | Work item | Initial status | Gate | Done when |
 |---|---|---|---|---|
 | GOV-001 | Reconcile stale high-level foundation/status docs with current alpha.11 | Ready | None | Current-status claims no longer contradict current implementation/release evidence. |
-| GOV-002 | Select and configure execution tracker | Ready | None | Tracker is accessible from both desktops and links each item to these stable IDs. |
+| GOV-002 | Configure GitHub Projects execution tracker | Ready | None | One GitHub Project is accessible from both desktops/agents, mirrors stable work IDs and links back to programme docs. |
 | GOV-003 | Define release/feature evidence register | Backlog | None | Each product claim can point to code/test/hardware/user evidence and date. |
 
 ## Visual two-screen product
@@ -29,6 +29,8 @@ This file is the canonical work-item index. Stable IDs should be copied into whi
 | VIS-005 | Two-screen acceptance suite | Ready | None | Repeatable acceptance script covers install/start, roles, zoom, tracking, 1x/return, locator, colour, restart, duplicate launch, exit and help. |
 | VIS-006 | Review Reference/freeze requirement | Backlog | Research/User validation | Decision recorded on whether to implement a true fixed/frozen reference view and its minimum behaviour. |
 | VIS-007 | Accessibility/usability pass on Settings + Help | Backlog | User/assessor validation | Keyboard/navigation/readability issues from first-use testing are addressed or documented. |
+| VIS-008 | Define incremental low-vision capability expansion path | Backlog | RES-002/RES-005 | Prioritised roadmap identifies which incumbent/adjacent capabilities should be added to current Visual and why, without assuming parity. |
+| VIS-009 | Implement first post-alpha capability tranche | Blocked | VIS-008 | Selected high-value capability group is implemented, tested and integrated without destabilising the two-screen baseline. |
 
 ## Installer / lifecycle / hardware enablement
 
@@ -87,6 +89,11 @@ These items are deliberately research, not implementation commitments.
 | RES-005 | Independent technical feasibility/cost assessment | Backlog | None | High-value feature families are sized for implementation/maintenance/test/support without proprietary copying. |
 | RES-006 | Product positioning/options paper | Blocked | RES-001..005 | Decision compares Doxa-only, standalone magnifier, and broader low-vision product options with economics and scope. |
 | RES-007 | Go/no-go and product boundary decision | Blocked | RES-006 | Owner decision defines target customer, feature boundary, pricing hypothesis and next build phase. |
+| RES-008 | Doxa multi-monitor use-case landscape | Backlog | None | Credible map of non-low-vision multi-monitor workflows, industries, user roles and pain points exists with sources. |
+| RES-009 | Existing software/workflow benchmark beyond accessibility | Backlog | None | Relevant multi-monitor software categories/products are mapped by workflow and user value, with clear distinction between generic tools and Doxa-specific opportunity. |
+| RES-010 | Doxa buyer/value-proposition assessment | Backlog | RES-008..009 | Candidate buyers, deployment settings, willingness-to-pay/value drivers and support implications are documented. |
+| RES-011 | Doxa software concept shortlist | Blocked | RES-008..010 | 3-5 software-led Doxa concepts are ranked by user value, differentiation, feasibility and commercial attractiveness. |
+| RES-012 | Prototype/research plan for top Doxa opportunities | Blocked | RES-011 | Smallest experiments needed to validate the top concepts are defined before implementation starts. |
 
 ## Suggested initial execution order
 
@@ -96,4 +103,5 @@ These items are deliberately research, not implementation commitments.
 4. When SM768 arrives: `INS-008` -> `INS-009` -> `INS-010` plus `QLT-003`.
 5. Only after SM768 baseline is stable: physical `D4-005` and `D4-006`.
 6. SM770 production qualification: `INS-011`, `QLT-004`.
-7. Competitive/commercial research (`RES-*`) can start independently whenever owner priority permits; do not block core engineering on it.
+7. Low-vision competitive/commercial research (`RES-001`..`RES-007`) can start independently whenever owner priority permits and should feed `VIS-008`; do not block core engineering on it.
+8. Broader Doxa opportunity research (`RES-008`..`RES-012`) is a separate stream and can also start independently; do not assume its outcome is another accessibility product.

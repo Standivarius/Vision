@@ -37,8 +37,9 @@ The separation is intentional. Velopack/lifecycle code should remain responsible
 | SM768 Doxa integration | **Hardware-dependent / next qualification target** | No SM768-specific product adapter is currently in the renderer. Existing architecture allows hardware observations to be injected without changing core magnification. | Physical older Doxa/SM768 required for IDs, driver/firmware baseline, topology and performance evidence. |
 | SM770 Doxa integration | **Hardware-dependent / production qualification** | Current hardware docs assumed SM770 as the future production target, but no SM770-specific adapter is implemented. | Final production unit required after SM768 work to qualify differences and lock production baseline. |
 | Four-screen Doxa workspace | **Designed / not implemented** | Leading concept: laptop organiser + Left stable workspace + Centre shared Detail + Right stable workspace, with intentional Detail ownership switching and View Locator. | `docs/project/foundation/doxa_dual_workspace_shared_detail_concept.md`. Requires product/user validation and Doxa hardware before becoming a default. |
-| Broader ZoomText/SuperNova alternative | **Research programme, not yet a build commitment** | Existing work documents incumbent terminology/workflows and selected behaviours; Visual already borrows familiar concepts independently. | A separate commercial/feature/technical research programme is required before deciding product scope, editions, speech/reading requirements or parity goals. |
-| Commercial opportunity | **Research not started as a programme** | UK presence through Standivarius is a potential launch advantage, but no canonical market/margin/channel model exists yet. | Requires market sizing, pricing, reseller/channel economics, competitor positioning and support-cost research. |
+| Broader low-vision Visual product | **Strategic evolution + research** | The current two-screen Visual is the starting product baseline, not a dead-end MVP. It should evolve incrementally toward a broader low-vision solution, informed by ZoomText, SuperNova, Windows Magnifier and other relevant products without treating parity as the goal. | Research must identify which behaviours/features create real user value, then feed a prioritised implementation path rather than a blanket cloning programme. |
+| Low-vision commercial opportunity | **Research not started as a programme** | UK presence through Standivarius is a potential launch advantage, but no canonical market/margin/channel model exists yet. | Requires market sizing, pricing, reseller/channel economics, competitor positioning and support-cost research. |
+| Doxa use cases beyond low vision | **Research programme / not started** | Doxa is a multi-monitor hardware platform whose commercial potential may extend well beyond accessibility. | Requires use-case discovery, workflow/software landscape research, buyer/industry analysis and identification of software products that could make Doxa materially more useful in other markets. |
 ## 3. Important corrections to older documentation
 
 The repository contains valuable earlier status documents, but they must not be treated as the current inventory without reconciliation:
@@ -125,9 +126,9 @@ Proceed before hardware only at architecture/simulation level:
 
 Do not make speculative four-screen behaviour the default Visual product before physical/user validation.
 
-### 5.4 Competitive/commercial research
+### 5.4 Low-vision competitive/commercial research
 
-This is entirely independent of SM768 and can begin whenever prioritised:
+This is entirely independent of SM768 and can begin whenever prioritised. Its purpose is both commercial assessment and guidance for the **incremental evolution of the current two-screen Visual**:
 
 - market size and segments;
 - UK channel/reseller opportunity and Standivarius launch advantage;
@@ -140,6 +141,24 @@ This is entirely independent of SM768 and can begin whenever prioritised:
 - whether a low-cost standalone Visual product should remain magnification-first or expand toward speech/reader functionality.
 
 This is a research stream, not permission to copy proprietary implementation or assets.
+
+### 5.5 Doxa multi-monitor opportunity research beyond low vision
+
+This is a separate research stream from ZoomText/SuperNova. Its purpose is to discover whether the Doxa hardware platform has other compelling software-led use cases.
+
+Research should cover:
+
+- industries and roles where users actively work across multiple displays;
+- workflows where persistent context + focused detail + stable reference views materially reduce task switching;
+- existing multi-monitor productivity, control-room, monitoring, operational, creative, technical, training, collaboration or specialist software;
+- where users currently assemble generic monitors/software because no integrated appliance/product exists;
+- which use cases could benefit from a Doxa-specific software layer rather than merely extra screen real estate;
+- likely buyers, deployment environments, pricing expectations and support burden;
+- whether the hardware shape creates a defensible advantage or is only a commodity multi-monitor setup;
+- candidate software concepts worth prototyping on Doxa;
+- what can be learned from adjacent products without copying proprietary implementations.
+
+The output should be a ranked opportunity map and a small number of testable product concepts. It should **not** begin by assuming a specific industry or solution.
 ## 6. Work that specifically waits for SM768
 
 The first physical SM768 session should be a **qualification sprint**, not ad-hoc feature work.
@@ -249,9 +268,9 @@ Exit criteria:
 - update/recovery/support procedures pass;
 - no hidden SM768-only assumptions remain.
 
-### Phase P6 - Broader Visual commercial decision
+### Phase P6 - Broader Visual low-vision evolution and commercial decision
 
-**Goal:** decide whether to develop Visual as a lower-cost standalone competitor/alternative in the ZoomText/SuperNova market.
+**Goal:** decide how far the current Visual should evolve beyond its two-screen alpha into a broader low-vision product, and whether that product should be positioned as a lower-cost standalone alternative in the ZoomText/SuperNova market.
 
 Inputs required before a build commitment:
 
@@ -262,7 +281,22 @@ Inputs required before a build commitment:
 - evidence of underserved customer needs;
 - explicit product positioning and target price/support model.
 
-Possible outcome is a magnification-focused product, a broader reader/magnifier product, or a decision not to pursue the standalone market. Do not assume the answer in advance.
+Possible outcome is a steadily expanded magnification-focused product, a broader reader/magnifier product, or a decision to keep Visual primarily Doxa-focused. The current two-screen codebase remains the starting point in every case; research determines which capabilities are worth adding. Do not assume full feature parity is desirable.
+
+### Phase P7 - Doxa opportunity discovery beyond low vision
+
+**Goal:** identify and assess additional software-led use cases for Doxa as a multi-monitor hardware platform.
+
+Inputs required before any new product build commitment:
+
+- multi-monitor workflow/use-case landscape;
+- existing software and hardware alternatives;
+- target users/buyers and pain points;
+- value of Doxa-specific integration versus generic multi-monitor PCs;
+- commercial attractiveness and support complexity;
+- shortlist of software concepts that can be prototyped and tested.
+
+The expected output is a ranked opportunity portfolio, not a predetermined second product.
 
 ## 9. Cross-cutting acceptance principles
 
@@ -281,9 +315,10 @@ Every stream should preserve these rules:
 
 These should not block the inventory itself:
 
-1. tracker choice (GitHub Projects vs Linear vs another system);
+1. GitHub Projects is selected as the execution tracker; remaining work is configuration/mirroring, not tool selection;
 2. whether the four-screen prototype begins as soon as the state model/simulator is ready or waits for SM768;
 3. code-signing provider/budget;
 4. whether automatic in-app update UX should be productised or updates remain explicit/IT-managed;
-5. when to start the standalone ZoomText/SuperNova commercial research stream;
-6. after research, whether speech/reader functionality belongs in Visual or remains outside its product boundary.
+5. when to start the low-vision competitive/commercial research stream;
+6. after research, whether speech/reader functionality belongs in Visual or remains outside its product boundary;
+7. when to start the broader Doxa use-case discovery stream and how much prototyping budget to allocate to its top concepts.

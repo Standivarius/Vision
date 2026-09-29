@@ -40,6 +40,6 @@ Older foundation/status documents remain valuable evidence, but some predate the
 
 ## System-of-record rule
 
-The repository is the canonical source of programme truth. A task tracker (Linear, GitHub Projects, Plane, etc.) is an execution view of `work_breakdown.md`, not the sole copy of the plan.
+The repository is the canonical source of programme truth. **GitHub Projects is the selected execution tracker**, but it is an execution view of `work_breakdown.md`, not the sole copy of the plan.
 
 This keeps the plan available on Dell, ASUS and future agent sessions through the same Git repository even if a SaaS account, API key or local service is unavailable.

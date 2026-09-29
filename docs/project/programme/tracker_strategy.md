@@ -8,73 +8,38 @@ The Git repository remains the canonical programme source of truth. The tracker 
 
 This matters because work must remain accessible from Dell, ASUS and future agent sessions even if a SaaS integration or local service is unavailable.
 
-## Preferred option: Linear Free, if owner wants the Linear workflow
+## Selected execution tracker: GitHub Projects
 
-Current Linear Free limits are sufficient to start this programme:
+GitHub Projects is selected for this programme.
 
-- $0;
-- unlimited members;
-- 2 teams;
-- 250 issues;
-- projects, cycles and initiatives;
-- API and webhook access.
+Reasons:
 
-Recommended structure:
-
-- one team: `Visual / Doxa`;
-- use **Projects**, not separate Linear teams, for the programme streams;
-- copy stable IDs from `work_breakdown.md` into issue titles/descriptions;
-- keep project documents linked back to `docs/project/programme/`.
-
-Suggested Linear Projects:
-
-1. Visual - Two-screen Product
-2. Doxa - Installer & Hardware Enablement
-3. Doxa - Four-screen Workspace
-4. Quality, Release & Support
-5. Ask Visual / Assistance
-6. Competitive & Commercial Research
-
-Do not buy Linear Basic yet merely to start. The current Free issue/team limits are adequate for the initial backlog. Basic becomes relevant if the programme needs more than 250 active/history issues or more team-level separation. Linear currently advertises Basic at $10/user/month when billed yearly, with unlimited issues and up to 5 teams.
-
-### Current integration state
-
-The repository bridge contains Linear tools, but they currently report:
-
-`Linear integration is disabled: LINEAR_API_KEY is not configured in .env`
-
-To enable agent access, create a personal Linear API key with only the permissions/team scope required, then configure the bridge secret locally. Never commit the key to the repository.
-
-Official references:
-
-- https://linear.app/pricing
-- https://linear.app/docs/api-and-webhooks
-
-## Strong fallback: GitHub Projects
-
-GitHub is already the code/release host for Visual, so this requires no additional project-management service.
-
-GitHub Projects supports:
-
-- repository issues and pull requests;
-- table, board and roadmap views;
-- custom fields such as Stream, Phase, Priority, Hardware Gate and Status;
-- iterations and date fields;
-- automation around issue/PR state.
+- GitHub is already required for the Visual repository, releases and release automation;
+- one owner plus a small number of coding/research agents does not justify an additional project-management service;
+- issues can link directly to commits, pull requests, releases and repository documentation;
+- table, board and roadmap views plus custom fields are sufficient for the current programme;
+- it is available from Dell, ASUS and remote/agent sessions without hosting another service.
 
 Recommended structure:
 
-- one Project: `Visual / Doxa Programme`;
-- issues remain in the Visual repository;
-- create views filtered by the stable work-item prefix (`VIS-`, `INS-`, `D4-`, etc.) or a custom Stream field.
+- one GitHub Project: `Visual / Doxa Programme`;
+- repository issues carry the stable IDs from `work_breakdown.md` in their titles, e.g. `[VIS-001] ...`;
+- use custom fields for `Stream`, `Phase`, `Priority`, `Hardware Gate` and `Status` if useful;
+- create filtered views for Visual, Installer/Hardware, Four-screen Doxa, Ask Visual, Quality/Release, Low-vision Research and Broader Doxa Research;
+- issue descriptions should link back to `docs/project/programme/` and preserve the canonical completion criteria.
 
-Advantages here are zero new subscription, natural code/PR linkage, and cross-desktop availability. The main disadvantage versus Linear is product-planning UX/preference rather than missing core tracking capability.
+The Git repository remains authoritative. GitHub Projects is the execution/status surface.
 
 Official references:
 
-- https://github.com/pricing
 - https://docs.github.com/en/issues/planning-and-tracking-with-projects/learning-about-projects/about-projects
+- https://github.com/pricing
 
+## Alternative retained only if needs change: Linear
+
+Linear Free remains technically adequate for the current issue count, but it is no longer the selected tool. There is no reason to add another SaaS dependency while GitHub Projects meets the programme needs.
+
+The existing repository bridge also reports that its Linear integration is disabled because `LINEAR_API_KEY` is not configured. No action is required unless the programme later chooses to revisit Linear.
 ## Open-source / self-hosted alternative: Plane
 
 Plane is the strongest lightweight open-source alternative considered for this programme. Its cloud Free plan provides projects/work items, cycles/modules, views, intake, estimates and project pages. It can also be self-hosted with Docker; current documentation gives a starting requirement around 2 CPU cores and 4 GB RAM.
@@ -105,8 +70,8 @@ Official references:
 ## Recommendation
 
 1. **Canonical:** keep the inventory, roadmap, work IDs and handover in Git (`docs/project/programme/`).
-2. **Preferred execution UI:** create a Linear Free workspace/team if the owner prefers Linear's UX; no paid subscription is required initially.
-3. **Fallback with no extra service:** use GitHub Projects immediately.
-4. **Do not build a local-only tracker on one development laptop.** If self-hosting is desired later, host centrally.
+2. **Execution UI:** use one GitHub Project, `Visual / Doxa Programme`, backed by repository issues carrying the stable work IDs.
+3. **No additional subscription is needed.**
+4. **Do not build a local-only tracker on one development laptop.**
 
-This keeps the programme tool-portable: moving from Linear to GitHub/Plane later does not require reconstructing the plan from a proprietary tracker database.
+This gives the next chat/agent a simple operating model: read the programme docs, pick or create the matching GitHub issue, do the work in the repository, and update both issue status and canonical evidence when the work is complete.

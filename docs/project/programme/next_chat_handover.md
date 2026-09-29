@@ -43,12 +43,13 @@ Do not fork Visual by chip generation. Put hardware differences behind the Doxa 
 ## Product tracks
 
 1. Installer/lifecycle/hardware enablement.
-2. Visual two-screen low-vision product hardening.
+2. Visual two-screen low-vision product hardening **and gradual evolution toward a broader low-vision product**.
 3. Doxa four-screen workspace concept: laptop organiser + Left Workspace + Centre shared Detail + Right Workspace.
 4. Ask Visual/support infrastructure.
-5. Later competitive/commercial investigation of a lower-cost standalone Visual alternative to ZoomText/SuperNova.
+5. Competitive/commercial investigation of a broader/lower-cost Visual alternative to ZoomText/SuperNova and other relevant low-vision products.
+6. Separate Doxa opportunity-discovery research for multi-monitor use cases **outside low vision/accessibility**, including the software that serves those workflows and possible Doxa-specific products.
 
-The competitive/commercial stream is **planned research**, not a current feature-parity implementation request.
+Both research streams are **planned research**, not current implementation requests. The low-vision stream should guide incremental expansion of the current Visual; the broader Doxa stream should remain open-ended and should not assume a particular industry/use case.
 
 ## Immediate work before SM768
 
@@ -85,9 +86,9 @@ The working tree contains unrelated modified/untracked bridge/scripts/artifacts.
 
 ## Tracker status
 
-The repository bridge has a Linear integration, but as of this handover it is disabled because `LINEAR_API_KEY` is not configured.
+**GitHub Projects is the selected execution tracker.** Linear is no longer the preferred path for this programme.
 
-Do not let tracker availability block engineering. The canonical work IDs live in `docs/project/programme/work_breakdown.md`. If a tracker is configured, mirror those IDs into it and keep repository docs authoritative.
+Do not let GitHub Project configuration block engineering. The canonical work IDs live in `docs/project/programme/work_breakdown.md`; mirror those IDs into GitHub issues/project items and keep repository docs authoritative.
 
 ## Key design constraints
 
