@@ -1,0 +1,132 @@
+{
+    "schema_version":  "1",
+    "generated_utc":  "2026-09-29T14:41:44.6751022Z",
+    "source_tree_sha256":  "d125f8f39fb4d80771add24a353d26d00f5331f676b8739f145cea3c503da238",
+    "files":  [
+                  {
+                      "path":  "app/README.md",
+                      "bytes":  15729,
+                      "sha256":  "c63b615c0e6d6a15e479a5c94eee88e123126c61f7f9cec9a4dc9d495104091f"
+                  },
+                  {
+                      "path":  "app/packaging/RELEASE_NOTES.md",
+                      "bytes":  9016,
+                      "sha256":  "7112c067409b1852df160cb8541390bd4d3e7af33b417fd7998c9e1ef4508ca9"
+                  },
+                  {
+                      "path":  "app/src/main.cpp",
+                      "bytes":  64130,
+                      "sha256":  "76368d5b557908ce3c142acab87742ce91c5e15b31457faa980c5bc8a977bfc1"
+                  },
+                  {
+                      "path":  "app/src/velopack_entry.cpp",
+                      "bytes":  8659,
+                      "sha256":  "53af490ec84031601e2ea5ae5996e54e08dbb3aa938bc56809c76aea62ea1d0d"
+                  },
+                  {
+                      "path":  "app/src/context_overlay.cpp",
+                      "bytes":  7163,
+                      "sha256":  "f6882cee9d5817eefded7c7a1c6bbd0205b9c003c17cf5ab17d11f322f1636b5"
+                  },
+                  {
+                      "path":  "app/src/context_overlay.h",
+                      "bytes":  1267,
+                      "sha256":  "f81b05d78f33600d60ce0d43dae215efdabba2cdb8ad91096aee0ea8df7855d8"
+                  },
+                  {
+                      "path":  "app/src/assistant_client.cpp",
+                      "bytes":  10122,
+                      "sha256":  "1cd86922406a38e518bf296a631283c66adf9f90b825ad03e219776f0b898a5c"
+                  },
+                  {
+                      "path":  "app/src/assistant_client.h",
+                      "bytes":  775,
+                      "sha256":  "238b04dc9d2ae5cd7900945e27c7cbac699b86c06035a6a2324572e1f5a30cfd"
+                  },
+                  {
+                      "path":  "app/src/help_window.cpp",
+                      "bytes":  14151,
+                      "sha256":  "c2634bc31f61ba5df2e4be504f8f794911a4a4edd7e6cbc624f07cf4a4f6331b"
+                  },
+                  {
+                      "path":  "app/src/help_window.h",
+                      "bytes":  1647,
+                      "sha256":  "176be9fe6f9175cc505ac15adb0ad3f7bf09323b3625754fbf90e9d3133c786b"
+                  },
+                  {
+                      "path":  "app/src/hint_window.cpp",
+                      "bytes":  5372,
+                      "sha256":  "77c6011d3c73272c4869338c52a17e8d56eb29a30c8c24404ed5205da8c2c3df"
+                  },
+                  {
+                      "path":  "app/src/hint_window.h",
+                      "bytes":  948,
+                      "sha256":  "26977c2c393712f0bdb0348c6f43a24e816caee8924de0e7018b836e5232ec3f"
+                  },
+                  {
+                      "path":  "app/src/settings_store.cpp",
+                      "bytes":  7715,
+                      "sha256":  "c1e0978370cbfa0a08c6a2412d9089202c881da7b92fa932109727e84f6987c7"
+                  },
+                  {
+                      "path":  "app/src/settings_store.h",
+                      "bytes":  774,
+                      "sha256":  "aae89fedad0e9e5937278250560af91f7d60d42cbb3d2a41c5b32de7afaf2a1d"
+                  },
+                  {
+                      "path":  "app/src/settings_window.cpp",
+                      "bytes":  21663,
+                      "sha256":  "02afcd4a3ced19fce7a4a120bbf3f7246ebb5efc17a0c065aaf51f3209680c30"
+                  },
+                  {
+                      "path":  "app/src/settings_window.h",
+                      "bytes":  2515,
+                      "sha256":  "52b511601f3ee4c029ea82bd3c0653448040ffd30054eb5060d4d27be9d5dba5"
+                  },
+                  {
+                      "path":  "app/src/core/help_catalog.h",
+                      "bytes":  8923,
+                      "sha256":  "64ba618ef4c9179ab2c47a033a15ff9cc9a5ba3703b00a11dda69de58040fc09"
+                  },
+                  {
+                      "path":  "app/src/core/settings_model.h",
+                      "bytes":  3346,
+                      "sha256":  "d84dd260cc534201ba510981fa88929096e2388400f22dc5270263dacb9ca1ad"
+                  },
+                  {
+                      "path":  "app/src/core/view_controller.h",
+                      "bytes":  5361,
+                      "sha256":  "a555386a10f6271a4eb47901be0bd3b232874d0b3706b12b04055f0ccddd2b0c"
+                  },
+                  {
+                      "path":  "app/src/core/viewport_policy.h",
+                      "bytes":  4692,
+                      "sha256":  "6b633c9755fbbc30a69819c01c58e882a4181b2b17e8446588de313e02040632"
+                  },
+                  {
+                      "path":  "app/src/core/locator_model.h",
+                      "bytes":  1184,
+                      "sha256":  "0f2a3bd9a9bd3c92a63b8cf12b9df0147b9a8012e63f0cb93b21785171c5f6c0"
+                  },
+                  {
+                      "path":  "app/src/core/poi_evidence.h",
+                      "bytes":  4811,
+                      "sha256":  "3d739db9403cec760b24dd725e7795eb424841b82839e4056dc27e3704858a13"
+                  },
+                  {
+                      "path":  "app/src/tracking/uia_evidence_provider.h",
+                      "bytes":  11016,
+                      "sha256":  "6c735e73e6abcb574cd8a371c32b00875d4d505c54e9510080992ffe0bb0431e"
+                  },
+                  {
+                      "path":  "app/src/tracking/win32_evidence_provider.h",
+                      "bytes":  4909,
+                      "sha256":  "0b71ec2649b775d47d3ad05cd39e4ba6f4ae20313187e55d6ec74122451870c6"
+                  },
+                  {
+                      "path":  "docs/project/foundation/vision_adoption_and_contextual_assistance_spec.md",
+                      "bytes":  17609,
+                      "sha256":  "01d12046e9a157f7372e3186974e8343260a08638606e9bf272b2b5170149b9a"
+                  }
+              ]
+}

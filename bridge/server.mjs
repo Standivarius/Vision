@@ -37,6 +37,10 @@ const ANTIGRAVITY_MODELS = [
 const ANTIGRAVITY_MODEL_ALIASES = {
   "gemini-3.8-flash": "gemini-3.8-flash-high"
 };
+const CODEX_MODELS = ["gpt-5.6-luna", "muse-spark-1.3-contributor"];
+const CODEX_MODEL_PROFILES = {
+  "muse-spark-1.3-contributor": "muse-spark-1-3-contributor"
+};
 
 fs.mkdirSync(CAPTURES_DIR, { recursive: true });
 fs.mkdirSync(AGENT_TEMP_ROOT, { recursive: true });
@@ -157,9 +161,34 @@ const ALLOWED_COMMANDS = {
   git_diff_stat: ["git", ["diff", "--stat"]],
   git_log: ["git", ["log", "-n", "10", "--oneline"]],
   assert_visual_root: ["cmd.exe", ["/c", "echo WORKSPACE_ROOT=C:\\dev\\Visual"]],
-  repo_curator_check: ["cmd.exe", ["/c", "echo Visual repository structure verified: artifacts, bridge, docs, lab, research, specs present."]]
+  repo_curator_check: ["cmd.exe", ["/c", "echo Visual repository structure verified: artifacts, bridge, docs, lab, research, specs present."]],
+  powershell_full: ["powershell.exe", ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command"]],
+  cmd_full: ["cmd.exe", ["/d", "/s", "/c"]]
 };
-const READ_ONLY_COMMANDS = new Set(Object.keys(ALLOWED_COMMANDS));
+const READ_ONLY_COMMANDS = new Set([
+  "git_status", "git_diff", "git_diff_stat", "git_log", "assert_visual_root", "repo_curator_check"
+]);
+
+function resolveApprovedCommand(op, body) {
+  const cmdDef = ALLOWED_COMMANDS[op];
+  if (!cmdDef) return null;
+  if (op === "powershell_full" || op === "cmd_full") {
+    const command = body?.args?.command;
+    if (typeof command !== "string" || !command.trim()) {
+      const err = new Error(`args.command is required for operation '${op}'`);
+      err.code = "BAD_COMMAND_ARGS";
+      throw err;
+    }
+    return [cmdDef[0], [...cmdDef[1], command]];
+  }
+  return [cmdDef[0], [...cmdDef[1]]];
+}
+
+function resolveApprovedCwd(body) {
+  const cwd = body?.args?.cwd;
+  if (typeof cwd === "string" && cwd.trim()) return path.resolve(cwd);
+  return WORKSPACE_ROOT;
+}
 
 function runCommandAsync(file, args, timeoutMs = 30000, cwd = WORKSPACE_ROOT) {
   return new Promise(resolve => {
@@ -212,6 +241,173 @@ function removeTaskSnapshot(record) {
   if (!record.snapshot_root) return;
   try { fs.rmSync(path.dirname(record.snapshot_root), { recursive: true, force: true }); } catch (_) {}
   record.snapshot_root = null;
+}
+
+function captureCodexFinalMessage(taskRecord) {
+  let finalMessage = "";
+  try {
+    if (taskRecord.last_message_path && fs.existsSync(taskRecord.last_message_path)) {
+      finalMessage = fs.readFileSync(taskRecord.last_message_path, "utf8").trim();
+    }
+  } catch (err) {
+    appendTaskLog(taskRecord, "stderr", `Failed to read Codex last_message.txt: ${err.message}\n`);
+  }
+  taskRecord.final_message_status = finalMessage ? "captured" : "missing";
+  taskRecord.final_message = finalMessage || null;
+  return finalMessage;
+}
+
+function finalizeCodexTimeout(taskRecord, timeoutSeconds) {
+  const finalMessage = captureCodexFinalMessage(taskRecord);
+  const timeoutResult = `Task timed out after ${timeoutSeconds} seconds.`;
+  taskRecord.timed_out = true;
+  taskRecord.timeout_seconds = timeoutSeconds;
+  taskRecord.exit_code = -1;
+  taskRecord.completed_at = new Date().toISOString();
+  if (finalMessage) {
+    taskRecord.status = "completed";
+    taskRecord.result = finalMessage;
+    taskRecord.error = null;
+    taskRecord.summary = finalMessage.slice(0, 500);
+  } else {
+    taskRecord.status = "failed";
+    taskRecord.result = timeoutResult;
+    taskRecord.error = timeoutResult;
+    taskRecord.summary = timeoutResult;
+  }
+}
+
+async function startCodexTask(taskRecord, timeoutSeconds) {
+  const codex = await findExecutable([
+    env.CODEX_CLI_PATH || process.env.CODEX_CLI_PATH || "",
+    CODEX_CLI_PATH,
+    "codex.exe", "codex"
+  ].filter(Boolean));
+  if (!codex) {
+    taskRecord.status = "failed";
+    taskRecord.exit_code = 127;
+    taskRecord.completed_at = new Date().toISOString();
+    taskRecord.summary = "Codex CLI not found";
+    taskRecord.error = taskRecord.summary;
+    appendTaskLog(taskRecord, "stderr", "Codex CLI was not found. Expected codex.exe or CODEX_CLI_PATH.\n");
+    return;
+  }
+
+  if (taskRecord.authorization_mode !== "read_only") {
+    taskRecord.status = "failed";
+    taskRecord.exit_code = 2;
+    taskRecord.completed_at = new Date().toISOString();
+    taskRecord.summary = "Codex writable delegation is intentionally disabled until path-scoped enforcement is implemented";
+    taskRecord.error = taskRecord.summary;
+    appendTaskLog(taskRecord, "stderr", "Only read_only Codex delegation is currently enabled.\n");
+    return;
+  }
+
+  const requestedModel = taskRecord.model || "gpt-5.6-luna";
+  if (!CODEX_MODELS.includes(requestedModel)) {
+    taskRecord.status = "failed";
+    taskRecord.exit_code = 2;
+    taskRecord.completed_at = new Date().toISOString();
+    taskRecord.summary = `Unsupported Codex model: ${requestedModel}`;
+    taskRecord.error = taskRecord.summary;
+    appendTaskLog(taskRecord, "stderr", `Unsupported Codex model '${requestedModel}'. Supported: ${CODEX_MODELS.join(", ")}\n`);
+    return;
+  }
+  taskRecord.resolved_model = requestedModel;
+
+  let snapshotRoot;
+  try {
+    snapshotRoot = createReadOnlySnapshot(taskRecord.task_id);
+    taskRecord.snapshot_root = snapshotRoot;
+  } catch (err) {
+    taskRecord.status = "failed";
+    taskRecord.exit_code = 1;
+    taskRecord.completed_at = new Date().toISOString();
+    taskRecord.summary = "Failed to create isolated read-only workspace snapshot";
+    taskRecord.error = taskRecord.summary;
+    appendTaskLog(taskRecord, "stderr", `${err.message}\n`);
+    return;
+  }
+
+  const taskDir = path.dirname(snapshotRoot);
+  const lastMessagePath = path.join(taskDir, "last_message.txt");
+  taskRecord.last_message_path = lastMessagePath;
+  const guardedPrompt = [
+    "You are a delegated read-only agent for the Visual project.",
+    `Your isolated workspace snapshot is: ${snapshotRoot}`,
+    "Operate only inside that snapshot. Do not access C:\\dev\\Visual or any path outside the snapshot.",
+    "Do not modify files. Do not perform git mutations. Return a concise substantive final answer.",
+    "",
+    taskRecord.task
+  ].join("\n");
+
+  const args = ["exec", "--ephemeral", "--skip-git-repo-check", "-C", snapshotRoot];
+  const profile = CODEX_MODEL_PROFILES[requestedModel];
+  if (profile) args.push("--profile", profile);
+  else args.push("--model", requestedModel);
+  args.push("--json", "--output-last-message", lastMessagePath);
+
+  taskRecord.cli_path = codex;
+  taskRecord.profile = profile || null;
+  appendTaskLog(taskRecord, "stdout", `[Agent Started] Provider: codex, Model: ${requestedModel}, Profile: ${profile || "default"}, Mode: read_only\n`);
+  const child = spawn(codex, args, { cwd: snapshotRoot, windowsHide: true, shell: false, env: process.env });
+  child.stdin?.write(guardedPrompt);
+  child.stdin?.end();
+  taskRecord.process = child;
+  taskRecord.pid = child.pid;
+
+  let timer = null;
+  timer = setTimeout(() => {
+    if (taskRecord.status !== "running") return;
+    finalizeCodexTimeout(taskRecord, timeoutSeconds);
+    appendTaskLog(taskRecord, "stderr", `\n[Watchdog] Codex process exceeded ${timeoutSeconds}s; semantic state=${taskRecord.status}, final_message_status=${taskRecord.final_message_status}.\n`);
+    if (taskRecord.pid) {
+      try { spawn("taskkill", ["/PID", String(taskRecord.pid), "/T", "/F"], { windowsHide: true }); } catch (_) {}
+    }
+  }, timeoutSeconds * 1000);
+
+  child.stdout?.on("data", chunk => appendTaskLog(taskRecord, "stdout", chunk.toString("utf8")));
+  child.stderr?.on("data", chunk => appendTaskLog(taskRecord, "stderr", chunk.toString("utf8")));
+  child.on("error", err => {
+    if (timer) clearTimeout(timer);
+    if (taskRecord.timed_out || taskRecord.status === "cancelled") return;
+    taskRecord.status = "failed";
+    taskRecord.exit_code = 1;
+    taskRecord.process_exit_code = 1;
+    taskRecord.completed_at = new Date().toISOString();
+    taskRecord.summary = `Codex launch failed: ${err.message}`;
+    taskRecord.error = taskRecord.summary;
+    appendTaskLog(taskRecord, "stderr", `\n${err.message}\n`);
+    removeTaskSnapshot(taskRecord);
+  });
+  child.on("close", code => {
+    if (timer) clearTimeout(timer);
+    taskRecord.process_exit_code = typeof code === "number" ? code : null;
+    if (taskRecord.status === "cancelled") {
+      removeTaskSnapshot(taskRecord);
+      return;
+    }
+    if (taskRecord.timed_out) {
+      removeTaskSnapshot(taskRecord);
+      return;
+    }
+
+    taskRecord.exit_code = typeof code === "number" ? code : 1;
+    taskRecord.completed_at = new Date().toISOString();
+    const finalMessage = captureCodexFinalMessage(taskRecord);
+    if (code === 0) {
+      taskRecord.status = "completed";
+      taskRecord.result = finalMessage || null;
+      taskRecord.error = null;
+      taskRecord.summary = finalMessage ? finalMessage.slice(0, 500) : "Codex completed without a captured final message";
+    } else {
+      taskRecord.status = "failed";
+      taskRecord.result = finalMessage || null;
+      taskRecord.error = `Codex failed with exit code ${taskRecord.exit_code}`;
+      taskRecord.summary = taskRecord.error;
+    }
+    removeTaskSnapshot(taskRecord);
+  });
 }
 
 async function startAntigravityTask(taskRecord, timeoutSeconds) {
@@ -307,6 +503,12 @@ async function startAntigravityTask(taskRecord, timeoutSeconds) {
 }
 
 async function getAgentCapabilities() {
+  const codex = await findExecutable([env.CODEX_CLI_PATH || process.env.CODEX_CLI_PATH || "", CODEX_CLI_PATH, "codex.exe", "codex"].filter(Boolean));
+  let codexVersion = null;
+  if (codex) {
+    const v = await runCommandAsync(codex, ["--version"], 10000);
+    if (v.exit_code === 0) codexVersion = v.stdout.trim() || v.stderr.trim() || null;
+  }
   const agy = await findExecutable([env.ANTIGRAVITY_CLI_PATH || process.env.ANTIGRAVITY_CLI_PATH || "", ANTIGRAVITY_CLI_PATH, "agy.exe", "agy"].filter(Boolean));
   let agyVersion = null;
   if (agy) {
@@ -316,12 +518,14 @@ async function getAgentCapabilities() {
   return {
     providers: {
       codex: {
-        available: fs.existsSync(CODEX_CLI_PATH),
-        cli_path: CODEX_CLI_PATH,
-        version: "0.155.0-alpha.9",
+        available: Boolean(codex),
+        cli_path: codex,
+        version: codexVersion,
         default_model: "gpt-5.6-luna",
-        supported_models: ["gpt-5.6-luna"],
-        execution_status: "not_wired"
+        supported_models: CODEX_MODELS,
+        profiles: CODEX_MODEL_PROFILES,
+        authorization_modes: ["read_only"],
+        execution_status: codex ? "wired" : "cli_not_found"
       },
       antigravity: {
         available: Boolean(agy),
@@ -486,18 +690,18 @@ const server = http.createServer(async (req, res) => {
         const op = body.operation;
         if (!op) return sendJson(res, 422, { detail: "operation is required" });
         if (pathname.endsWith("run_read_only") && !READ_ONLY_COMMANDS.has(op)) return sendJson(res, 400, { detail: `Operation '${op}' is not allowed read-only` });
-        const cmdDef = ALLOWED_COMMANDS[op];
+        const cmdDef = resolveApprovedCommand(op, body);
         if (!cmdDef) return sendJson(res, 400, { detail: `Operation '${op}' is not in the approved registry` });
-        const result = await runCommandAsync(cmdDef[0], cmdDef[1], Math.min((body.timeout_seconds || 30) * 1000, 60000));
+        const result = await runCommandAsync(cmdDef[0], cmdDef[1], Math.min((body.timeout_seconds || 30) * 1000, 60000), resolveApprovedCwd(body));
         return sendJson(res, 200, { operation: op, ...result });
       }
       case "/process/start": {
         const op = body.operation;
         if (!op) return sendJson(res, 422, { detail: "operation is required" });
-        const cmdDef = ALLOWED_COMMANDS[op];
+        const cmdDef = resolveApprovedCommand(op, body);
         if (!cmdDef) return sendJson(res, 400, { detail: `Operation '${op}' is not in the approved registry` });
         const runId = crypto.randomUUID();
-        const child = spawn(cmdDef[0], cmdDef[1], { cwd: WORKSPACE_ROOT, windowsHide: true });
+        const child = spawn(cmdDef[0], cmdDef[1], { cwd: resolveApprovedCwd(body), windowsHide: true });
         const rec = { run_id: runId, operation: op, pid: child.pid, status: "running", exit_code: null, stdout: "", stderr: "", started_at: new Date().toISOString(), completed_at: null, process: child };
         child.stdout?.on("data", c => rec.stdout = (rec.stdout + c.toString()).slice(-AGENT_LOG_LIMIT));
         child.stderr?.on("data", c => rec.stderr = (rec.stderr + c.toString()).slice(-AGENT_LOG_LIMIT));
@@ -525,13 +729,16 @@ const server = http.createServer(async (req, res) => {
         const readOnlyEndpoint = pathname.includes("read_only");
         const authMode = readOnlyEndpoint ? "read_only" : (body.authorization_mode || "read_only");
         const provider = body.provider || "antigravity";
-        const model = body.model || (provider === "antigravity" ? "gemini-3.8-flash-high" : null);
+        const model = body.model || (provider === "antigravity" ? "gemini-3.8-flash-high" : (provider === "codex" ? "gpt-5.6-luna" : null));
         const taskId = crypto.randomUUID();
-        const rec = { task_id: taskId, task: body.task, provider, model, authorization_mode: authMode, status: "running", summary: `Launching delegated task on ${provider}`, stdout: "", stderr: "", started_at: new Date().toISOString(), completed_at: null, exit_code: null, process: null, pid: null, snapshot_root: null };
+        const rec = { task_id: taskId, task: body.task, provider, model, authorization_mode: authMode, status: "running", summary: `Launching delegated task on ${provider}`, result: null, error: null, timed_out: false, timeout_seconds: null, final_message: null, final_message_status: "pending", process_exit_code: null, stdout: "", stderr: "", started_at: new Date().toISOString(), completed_at: null, exit_code: null, process: null, pid: null, snapshot_root: null, last_message_path: null };
         agentTasks.set(taskId, rec);
         if (provider === "antigravity") {
           const timeoutSeconds = Math.max(30, Math.min(body.timeout_seconds || 7200, 14400));
-          startAntigravityTask(rec, timeoutSeconds).catch(err => { rec.status = "failed"; rec.exit_code = 1; rec.completed_at = new Date().toISOString(); rec.summary = `Antigravity task failed: ${err.message}`; appendTaskLog(rec, "stderr", `${err.stack || err.message}\n`); removeTaskSnapshot(rec); });
+          startAntigravityTask(rec, timeoutSeconds).catch(err => { rec.status = "failed"; rec.exit_code = 1; rec.completed_at = new Date().toISOString(); rec.summary = `Antigravity task failed: ${err.message}`; rec.error = rec.summary; appendTaskLog(rec, "stderr", `${err.stack || err.message}\n`); removeTaskSnapshot(rec); });
+        } else if (provider === "codex") {
+          const timeoutSeconds = Math.max(1, Math.min(body.timeout_seconds || 7200, 14400));
+          startCodexTask(rec, timeoutSeconds).catch(err => { rec.status = "failed"; rec.exit_code = 1; rec.completed_at = new Date().toISOString(); rec.summary = `Codex task failed: ${err.message}`; rec.error = rec.summary; appendTaskLog(rec, "stderr", `${err.stack || err.message}\n`); removeTaskSnapshot(rec); });
         } else {
           rec.status = "failed";
           rec.exit_code = 2;
@@ -545,7 +752,7 @@ const server = http.createServer(async (req, res) => {
         const rec = agentTasks.get(body.task_id);
         if (!rec) return sendJson(res, 404, { detail: `Agent task not found: ${body.task_id}` });
         const end = rec.completed_at ? new Date(rec.completed_at).getTime() : Date.now();
-        return sendJson(res, 200, { task_id: rec.task_id, status: rec.status, provider: rec.provider, model: rec.model, summary: rec.summary, exit_code: rec.exit_code, duration_seconds: Math.max(1, Math.floor((end - new Date(rec.started_at).getTime()) / 1000)) });
+        return sendJson(res, 200, { task_id: rec.task_id, status: rec.status, provider: rec.provider, model: rec.model, resolved_model: rec.resolved_model || rec.model, summary: rec.summary, result: rec.result, error: rec.error, timed_out: rec.timed_out, timeout_seconds: rec.timeout_seconds, final_message_status: rec.final_message_status, exit_code: rec.exit_code, process_exit_code: rec.process_exit_code, duration_seconds: Math.max(1, Math.floor((end - new Date(rec.started_at).getTime()) / 1000)) });
       }
       case "/agent/get_task_changes": {
         const rec = agentTasks.get(body.task_id);
