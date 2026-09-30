@@ -1,0 +1,59 @@
+﻿{
+    "captured_at":  "2026-09-29T21:39:17.2345719+03:00",
+    "machine":  null,
+    "os":  {
+               "caption":  "Microsoft Windows 11 Pro",
+               "version":  "10.0.26200",
+               "build":  "26200"
+           },
+    "cpu":  "Intel(R) Core(TM) i5-10310U CPU @ 1.70GHz",
+    "ram_bytes":  16760946688,
+    "gpus":  [
+                 {
+                     "name":  "Intel(R) UHD Graphics",
+                     "driver_version":  "31.0.101.2135",
+                     "adapter_ram":  1073741824
+                 }
+             ],
+    "displays":  [
+                     {
+                         "device":  "\\\\.\\DISPLAY1",
+                         "primary":  true,
+                         "x":  0,
+                         "y":  0,
+                         "width":  1280,
+                         "height":  720
+                     },
+                     {
+                         "device":  "\\\\.\\DISPLAY2",
+                         "primary":  false,
+                         "x":  1920,
+                         "y":  0,
+                         "width":  1920,
+                         "height":  1080
+                     }
+                 ],
+    "vision":  {
+                   "path":  "C:\\dev\\Vision\\app\\build\\Release\\visual_app.exe",
+                   "file_version":  "0.1.0-alpha.12",
+                   "product_version":  "0.1.0-alpha.12"
+               },
+    "edge":  {
+                 "path":  "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
+                 "file_version":  "154.0.4258.37",
+                 "product_version":  "154.0.4258.37"
+             },
+    "word":  {
+                 "path":  "C:\\Program Files\\Microsoft Office\\root\\Office16\\WINWORD.EXE",
+                 "file_version":  "16.0.20326.20158",
+                 "product_version":  "16.0.20326.20158"
+             },
+    "excel":  {
+                  "path":  "C:\\Program Files\\Microsoft Office\\root\\Office16\\EXCEL.EXE",
+                  "file_version":  "16.0.20326.20158",
+                  "product_version":  "16.0.20326.20158"
+              },
+    "incumbent_installs":  [
+
+                           ]
+}

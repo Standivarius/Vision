@@ -1,0 +1,20 @@
+VISUAL CONTEXT-PERSISTENCE TASK 2 — RECORDS
+
+Record A — Price 420 | Setup 3 days | Support 24h | Rating 4.1 | Capacity 80
+Record B — Price 510 | Setup 1 day  | Support 8h  | Rating 4.6 | Capacity 60
+Record C — Price 390 | Setup 5 days | Support 24h | Rating 4.3 | Capacity 90
+Record D — Price 460 | Setup 2 days | Support 4h  | Rating 4.5 | Capacity 75
+Record E — Price 440 | Setup 4 days | Support 8h  | Rating 4.8 | Capacity 70
+Record F — Price 530 | Setup 1 day  | Support 2h  | Rating 4.4 | Capacity 100
+Record G — Price 405 | Setup 3 days | Support 12h | Rating 4.2 | Capacity 85
+Record H — Price 475 | Setup 2 days | Support 6h  | Rating 4.7 | Capacity 65
+
+QUESTIONS
+
+1. Which record has the lowest price among those with capacity at least 80?
+2. Which record has the highest rating among those with setup time no more than 2 days?
+3. Which records cost less than 450 and have support response no slower than 12 hours?
+4. Between Record D and Record H, which has the better rating and by how much?
+5. Which record combines capacity at least 90 with the fastest setup time?
+
+Write answers in compare_answers.txt. Avoid copying all records into the answer file; use the source as a reference.
