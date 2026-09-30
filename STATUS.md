@@ -7,7 +7,7 @@ This section is the current operational truth and supersedes older same-file wor
 - Policy P2 visibility independent of following: complete.
 - Raster #19: complete for the current baseline; mode 0 bilinear remains default after human evidence (Word 2x very good; Word 4x judged better than ZoomText 4x; browser source pixel structure was already visible on the source display).
 - Post-raster canonical regression: 19/19 CTests and 8/8 two-screen acceptance PASS at lab/benchmarks/integrated_app/runs/2026-09-30_22-41-56__two_screen_acceptance; Present failures 0; exact return 0 px; settings restored exactly.
-- GitHub #24 repository consolidation: in progress.
+- GitHub #24 repository consolidation: complete. Checkpoints: ae8b37f, c0ccb6a, 1d303df, 7dfe786, d7aa305 plus the final repository-policy commit; raw/generated evidence remains local and ignored.
 - Next hardening streams after #24: #20 UI/DPI/AltGr/localisation, #21 Windows Magnifier + early low-vision/assessor evidence, #22 same-monitor capability, #23 compatibility ledger, and physical qualification/evidence for #11/#13/#14.
 - GitHub #25 is the next Opus+Astra independent-review gate. Trigger it only after materially new hardening evidence exists across raster, cleanup, UI/DPI, low-vision/assessor tasks, same-monitor, compatibility and display lifecycle/identity/recovery; call earlier only for a genuine architectural contradiction.
 - artifacts/2026-09-30__gpt-5.6-sol__vision_development_plan_v0.5.md remains the historical sequencing rationale; its 'implementation not yet started' language is stale.
