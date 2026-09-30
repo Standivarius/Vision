@@ -1,0 +1,49 @@
+{
+  "schema_version": "0.1",
+  "id": "lifecycle_smoke",
+  "version": "1.0",
+  "title": "Vision UI Surface, Help & Restart Lifecycle Smoke",
+  "category": "lifecycle",
+  "tags": ["safe_smoke", "lifecycle", "restart", "ui"],
+  "description": "Validates normal start, duplicate launch suppression, UI surfaces (Settings, Help), clean exit, and restart.",
+  "flags": {
+    "deterministic": true,
+    "interactive_desktop": true,
+    "visual_review": false,
+    "physical_only": true,
+    "privileged": false,
+    "destructive": false,
+    "not_yet_automatable": false
+  },
+  "capabilities_required": {
+    "min_displays": 2,
+    "requires_physical_console": true,
+    "requires_dev_binary": true
+  },
+  "fixture": {
+    "type": "powershell",
+    "entrypoint": "app/run-ui-surface-smoke.ps1",
+    "args": []
+  },
+  "timeout_sec": 30.0,
+  "assertions": [
+    {
+      "id": "exit_code_zero",
+      "name": "Process Exit Clean",
+      "type": "exit_code",
+      "op": "eq",
+      "expected": 0,
+      "critical": true
+    },
+    {
+      "id": "pass_in_summary",
+      "name": "Smoke Reported Pass",
+      "type": "regex_match",
+      "target": "stdout",
+      "op": "regex",
+      "expected": "Pass: True",
+      "critical": true
+    }
+  ],
+  "requested_evidence": ["stdout", "stderr", "summary"]
+}

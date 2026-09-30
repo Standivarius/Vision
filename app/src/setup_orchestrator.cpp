@@ -277,7 +277,7 @@ HttpResult post_json(const std::string& body) {
     while (!basePath.empty() && basePath.back() == L'/') basePath.pop_back();
     const std::wstring requestPath = basePath + L"/v1/plan";
 
-    HINTERNET session = WinHttpOpen(L"Visual Doxa Setup/1.0", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,
+    HINTERNET session = WinHttpOpen(L"Vision Doxa Setup/1.0", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,
                                     WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
     if (!session) {
         result.error = "WinHttpOpen=" + std::to_string(GetLastError());
@@ -388,13 +388,13 @@ bool marker_exists() {
 }
 
 void show_message(const std::wstring& text, UINT flags = MB_OK | MB_ICONINFORMATION) {
-    MessageBoxW(nullptr, text.c_str(), L"Visual Setup", flags | MB_SETFOREGROUND);
+    MessageBoxW(nullptr, text.c_str(), L"Vision Setup", flags | MB_SETFOREGROUND);
 }
 
 int complete_setup(const std::string& detail) {
     append_log("setup_complete " + detail);
     if (!write_marker()) append_log("marker_write_failed");
-    show_message(L"Visual setup is complete.\n\nTwo-monitor graphics checks passed and Doxa cloud support is connected.\n\nVisual will now start.");
+    show_message(L"Vision setup is complete.\n\nTwo-monitor graphics checks passed and Doxa cloud support is connected.\n\nVision will now start.");
     return 0;
 }
 
@@ -452,7 +452,7 @@ int run_first_setup_if_needed(bool force) {
     setupMutex.handle = CreateMutexW(nullptr, FALSE, kSetupMutexName);
     if (!setupMutex.handle) {
         append_log("setup_mutex_create_failed win32=" + std::to_string(GetLastError()));
-        show_message(L"Visual could not coordinate first-run setup with another Visual process.", MB_OK | MB_ICONERROR);
+        show_message(L"Vision could not coordinate first-run setup with another Vision process.", MB_OK | MB_ICONERROR);
         return 56;
     }
 
@@ -468,11 +468,11 @@ int run_first_setup_if_needed(bool force) {
         append_log("setup_mutex_abandoned");
     } else if (wait == WAIT_TIMEOUT) {
         append_log("setup_mutex_timeout");
-        show_message(L"Another Visual setup process is still running. Please wait for it to finish, then start Visual again.", MB_OK | MB_ICONWARNING);
+        show_message(L"Another Vision setup process is still running. Please wait for it to finish, then start Vision again.", MB_OK | MB_ICONWARNING);
         return 57;
     } else {
         append_log("setup_mutex_wait_failed win32=" + std::to_string(GetLastError()));
-        show_message(L"Visual could not coordinate first-run setup with another Visual process.", MB_OK | MB_ICONERROR);
+        show_message(L"Vision could not coordinate first-run setup with another Vision process.", MB_OK | MB_ICONERROR);
         return 58;
     }
 
@@ -484,7 +484,7 @@ int run_first_setup_if_needed(bool force) {
     append_log(std::string("setup_start version=") + visual::version::kSemanticVersion);
     const auto root = setup_root();
     if (root.empty()) {
-        show_message(L"Visual could not create its setup state directory.", MB_OK | MB_ICONERROR);
+        show_message(L"Vision could not create its setup state directory.", MB_OK | MB_ICONERROR);
         return 50;
     }
 
@@ -502,10 +502,10 @@ int run_first_setup_if_needed(bool force) {
         append_log("cloud_unavailable status=" + std::to_string(cloudResult.status) + " error=" + cloudResult.error);
         if (healthPassed) {
             if (!write_marker()) append_log("marker_write_failed");
-            show_message(L"Visual passed its local graphics checks, but Doxa cloud support could not be reached.\n\nVisual will start normally. Cloud diagnostics can be retried later.", MB_OK | MB_ICONWARNING);
+            show_message(L"Vision passed its local graphics checks, but Doxa cloud support could not be reached.\n\nVision will start normally. Cloud diagnostics can be retried later.", MB_OK | MB_ICONWARNING);
             return 0;
         }
-        show_message(L"Visual could not complete the graphics check and Doxa cloud support is currently unavailable.\n\nPlease check the Internet connection and start Visual again.", MB_OK | MB_ICONERROR);
+        show_message(L"Vision could not complete the graphics check and Doxa cloud support is currently unavailable.\n\nPlease check the Internet connection and start Vision again.", MB_OK | MB_ICONERROR);
         return 51;
     }
 
@@ -535,7 +535,7 @@ int run_first_setup_if_needed(bool force) {
             if (followUp == 0) return complete_setup("cloud_recovery action=" + action + " provider=" + provider);
             append_log("cloud_followup_failed action=" + action + " exit=" + std::to_string(followUp));
             const std::wstring why = widen_utf8(reason);
-            show_message(L"Doxa cloud diagnostics ran an approved follow-up check, but the graphics path is still not healthy.\n\n" + why + L"\n\nStart Visual again after checking the display connection.", MB_OK | MB_ICONERROR);
+            show_message(L"Doxa cloud diagnostics ran an approved follow-up check, but the graphics path is still not healthy.\n\n" + why + L"\n\nStart Vision again after checking the display connection.", MB_OK | MB_ICONERROR);
             return 52;
         }
         if (action == "collect_support_bundle") {
@@ -547,16 +547,16 @@ int run_first_setup_if_needed(bool force) {
             return 54;
         }
         append_log("cloud_action_rejected action=" + action);
-        show_message(L"Doxa cloud returned an unsupported setup action. Visual stopped safely.", MB_OK | MB_ICONERROR);
+        show_message(L"Doxa cloud returned an unsupported setup action. Vision stopped safely.", MB_OK | MB_ICONERROR);
         return 55;
     }
 
     if (outcome == "waiting_for_display") {
-        show_message(L"Visual needs two active displays in Windows Extended mode.\n\nConnect or enable the second display, then start Visual again.", MB_OK | MB_ICONWARNING);
+        show_message(L"Vision needs two active displays in Windows Extended mode.\n\nConnect or enable the second display, then start Vision again.", MB_OK | MB_ICONWARNING);
         return 56;
     }
     if (outcome == "reboot_required") {
-        show_message(L"Windows reports that a servicing reboot is required.\n\nRestart Windows, then start Visual again.", MB_OK | MB_ICONWARNING);
+        show_message(L"Windows reports that a servicing reboot is required.\n\nRestart Windows, then start Vision again.", MB_OK | MB_ICONWARNING);
         return 57;
     }
     if (outcome == "needs_it") {
@@ -564,12 +564,12 @@ int run_first_setup_if_needed(bool force) {
         return 58;
     }
     if (outcome == "unsupported_os") {
-        show_message(L"This Windows version is outside the current Visual test baseline.", MB_OK | MB_ICONERROR);
+        show_message(L"This Windows version is outside the current Vision test baseline.", MB_OK | MB_ICONERROR);
         return 59;
     }
 
     append_log("unhandled_cloud_outcome=" + outcome + " action=" + action);
-    show_message(L"Visual setup could not complete. Please start Visual again after checking the display connection.", MB_OK | MB_ICONERROR);
+    show_message(L"Vision setup could not complete. Please start Vision again after checking the display connection.", MB_OK | MB_ICONERROR);
     return 60;
 }
 

@@ -1,0 +1,49 @@
+{
+  "schema_version": "0.1",
+  "id": "hotkey_smoke",
+  "version": "1.0",
+  "title": "Vision Zoom & Tracking Hotkeys Smoke",
+  "category": "zoom_return",
+  "tags": ["safe_smoke", "hotkey", "zoom", "tracking"],
+  "description": "Exercises Ctrl+Alt+1 (1x), Ctrl+Alt+2 (2x), Ctrl+Alt+4 (4x), Ctrl+Alt+T (tracking toggle), and Ctrl+Alt+Q (exit).",
+  "flags": {
+    "deterministic": true,
+    "interactive_desktop": true,
+    "visual_review": false,
+    "physical_only": true,
+    "privileged": false,
+    "destructive": false,
+    "not_yet_automatable": false
+  },
+  "capabilities_required": {
+    "min_displays": 2,
+    "requires_physical_console": true,
+    "requires_dev_binary": true
+  },
+  "fixture": {
+    "type": "powershell",
+    "entrypoint": "app/run-hotkey-smoke.ps1",
+    "args": []
+  },
+  "timeout_sec": 30.0,
+  "assertions": [
+    {
+      "id": "exit_code_zero",
+      "name": "Process Exit Clean",
+      "type": "exit_code",
+      "op": "eq",
+      "expected": 0,
+      "critical": true
+    },
+    {
+      "id": "pass_in_summary",
+      "name": "Smoke Reported Pass",
+      "type": "regex_match",
+      "target": "stdout",
+      "op": "regex",
+      "expected": "Pass: True",
+      "critical": true
+    }
+  ],
+  "requested_evidence": ["stdout", "stderr", "telemetry", "summary"]
+}

@@ -57,6 +57,21 @@ int main() {
         require(!t.visible, "invalid_hidden", "invalid POI geometry should not draw", failures);
     }
 
+    {
+        VisualSettings settings{};
+        settings.follow_caret=false;
+        const auto oldPointer=candidate(PoiKind::Pointer,{300,300,301,301});
+        auto newerCaret=candidate(PoiKind::Caret,{600,400,604,420});
+        newerCaret.timestamp_qpc=200;
+        const auto t=select_locator_target({oldPointer,newerCaret},viewport,settings,200,1000);
+        require(t.visible && t.kind==PoiKind::Caret,"selector_independent_follow",
+                "locator selection should not depend on follow eligibility",failures);
+        settings.show_caret_locator=false;
+        const auto pointerOnly=select_locator_target({oldPointer,newerCaret},viewport,settings,200,1000);
+        require(pointerOnly.visible && pointerOnly.kind==PoiKind::Pointer,"selector_display_policy",
+                "disabled caret locator should leave enabled pointer cue",failures);
+    }
+
     if (!failures.empty()) {
         std::cerr << "locator_model_tests FAILED: " << failures.size() << " failure(s)\n";
         for (const auto& f : failures) std::cerr << "  " << f.name << ": " << f.message << "\n";

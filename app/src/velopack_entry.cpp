@@ -19,7 +19,7 @@ extern "C" int WINAPI VisualProductMain(HINSTANCE instance, HINSTANCE previousIn
 
 namespace {
 
-constexpr char kUpdateRepository[] = "https://github.com/Standivarius/Visual";
+constexpr char kUpdateRepository[] = "https://github.com/Standivarius/Vision";
 constexpr wchar_t kAppMutexName[] = L"Local\\Standivarius.Visual.App.v1";
 constexpr wchar_t kDetailWindowClass[] = L"VisualDetailWindow";
 
@@ -63,7 +63,7 @@ std::filesystem::path update_log_path() {
         wchar_t tempPath[MAX_PATH]{};
         const DWORD tempLength = GetTempPathW(ARRAYSIZE(tempPath), tempPath);
         if (tempLength == 0 || tempLength >= ARRAYSIZE(tempPath)) {
-            throw std::runtime_error("Unable to resolve a directory for the Visual update log");
+            throw std::runtime_error("Unable to resolve a directory for the Vision update log");
         }
         root = std::filesystem::path(tempPath) / L"Standivarius" / L"Visual" / L"logs";
     }
@@ -141,7 +141,7 @@ int run_update_maintenance(const MaintenanceOptions& options) noexcept {
 
         // Prepare Update.exe to apply the downloaded package after this process exits.
         // No automatic restart is requested here; a later user-facing update workflow
-        // can decide when/how to restart Visual without changing the update transport.
+        // can decide when/how to restart Vision without changing the update transport.
         manager.WaitExitThenApplyUpdates(update.value(), false, false);
         append_update_log(logPath, "result=apply_scheduled");
         return 0;
@@ -166,7 +166,7 @@ void velopack_before_uninstall(void*, const char* appVersion) noexcept {
 } // namespace
 
 int WINAPI wWinMain(HINSTANCE instance, HINSTANCE previousInstance, PWSTR commandLine, int showCommand) {
-    // This must remain the first meaningful Visual statement. During Velopack's
+    // This must remain the first meaningful Vision statement. During Velopack's
     // install/update/uninstall fast hooks Run() may terminate the process here.
     Velopack::VelopackApp::Build()
         .OnAfterUpdate(&velopack_after_update)
@@ -195,8 +195,8 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE previousInstance, PWSTR comman
     HANDLE appMutex = CreateMutexW(nullptr, FALSE, kAppMutexName);
     if (!appMutex) {
         MessageBoxW(nullptr,
-                    L"Visual could not create its single-instance guard.",
-                    L"Standivarius - Visual",
+                    L"Vision could not create its single-instance guard.",
+                    L"Standivarius - Vision",
                     MB_OK | MB_ICONERROR);
         return 23;
     }

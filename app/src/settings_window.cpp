@@ -94,7 +94,7 @@ bool SettingsWindow::create(HINSTANCE instance,
 
     hwnd_ = CreateWindowExW(WS_EX_APPWINDOW | WS_EX_CONTROLPARENT,
                             kSettingsClass,
-                            L"Visual Settings",
+                            L"Vision Settings",
                             WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_CLIPCHILDREN,
                             x, y, width, height, owner, nullptr, instance, this);
     return hwnd_ != nullptr;
@@ -223,11 +223,11 @@ void SettingsWindow::create_controls() {
     detail_monitor_combo_ = make_control(hwnd_, L"COMBOBOX", L"", CBS_DROPDOWNLIST | WS_TABSTOP | WS_VSCROLL, kIdDetailMonitor);
     make_control(hwnd_, L"STATIC", L"Reference - optional", SS_LEFT, -1);
     reference_monitor_combo_ = make_control(hwnd_, L"COMBOBOX", L"", CBS_DROPDOWNLIST | WS_TABSTOP | WS_VSCROLL, kIdReferenceMonitor);
-    display_note_ = make_control(hwnd_, L"STATIC", L"Screen-role changes are saved and take effect the next time Visual starts. The Reference screen is left unchanged for normal Windows use.", SS_LEFT, -1);
+    display_note_ = make_control(hwnd_, L"STATIC", L"Screen-role changes are saved and take effect the next time Vision starts. The Reference screen is left unchanged for normal Windows use.", SS_LEFT, -1);
 
     make_control(hwnd_, L"BUTTON", L"&Apply", BS_DEFPUSHBUTTON | WS_TABSTOP, kIdApply);
     make_control(hwnd_, L"BUTTON", L"Restore &defaults", BS_PUSHBUTTON | WS_TABSTOP, kIdDefaults);
-    make_control(hwnd_, L"BUTTON", L"&Help / Ask Visual", BS_PUSHBUTTON | WS_TABSTOP, kIdHelp);
+    make_control(hwnd_, L"BUTTON", L"&Help / Ask Vision", BS_PUSHBUTTON | WS_TABSTOP, kIdHelp);
     make_control(hwnd_, L"BUTTON", L"&Close", BS_PUSHBUTTON | WS_TABSTOP, kIdClose);
 
     set_font_recursive(hwnd_);
@@ -336,9 +336,9 @@ void SettingsWindow::sync_controls() {
     EnableWindow(detail_monitor_combo_, multi_monitor_roles);
     EnableWindow(reference_monitor_combo_, multi_monitor_roles);
     if (!multi_monitor_roles) {
-        SetWindowTextW(display_note_, L"Screen roles require at least two active screens. Visual is currently using its single-screen fallback.");
+        SetWindowTextW(display_note_, L"Screen roles require at least two active screens. Vision is currently using its single-screen fallback.");
     } else {
-        SetWindowTextW(display_note_, L"Screen-role changes are saved and take effect the next time Visual starts. The Reference screen is left unchanged for normal Windows use.");
+        SetWindowTextW(display_note_, L"Screen-role changes are saved and take effect the next time Vision starts. The Reference screen is left unchanged for normal Windows use.");
     }
 }
 
@@ -395,7 +395,7 @@ bool SettingsWindow::collect_settings(visual::core::VisualSettings& output) {
     output.reference_monitor_device = monitor_from_combo(reference_monitor_combo_, true);
 
     if (!visual::core::monitor_roles_valid(output)) {
-        MessageBoxW(hwnd_, L"Context, Detail and Reference must use different screens.", L"Visual Settings", MB_OK | MB_ICONWARNING);
+        MessageBoxW(hwnd_, L"Context, Detail and Reference must use different screens.", L"Vision Settings", MB_OK | MB_ICONWARNING);
         return false;
     }
     return true;

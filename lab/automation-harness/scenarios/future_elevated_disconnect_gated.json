@@ -1,0 +1,40 @@
+{
+  "schema_version": "0.1",
+  "id": "future_elevated_disconnect_gated",
+  "version": "1.0",
+  "title": "Physical Display Disconnect & Hot-Plug Recovery (Gated)",
+  "category": "future_gated",
+  "tags": ["future", "gated", "hardware", "disconnect", "privileged"],
+  "description": "Requires privileged hardware device disablement to simulate physical display disconnect and recovery.",
+  "flags": {
+    "deterministic": false,
+    "interactive_desktop": true,
+    "visual_review": true,
+    "physical_only": true,
+    "privileged": true,
+    "destructive": true,
+    "not_yet_automatable": false
+  },
+  "capabilities_required": {
+    "min_displays": 2,
+    "requires_admin": true,
+    "requires_physical_console": true
+  },
+  "fixture": {
+    "type": "powershell",
+    "entrypoint": "app/run-physical-disconnect-smoke.ps1",
+    "args": []
+  },
+  "timeout_sec": 30.0,
+  "assertions": [
+    {
+      "id": "exit_code_zero",
+      "name": "Process Exit Clean",
+      "type": "exit_code",
+      "op": "eq",
+      "expected": 0,
+      "critical": true
+    }
+  ],
+  "requested_evidence": ["stdout", "stderr", "summary"]
+}

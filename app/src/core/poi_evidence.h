@@ -95,12 +95,13 @@ struct PoiSelectionPolicy {
     const std::vector<PoiCandidate>& candidates,
     std::uint64_t now_qpc,
     std::uint64_t qpc_frequency,
-    const PoiSelectionPolicy& policy = {}) noexcept {
+    const PoiSelectionPolicy& policy = {},
+    std::uint64_t pointer_intent_barrier_qpc = 0) noexcept {
     // A pointer movement is an intent barrier: caret/focus evidence that predates the
     // most recent pointer movement must not reclaim the viewport after the pointer's
     // short freshness window expires. Only semantic activity observed after that
     // pointer movement may take control back.
-    std::uint64_t latest_pointer_qpc = 0;
+    std::uint64_t latest_pointer_qpc = pointer_intent_barrier_qpc;
     for (const auto& c : candidates) {
         if (c.kind == PoiKind::Pointer && c.usable()) latest_pointer_qpc = std::max(latest_pointer_qpc, c.timestamp_qpc);
     }

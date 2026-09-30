@@ -122,7 +122,7 @@ HttpResult post_json(const std::wstring& endpoint, const std::string& body, cons
     std::wstring request_path(parts.lpszUrlPath, parts.dwUrlPathLength);
     if (request_path.empty()) request_path = L"/";
 
-    HINTERNET session = WinHttpOpen(L"Visual Ask/1.0", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,
+    HINTERNET session = WinHttpOpen(L"Vision Ask/1.0", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,
                                     WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
     if (!session) {
         result.error = "session_failed";
@@ -184,11 +184,11 @@ HttpResult post_json(const std::wstring& endpoint, const std::string& body, cons
 
 AnswerResult generic_local_fallback(bool remote_available) {
     AnswerResult result{};
-    result.title = L"Ask Visual";
+    result.title = L"Ask Vision";
     result.answer = remote_available
         ? L"I couldn't get an online answer. Try asking about Screen Roles, Tracking, the View Locator, 1x View / Return, Colour & Contrast, shortcuts, settings, Reference, or Freeze View / Hooked Areas."
-        : L"Ask Visual is using local help only. Try asking about Screen Roles, Tracking, the View Locator, 1x View / Return, Colour & Contrast, shortcuts, settings, Reference, or Freeze View / Hooked Areas.";
-    result.status = remote_available ? L"Online help unavailable — local help remains available" : L"Local Visual help";
+        : L"Ask Vision is using local help only. Try asking about Screen Roles, Tracking, the View Locator, 1x View / Return, Colour & Contrast, shortcuts, settings, Reference, or Freeze View / Hooked Areas.";
+    result.status = remote_available ? L"Online help unavailable — local help remains available" : L"Local Vision help";
     result.success = true;
     return result;
 }
@@ -223,7 +223,7 @@ bool remote_configured() {
 
 AnswerResult answer_question(const std::wstring& question, const std::string& context_json) {
     if (const auto local = visual::core::help_answer_for_query(question); local.matched) {
-        return {local.title, local.body, L"Local Visual help", false, true};
+        return {local.title, local.body, L"Local Vision help", false, true};
     }
 
     const auto endpoint = configured_endpoint();
@@ -244,7 +244,7 @@ AnswerResult answer_question(const std::wstring& question, const std::string& co
     const auto title_utf8 = json_string_field(http.body, "title");
 
     AnswerResult result{};
-    result.title = title_utf8.empty() ? L"Ask Visual" : widen_utf8(title_utf8);
+    result.title = title_utf8.empty() ? L"Ask Vision" : widen_utf8(title_utf8);
     result.answer = widen_utf8(answer_utf8);
     result.status = L"Online contextual help";
     result.used_remote = true;

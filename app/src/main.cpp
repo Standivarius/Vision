@@ -14,8 +14,14 @@
 
 #include "core/poi_evidence.h"
 #include "core/locator_model.h"
+#include "core/monitor_registry.h"
+#include "core/topology_reconciler.h"
 #include "core/viewport_policy.h"
 #include "core/view_controller.h"
+#include "core/view_state.h"
+#include "core/view_update_step.h"
+#include "core/workspace_coordinator.h"
+#include "core/workspace_runtime_graph.h"
 #include "core/settings_model.h"
 #include "settings_store.h"
 #include "settings_window.h"
@@ -25,6 +31,8 @@
 #include "core/help_catalog.h"
 #include "tracking/win32_evidence_provider.h"
 #include "tracking/uia_evidence_provider.h"
+#include "tracking/evidence_sampler.h"
+#include "tracking/evidence_hub.h"
 
 #include <algorithm>
 #include <atomic>
@@ -35,6 +43,7 @@
 #include <filesystem>
 #include <fstream>
 #include <mutex>
+#include <memory>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -79,6 +88,7 @@ std::atomic<int> g_visualMode{static_cast<int>(visual::core::VisualMode::Normal)
 std::atomic<bool> g_captureFailed{false};
 std::atomic<bool> g_healthCheckMode{false};
 std::mutex g_settingsMutex;
+std::atomic<std::uint64_t> g_selectedViewId{visual::core::kCurrentDetailViewId.value};
 visual::core::VisualSettings g_settings{};
 std::filesystem::path g_settingsPath{};
 visual::ui::SettingsWindow* g_settingsWindow{};
@@ -102,6 +112,8 @@ struct MonitorRecord {
     bool primary{};
     std::wstring deviceName;
     DEVMODEW mode{};
+    UINT dpiX{96};
+    UINT dpiY{96};
 };
 
 struct Options {
@@ -111,7 +123,11 @@ struct Options {
     bool zoomSpecified{false};
     bool forceSingleMonitor{false};
     bool healthCheck{false};
+    bool topologyReconcileSelfTest{false};
+    bool fanoutSelfTest{false};
+    bool multiSourceSelfTest{false};
     int healthTimeoutMs{7000};
+    int reconstructionMode{0}; // engineering-only: 0 bilinear, 1 Catmull-Rom, 2 Lanczos2, 3 adaptive sharpen
     std::filesystem::path logPath{L"visual_app_telemetry.csv"};
 };
 
@@ -132,7 +148,8 @@ struct RenderConstants {
     float locatorVisible;
     float locatorKind;
     float visualMode;
-    float padding[3];
+    float reconstructionMode;
+    float padding[2];
 };
 static_assert((sizeof(RenderConstants) % 16) == 0);
 
@@ -158,6 +175,13 @@ BOOL CALLBACK monitor_enum_proc(HMONITOR monitor, HDC, LPRECT, LPARAM data) {
     record.deviceName = info.szDevice;
     record.mode.dmSize = sizeof(record.mode);
     EnumDisplaySettingsExW(record.deviceName.c_str(), ENUM_CURRENT_SETTINGS, &record.mode, 0);
+    if (HMODULE shcore = LoadLibraryW(L"shcore.dll")) {
+        using GetDpiForMonitorFn = HRESULT(WINAPI*)(HMONITOR, int, UINT*, UINT*);
+        if (auto getDpi = reinterpret_cast<GetDpiForMonitorFn>(GetProcAddress(shcore, "GetDpiForMonitor"))) {
+            (void)getDpi(monitor, 0, &record.dpiX, &record.dpiY);
+        }
+        FreeLibrary(shcore);
+    }
     monitors->push_back(std::move(record));
     return TRUE;
 }
@@ -185,7 +209,11 @@ Options parse_options() {
         else if (arg == L"--log") options.logPath = next_value();
         else if (arg == L"--single-monitor") options.forceSingleMonitor = true;
         else if (arg == L"--health-check") options.healthCheck = true;
+        else if (arg == L"--topology-reconcile-self-test") { options.healthCheck = true; options.topologyReconcileSelfTest = true; }
+        else if (arg == L"--fanout-self-test") { options.healthCheck = true; options.fanoutSelfTest = true; }
+        else if (arg == L"--multisource-self-test") { options.healthCheck = true; options.multiSourceSelfTest = true; }
         else if (arg == L"--health-timeout-ms") options.healthTimeoutMs = std::stoi(next_value());
+        else if (arg == L"--reconstruction") options.reconstructionMode = std::clamp(std::stoi(next_value()), 0, 3);
     }
     LocalFree(argv);
     options.zoom = visual::core::sanitize_zoom(options.zoom);
@@ -193,19 +221,35 @@ Options parse_options() {
     return options;
 }
 
+[[nodiscard]] visual::core::ViewId selected_view_id() noexcept {
+    return {g_selectedViewId.load(std::memory_order_relaxed)};
+}
+
+[[nodiscard]] visual::core::ViewState current_detail_view_snapshot(
+    const visual::core::VisualSettings& legacy) noexcept {
+    auto view = visual::core::detail_view_from_legacy_settings(legacy);
+    view.id = selected_view_id();
+    view.zoom = g_zoom.load(std::memory_order_relaxed);
+    view.tracking_enabled = g_trackingEnabled.load(std::memory_order_relaxed);
+    view.follow_pointer = g_followPointer.load(std::memory_order_relaxed);
+    view.follow_caret = g_followCaret.load(std::memory_order_relaxed);
+    view.follow_focus = g_followFocus.load(std::memory_order_relaxed);
+    view.show_pointer_locator = g_showPointerLocator.load(std::memory_order_relaxed);
+    view.show_caret_locator = g_showCaretLocator.load(std::memory_order_relaxed);
+    view.show_focus_locator = g_showFocusLocator.load(std::memory_order_relaxed);
+    view.visual_mode = visual::core::sanitize_visual_mode(g_visualMode.load(std::memory_order_relaxed));
+    return view;
+}
+
 visual::core::VisualSettings runtime_settings_snapshot() noexcept {
     visual::core::VisualSettings settings{};
-    settings.zoom = g_zoom.load(std::memory_order_relaxed);
-    settings.tracking_enabled = g_trackingEnabled.load(std::memory_order_relaxed);
-    settings.follow_pointer = g_followPointer.load(std::memory_order_relaxed);
-    settings.follow_caret = g_followCaret.load(std::memory_order_relaxed);
-    settings.follow_focus = g_followFocus.load(std::memory_order_relaxed);
-    settings.show_pointer_locator = g_showPointerLocator.load(std::memory_order_relaxed);
-    settings.show_caret_locator = g_showCaretLocator.load(std::memory_order_relaxed);
-    settings.show_focus_locator = g_showFocusLocator.load(std::memory_order_relaxed);
+    {
+        std::scoped_lock lock(g_settingsMutex);
+        settings = g_settings;
+    }
+    settings = visual::core::apply_detail_view_to_legacy_settings(current_detail_view_snapshot(settings), settings);
     settings.show_context_indicator = g_showContextIndicator.load(std::memory_order_relaxed);
     settings.shade_context_indicator = g_shadeContextIndicator.load(std::memory_order_relaxed);
-    settings.visual_mode = visual::core::sanitize_visual_mode(g_visualMode.load(std::memory_order_relaxed));
     return settings;
 }
 
@@ -305,9 +349,12 @@ void publish_context_view(HWND notify_window, const visual::core::ScreenRect& vi
 
 class Telemetry {
 public:
-    explicit Telemetry(const std::filesystem::path& path) : stream_(path, std::ios::out | std::ios::trunc) {
-        if (!stream_) throw std::runtime_error("Unable to create Visual telemetry file");
-        stream_ << "frame,qpc,zoom,tracking,poi_present,poi_source,locator_visible,viewport_action,view_left,view_top,view_right,view_bottom,present_hr,pointer_age_ms,uia_snapshot_age_ms,uia_caret_present,uia_focus_present,selected_poi_age_ms,selected_left,selected_top,selected_right,selected_bottom\n";
+    explicit Telemetry(const std::filesystem::path& path, bool append = false)
+        : stream_(path, std::ios::out | (append ? std::ios::app : std::ios::trunc)) {
+        if (!stream_) throw std::runtime_error("Unable to create Vision telemetry file");
+        if (!append) {
+        stream_ << "frame,qpc,zoom,tracking,poi_present,poi_source,locator_visible,viewport_action,view_left,view_top,view_right,view_bottom,present_hr,pointer_age_ms,uia_snapshot_age_ms,uia_caret_present,uia_focus_present,selected_poi_age_ms,selected_left,selected_top,selected_right,selected_bottom,view_id,source_generation,visual_mode\n";
+        }
         stream_.flush();
     }
 
@@ -315,7 +362,8 @@ public:
                visual::core::PoiSource source, bool locatorVisible, visual::core::ViewportAction action,
                const visual::core::ScreenRect& viewport, HRESULT presentHr,
                double pointerAgeMs, double uiaSnapshotAgeMs, bool uiaCaretPresent, bool uiaFocusPresent,
-               double selectedPoiAgeMs, const visual::core::ScreenRect& selectedRect) {
+               double selectedPoiAgeMs, const visual::core::ScreenRect& selectedRect,
+               std::uint64_t viewId, std::uint64_t sourceGeneration, visual::core::VisualMode visualMode) {
         std::scoped_lock lock(mutex_);
         stream_ << sequence << ',' << qpc.QuadPart << ',' << zoom << ',' << (tracking ? 1 : 0) << ','
                 << (poiPresent ? 1 : 0) << ',' << static_cast<int>(source) << ',' << (locatorVisible ? 1 : 0) << ','
@@ -324,7 +372,8 @@ public:
                 << static_cast<unsigned>(presentHr) << ','
                 << pointerAgeMs << ',' << uiaSnapshotAgeMs << ',' << (uiaCaretPresent ? 1 : 0) << ','
                 << (uiaFocusPresent ? 1 : 0) << ',' << selectedPoiAgeMs << ','
-                << selectedRect.left << ',' << selectedRect.top << ',' << selectedRect.right << ',' << selectedRect.bottom << '\n';
+                << selectedRect.left << ',' << selectedRect.top << ',' << selectedRect.right << ',' << selectedRect.bottom << ','
+                << viewId << ',' << sourceGeneration << ',' << static_cast<int>(visualMode) << '\n';
         if (sequence == 1 || (sequence % 120) == 0) stream_.flush();
     }
 
@@ -339,30 +388,107 @@ private:
     std::mutex mutex_;
 };
 
-class Renderer {
+class GpuDeviceDomain {
 public:
-    void initialize(HWND hwnd, UINT width, UINT height) {
-        width_ = width;
-        height_ = height;
-
+    void initialize() {
         UINT flags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
         D3D_FEATURE_LEVEL requested[] = {
             D3D_FEATURE_LEVEL_11_1, D3D_FEATURE_LEVEL_11_0,
             D3D_FEATURE_LEVEL_10_1, D3D_FEATURE_LEVEL_10_0
         };
         D3D_FEATURE_LEVEL actual{};
-        winrt::check_hresult(D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, flags, requested,
-            ARRAYSIZE(requested), D3D11_SDK_VERSION, device_.put(), &actual, context_.put()));
+        winrt::check_hresult(D3D11CreateDevice(
+            nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, flags, requested, ARRAYSIZE(requested),
+            D3D11_SDK_VERSION, device_.put(), &actual, context_.put()));
 
         auto dxgiDevice = device_.as<IDXGIDevice>();
+        winrt::com_ptr<IInspectable> inspectable;
+        winrt::check_hresult(CreateDirect3D11DeviceFromDXGIDevice(dxgiDevice.get(), inspectable.put()));
+        winrtDevice_ = inspectable.as<IDirect3DDevice>();
+    }
+
+    [[nodiscard]] ID3D11Device* device() const noexcept { return device_.get(); }
+    [[nodiscard]] ID3D11DeviceContext* context() const noexcept { return context_.get(); }
+    [[nodiscard]] IDirect3DDevice winrt_device() const { return winrtDevice_; }
+    [[nodiscard]] std::mutex& context_mutex() noexcept { return contextMutex_; }
+
+private:
+    winrt::com_ptr<ID3D11Device> device_;
+    winrt::com_ptr<ID3D11DeviceContext> context_;
+    IDirect3DDevice winrtDevice_{nullptr};
+    std::mutex contextMutex_;
+};
+
+struct CaptureFrameSnapshot {
+    winrt::com_ptr<ID3D11Texture2D> texture{};
+    std::uint64_t generation{};
+};
+
+class CaptureSource {
+public:
+    explicit CaptureSource(GpuDeviceDomain& gpu) noexcept : gpu_(gpu) {}
+
+    void publish(ID3D11Texture2D* source) {
+        if (!source) return;
+        std::scoped_lock lock(mutex_);
+        D3D11_TEXTURE2D_DESC sourceDesc{};
+        source->GetDesc(&sourceDesc);
+        ensure_owned_texture(sourceDesc);
+        {
+            std::scoped_lock contextLock(gpu_.context_mutex());
+            gpu_.context()->CopyResource(ownedTexture_.get(), source);
+        }
+        ++generation_;
+    }
+
+    [[nodiscard]] CaptureFrameSnapshot snapshot() const noexcept {
+        std::scoped_lock lock(mutex_);
+        return {ownedTexture_, generation_};
+    }
+
+private:
+    void ensure_owned_texture(const D3D11_TEXTURE2D_DESC& sourceDesc) {
+        bool recreate = !ownedTexture_;
+        if (ownedTexture_) {
+            D3D11_TEXTURE2D_DESC existing{};
+            ownedTexture_->GetDesc(&existing);
+            recreate = existing.Width != sourceDesc.Width || existing.Height != sourceDesc.Height
+                || existing.Format != sourceDesc.Format;
+        }
+        if (!recreate) return;
+
+        D3D11_TEXTURE2D_DESC desc = sourceDesc;
+        desc.MipLevels = 1;
+        desc.ArraySize = 1;
+        desc.Usage = D3D11_USAGE_DEFAULT;
+        desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+        desc.CPUAccessFlags = 0;
+        desc.MiscFlags = 0;
+        winrt::check_hresult(gpu_.device()->CreateTexture2D(&desc, nullptr, ownedTexture_.put()));
+    }
+
+    GpuDeviceDomain& gpu_;
+    mutable std::mutex mutex_;
+    winrt::com_ptr<ID3D11Texture2D> ownedTexture_;
+    std::uint64_t generation_{};
+};
+
+class OutputPresenter {
+public:
+    explicit OutputPresenter(GpuDeviceDomain& gpu, std::uint32_t presentDelayMs = 0) noexcept
+        : gpu_(gpu), presentDelayMs_(presentDelayMs) {}
+
+    void initialize(HWND hwnd, UINT width, UINT height) {
+        winrt::com_ptr<IDXGIDevice> dxgiDevice;
+        winrt::check_hresult(gpu_.device()->QueryInterface(__uuidof(IDXGIDevice), dxgiDevice.put_void()));
         winrt::com_ptr<IDXGIAdapter> adapter;
         winrt::check_hresult(dxgiDevice->GetAdapter(adapter.put()));
         winrt::com_ptr<IDXGIFactory2> factory;
         winrt::check_hresult(adapter->GetParent(__uuidof(IDXGIFactory2), factory.put_void()));
 
         DXGI_SWAP_CHAIN_DESC1 desc{};
-        desc.Width = width_;
-        desc.Height = height_;
+        desc.Width = width;
+        desc.Height = height;
         desc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
         desc.SampleDesc.Count = 1;
         desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
@@ -370,45 +496,67 @@ public:
         desc.Scaling = DXGI_SCALING_STRETCH;
         desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
         desc.AlphaMode = DXGI_ALPHA_MODE_IGNORE;
-        winrt::check_hresult(factory->CreateSwapChainForHwnd(device_.get(), hwnd, &desc, nullptr, nullptr, swapChain_.put()));
+        winrt::check_hresult(factory->CreateSwapChainForHwnd(
+            gpu_.device(), hwnd, &desc, nullptr, nullptr, swapChain_.put()));
         factory->MakeWindowAssociation(hwnd, DXGI_MWA_NO_ALT_ENTER);
 
-        create_render_target();
+        winrt::com_ptr<ID3D11Texture2D> backBuffer;
+        winrt::check_hresult(swapChain_->GetBuffer(
+            0, __uuidof(ID3D11Texture2D), backBuffer.put_void()));
+        winrt::check_hresult(gpu_.device()->CreateRenderTargetView(
+            backBuffer.get(), nullptr, renderTarget_.put()));
+    }
+
+    [[nodiscard]] ID3D11RenderTargetView* render_target() const noexcept {
+        return renderTarget_.get();
+    }
+
+    [[nodiscard]] HRESULT present() noexcept {
+        if (presentDelayMs_ > 0) std::this_thread::sleep_for(std::chrono::milliseconds(presentDelayMs_));
+        return swapChain_ ? swapChain_->Present(1, 0) : E_UNEXPECTED;
+    }
+
+private:
+    GpuDeviceDomain& gpu_;
+    winrt::com_ptr<IDXGISwapChain1> swapChain_;
+    winrt::com_ptr<ID3D11RenderTargetView> renderTarget_;
+    std::uint32_t presentDelayMs_{};
+};
+
+class Renderer {
+public:
+    explicit Renderer(GpuDeviceDomain& gpu, OutputPresenter& output, int reconstructionMode = 0) noexcept
+        : gpu_(gpu), output_(output), reconstructionMode_(std::clamp(reconstructionMode, 0, 3)) {}
+
+    void initialize(HWND hwnd, UINT width, UINT height) {
+        width_ = width;
+        height_ = height;
+
+        output_.initialize(hwnd, width_, height_);
         create_pipeline();
-        create_winrt_device();
     }
 
-    IDirect3DDevice winrt_device() const { return winrtDevice_; }
-
-    void cache_source(ID3D11Texture2D* source) {
-        if (!source) return;
-        std::scoped_lock lock(d3dMutex_);
-        D3D11_TEXTURE2D_DESC sourceDesc{};
-        source->GetDesc(&sourceDesc);
-        ensure_cached(sourceDesc);
-        context_->CopyResource(cachedSource_.get(), source);
-    }
-
-    HRESULT render_cached(const RECT& sourceMonitorRect,
-                          const visual::core::ScreenRect& viewportRect,
-                          const visual::core::LocatorTarget& locator,
-                          visual::core::VisualMode visualMode) {
-        std::scoped_lock lock(d3dMutex_);
-        ID3D11Texture2D* source = cachedSource_.get();
+    HRESULT render(const CaptureFrameSnapshot& frame,
+                   const RECT& sourceMonitorRect,
+                   const visual::core::ScreenRect& viewportRect,
+                   const visual::core::LocatorTarget& locator,
+                   visual::core::VisualMode visualMode) {
+        ID3D11Texture2D* source = frame.texture.get();
         if (!source) return S_FALSE;
         if (!viewportRect.valid()) return E_INVALIDARG;
 
+        std::unique_lock d3dLock(gpu_.context_mutex());
         D3D11_TEXTURE2D_DESC sourceDesc{};
         source->GetDesc(&sourceDesc);
         ID3D11Texture2D* sampleTexture = source;
         if ((sourceDesc.BindFlags & D3D11_BIND_SHADER_RESOURCE) == 0) {
             ensure_scratch(sourceDesc);
-            context_->CopyResource(scratchTexture_.get(), source);
+            gpu_.context()->CopyResource(scratchTexture_.get(), source);
             sampleTexture = scratchTexture_.get();
         }
 
         winrt::com_ptr<ID3D11ShaderResourceView> srv;
-        HRESULT hr = device_->CreateShaderResourceView(sampleTexture, nullptr, srv.put());
+        HRESULT hr = gpu_.device()->CreateShaderResourceView(sampleTexture, nullptr, srv.put());
         if (FAILED(hr)) return hr;
 
         const visual::core::ScreenRect sourceRect{
@@ -431,53 +579,43 @@ public:
             locator.visible ? 1.0f : 0.0f,
             static_cast<float>(locator.kind),
             static_cast<float>(visualMode),
-            {0.0f, 0.0f, 0.0f}
+            static_cast<float>(reconstructionMode_),
+            {0.0f, 0.0f}
         };
         D3D11_MAPPED_SUBRESOURCE mapped{};
-        hr = context_->Map(cropBuffer_.get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
+        hr = gpu_.context()->Map(cropBuffer_.get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
         if (FAILED(hr)) return hr;
         *reinterpret_cast<RenderConstants*>(mapped.pData) = constants;
-        context_->Unmap(cropBuffer_.get(), 0);
+        gpu_.context()->Unmap(cropBuffer_.get(), 0);
 
         FLOAT clear[4] = {0, 0, 0, 1};
-        context_->ClearRenderTargetView(renderTarget_.get(), clear);
+        gpu_.context()->ClearRenderTargetView(output_.render_target(), clear);
         UINT stride = sizeof(Vertex), offset = 0;
         ID3D11Buffer* vertexBuffers[] = {vertexBuffer_.get()};
-        context_->IASetInputLayout(inputLayout_.get());
-        context_->IASetVertexBuffers(0, 1, vertexBuffers, &stride, &offset);
-        context_->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+        gpu_.context()->IASetInputLayout(inputLayout_.get());
+        gpu_.context()->IASetVertexBuffers(0, 1, vertexBuffers, &stride, &offset);
+        gpu_.context()->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         D3D11_VIEWPORT viewport{0, 0, static_cast<float>(width_), static_cast<float>(height_), 0.0f, 1.0f};
-        context_->RSSetViewports(1, &viewport);
-        ID3D11RenderTargetView* renderTargets[] = {renderTarget_.get()};
-        context_->OMSetRenderTargets(1, renderTargets, nullptr);
-        context_->VSSetShader(vertexShader_.get(), nullptr, 0);
-        context_->PSSetShader(pixelShader_.get(), nullptr, 0);
+        gpu_.context()->RSSetViewports(1, &viewport);
+        ID3D11RenderTargetView* renderTargets[] = {output_.render_target()};
+        gpu_.context()->OMSetRenderTargets(1, renderTargets, nullptr);
+        gpu_.context()->VSSetShader(vertexShader_.get(), nullptr, 0);
+        gpu_.context()->PSSetShader(pixelShader_.get(), nullptr, 0);
         ID3D11ShaderResourceView* srvs[] = {srv.get()};
         ID3D11SamplerState* samplers[] = {sampler_.get()};
         ID3D11Buffer* constantBuffers[] = {cropBuffer_.get()};
-        context_->PSSetShaderResources(0, 1, srvs);
-        context_->PSSetSamplers(0, 1, samplers);
-        context_->PSSetConstantBuffers(0, 1, constantBuffers);
-        context_->Draw(6, 0);
+        gpu_.context()->PSSetShaderResources(0, 1, srvs);
+        gpu_.context()->PSSetSamplers(0, 1, samplers);
+        gpu_.context()->PSSetConstantBuffers(0, 1, constantBuffers);
+        gpu_.context()->Draw(6, 0);
         ID3D11ShaderResourceView* nullSrv[] = {nullptr};
-        context_->PSSetShaderResources(0, 1, nullSrv);
-        return swapChain_->Present(1, 0);
+        gpu_.context()->PSSetShaderResources(0, 1, nullSrv);
+        gpu_.context()->Flush();
+        d3dLock.unlock();
+        return output_.present();
     }
 
 private:
-    void create_winrt_device() {
-        auto dxgiDevice = device_.as<IDXGIDevice>();
-        winrt::com_ptr<IInspectable> inspectable;
-        winrt::check_hresult(CreateDirect3D11DeviceFromDXGIDevice(dxgiDevice.get(), inspectable.put()));
-        winrtDevice_ = inspectable.as<IDirect3DDevice>();
-    }
-
-    void create_render_target() {
-        winrt::com_ptr<ID3D11Texture2D> backBuffer;
-        winrt::check_hresult(swapChain_->GetBuffer(0, __uuidof(ID3D11Texture2D), backBuffer.put_void()));
-        winrt::check_hresult(device_->CreateRenderTargetView(backBuffer.get(), nullptr, renderTarget_.put()));
-    }
-
     winrt::com_ptr<ID3DBlob> compile_shader(const char* source, const char* entry, const char* target) {
         winrt::com_ptr<ID3DBlob> shader, errors;
         const HRESULT hr = D3DCompile(source, strlen(source), nullptr, nullptr, nullptr, entry, target,
@@ -499,15 +637,61 @@ cbuffer RenderConstants : register(b0) {
     float locatorVisible;
     float locatorKind;
     float visualMode;
-    float3 padding;
+    float reconstructionMode;
+    float2 padding;
 };
 struct VSInput { float2 pos : POSITION; float2 uv : TEXCOORD0; };
 struct VSOutput { float4 pos : SV_POSITION; float2 uv : TEXCOORD0; };
 VSOutput VSMain(VSInput input) { VSOutput o; o.pos=float4(input.pos,0,1); o.uv=input.uv; return o; }
 Texture2D SourceTexture : register(t0);
 SamplerState LinearSampler : register(s0);
+
+float cubic(float x) {
+    x = abs(x);
+    if (x <= 1.0) return 1.5*x*x*x - 2.5*x*x + 1.0;
+    if (x < 2.0) return -0.5*x*x*x + 2.5*x*x - 4.0*x + 2.0;
+    return 0.0;
+}
+float sinc1(float x) {
+    x = abs(x);
+    if (x < 0.0001) return 1.0;
+    float p = 3.14159265359 * x;
+    return sin(p) / p;
+}
+float lanczos2w(float x) { x=abs(x); return x < 2.0 ? sinc1(x)*sinc1(x/2.0) : 0.0; }
+
+float4 reconstruct(float2 uv) {
+    uint tw, th; SourceTexture.GetDimensions(tw, th);
+    float2 texSize=float2(tw,th), pos=uv*texSize-0.5;
+    if (reconstructionMode < 0.5) return SourceTexture.SampleLevel(LinearSampler,uv,0);
+
+    if (reconstructionMode > 2.5) {
+        float2 d=1.0/texSize;
+        float4 c=SourceTexture.SampleLevel(LinearSampler,uv,0);
+        float4 n=SourceTexture.SampleLevel(LinearSampler,uv+float2(0,-d.y),0);
+        float4 so=SourceTexture.SampleLevel(LinearSampler,uv+float2(0,d.y),0);
+        float4 e=SourceTexture.SampleLevel(LinearSampler,uv+float2(d.x,0),0);
+        float4 w=SourceTexture.SampleLevel(LinearSampler,uv+float2(-d.x,0),0);
+        float4 blur=0.25*(n+so+e+w);
+        float edge=saturate(length(c.rgb-blur.rgb)*2.0);
+        return saturate(c + (0.30 + 0.20*edge)*(c-blur));
+    }
+
+    float2 base=floor(pos), fracp=pos-base;
+    float4 sum=0; float total=0;
+    [unroll] for(int j=-1;j<=2;++j) {
+        [unroll] for(int i=-1;i<=2;++i) {
+            float wx = reconstructionMode < 1.5 ? cubic(i-fracp.x) : lanczos2w(i-fracp.x);
+            float wy = reconstructionMode < 1.5 ? cubic(j-fracp.y) : lanczos2w(j-fracp.y);
+            float wt=wx*wy;
+            float2 suv=(base+float2(i,j)+0.5)/texSize;
+            sum += SourceTexture.SampleLevel(LinearSampler,suv,0)*wt; total += wt;
+        }
+    }
+    return saturate(sum / max(abs(total),0.0001));
+}
 float4 PSMain(VSOutput input) : SV_TARGET {
-    float4 base = SourceTexture.Sample(LinearSampler, uvOffset + input.uv * uvScale);
+    float4 base = reconstruct(uvOffset + input.uv * uvScale);
     if (visualMode > 0.5 && visualMode < 1.5) {
         base.rgb = saturate((base.rgb - 0.5) * 1.65 + 0.5);
     } else if (visualMode > 1.5 && visualMode < 2.5) {
@@ -553,13 +737,13 @@ float4 PSMain(VSOutput input) : SV_TARGET {
 )";
         auto vsBlob = compile_shader(shaderSource, "VSMain", "vs_5_0");
         auto psBlob = compile_shader(shaderSource, "PSMain", "ps_5_0");
-        winrt::check_hresult(device_->CreateVertexShader(vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), nullptr, vertexShader_.put()));
-        winrt::check_hresult(device_->CreatePixelShader(psBlob->GetBufferPointer(), psBlob->GetBufferSize(), nullptr, pixelShader_.put()));
+        winrt::check_hresult(gpu_.device()->CreateVertexShader(vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), nullptr, vertexShader_.put()));
+        winrt::check_hresult(gpu_.device()->CreatePixelShader(psBlob->GetBufferPointer(), psBlob->GetBufferSize(), nullptr, pixelShader_.put()));
         D3D11_INPUT_ELEMENT_DESC inputDesc[] = {
             {"POSITION",0,DXGI_FORMAT_R32G32_FLOAT,0,0,D3D11_INPUT_PER_VERTEX_DATA,0},
             {"TEXCOORD",0,DXGI_FORMAT_R32G32_FLOAT,0,8,D3D11_INPUT_PER_VERTEX_DATA,0},
         };
-        winrt::check_hresult(device_->CreateInputLayout(inputDesc, ARRAYSIZE(inputDesc), vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), inputLayout_.put()));
+        winrt::check_hresult(gpu_.device()->CreateInputLayout(inputDesc, ARRAYSIZE(inputDesc), vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), inputLayout_.put()));
         const Vertex vertices[] = {{-1,1,0,0},{1,1,1,0},{1,-1,1,1},{-1,1,0,0},{1,-1,1,1},{-1,-1,0,1}};
         D3D11_BUFFER_DESC vbDesc{};
         vbDesc.ByteWidth = sizeof(vertices);
@@ -567,37 +751,20 @@ float4 PSMain(VSOutput input) : SV_TARGET {
         vbDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
         D3D11_SUBRESOURCE_DATA vbData{};
         vbData.pSysMem = vertices;
-        winrt::check_hresult(device_->CreateBuffer(&vbDesc, &vbData, vertexBuffer_.put()));
+        winrt::check_hresult(gpu_.device()->CreateBuffer(&vbDesc, &vbData, vertexBuffer_.put()));
         D3D11_BUFFER_DESC cbDesc{};
         cbDesc.ByteWidth = sizeof(RenderConstants);
         cbDesc.Usage = D3D11_USAGE_DYNAMIC;
         cbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
         cbDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-        winrt::check_hresult(device_->CreateBuffer(&cbDesc, nullptr, cropBuffer_.put()));
+        winrt::check_hresult(gpu_.device()->CreateBuffer(&cbDesc, nullptr, cropBuffer_.put()));
         D3D11_SAMPLER_DESC samplerDesc{};
         samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
         samplerDesc.AddressU = samplerDesc.AddressV = samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
         samplerDesc.MaxLOD = D3D11_FLOAT32_MAX;
-        winrt::check_hresult(device_->CreateSamplerState(&samplerDesc, sampler_.put()));
+        winrt::check_hresult(gpu_.device()->CreateSamplerState(&samplerDesc, sampler_.put()));
     }
 
-    void ensure_cached(const D3D11_TEXTURE2D_DESC& sourceDesc) {
-        bool recreate = !cachedSource_;
-        if (cachedSource_) {
-            D3D11_TEXTURE2D_DESC existing{};
-            cachedSource_->GetDesc(&existing);
-            recreate = existing.Width != sourceDesc.Width || existing.Height != sourceDesc.Height || existing.Format != sourceDesc.Format;
-        }
-        if (!recreate) return;
-        D3D11_TEXTURE2D_DESC desc = sourceDesc;
-        desc.MipLevels = 1;
-        desc.ArraySize = 1;
-        desc.Usage = D3D11_USAGE_DEFAULT;
-        desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-        desc.CPUAccessFlags = 0;
-        desc.MiscFlags = 0;
-        winrt::check_hresult(device_->CreateTexture2D(&desc, nullptr, cachedSource_.put()));
-    }
     void ensure_scratch(const D3D11_TEXTURE2D_DESC& sourceDesc) {
         bool recreate = !scratchTexture_;
         if (scratchTexture_) {
@@ -613,15 +780,14 @@ float4 PSMain(VSOutput input) : SV_TARGET {
         desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
         desc.CPUAccessFlags = 0;
         desc.MiscFlags = 0;
-        winrt::check_hresult(device_->CreateTexture2D(&desc, nullptr, scratchTexture_.put()));
+        winrt::check_hresult(gpu_.device()->CreateTexture2D(&desc, nullptr, scratchTexture_.put()));
     }
 
     UINT width_{};
     UINT height_{};
-    winrt::com_ptr<ID3D11Device> device_;
-    winrt::com_ptr<ID3D11DeviceContext> context_;
-    winrt::com_ptr<IDXGISwapChain1> swapChain_;
-    winrt::com_ptr<ID3D11RenderTargetView> renderTarget_;
+    int reconstructionMode_{};
+    GpuDeviceDomain& gpu_;
+    OutputPresenter& output_;
     winrt::com_ptr<ID3D11VertexShader> vertexShader_;
     winrt::com_ptr<ID3D11PixelShader> pixelShader_;
     winrt::com_ptr<ID3D11InputLayout> inputLayout_;
@@ -629,15 +795,18 @@ float4 PSMain(VSOutput input) : SV_TARGET {
     winrt::com_ptr<ID3D11Buffer> cropBuffer_;
     winrt::com_ptr<ID3D11SamplerState> sampler_;
     winrt::com_ptr<ID3D11Texture2D> scratchTexture_;
-    winrt::com_ptr<ID3D11Texture2D> cachedSource_;
-    std::mutex d3dMutex_;
-    IDirect3DDevice winrtDevice_{nullptr};
 };
 
 class CaptureRunner {
 public:
-    CaptureRunner(Renderer& renderer, Telemetry& telemetry, const MonitorRecord& sourceMonitor, HWND notifyWindow)
-        : renderer_(renderer), telemetry_(telemetry), sourceMonitor_(sourceMonitor), notifyWindow_(notifyWindow), qpcFreq_(qpc_frequency()) {}
+    CaptureRunner(GpuDeviceDomain& gpu, CaptureSource& captureSource, Renderer& renderer,
+                  Telemetry& telemetry, visual::core::WorkspaceCoordinator& workspace,
+                  visual::tracking::EvidenceHub& evidenceHub, visual::core::ViewId viewId,
+                  const MonitorRecord& sourceMonitor, HWND notifyWindow)
+        : gpu_(gpu), captureSource_(captureSource), renderer_(renderer), telemetry_(telemetry),
+          workspace_(workspace), evidenceHub_(evidenceHub), viewId_(viewId),
+          sourceMonitor_(sourceMonitor), notifyWindow_(notifyWindow),
+          qpcFreq_(qpc_frequency()) {}
 
     void start() {
         if (!GraphicsCaptureSession::IsSupported()) throw winrt::hresult_error(E_NOTIMPL, L"Windows Graphics Capture is not supported.");
@@ -649,7 +818,7 @@ public:
         });
         itemClosedSubscribed_ = true;
         captureSize_ = item_.Size();
-        framePool_ = Direct3D11CaptureFramePool::CreateFreeThreaded(renderer_.winrt_device(), DirectXPixelFormat::B8G8R8A8UIntNormalized, 2, captureSize_);
+        framePool_ = Direct3D11CaptureFramePool::CreateFreeThreaded(gpu_.winrt_device(), DirectXPixelFormat::B8G8R8A8UIntNormalized, 2, captureSize_);
         session_ = framePool_.CreateCaptureSession(item_);
         session_.IsCursorCaptureEnabled(false);
         token_ = framePool_.FrameArrived([this](const Direct3D11CaptureFramePool& sender, const winrt::Windows::Foundation::IInspectable&) { on_frame(sender); });
@@ -676,6 +845,7 @@ public:
     [[nodiscard]] bool source_frame_observed() const noexcept { return firstSourceFrameObserved_.load(std::memory_order_relaxed); }
     [[nodiscard]] bool render_observed() const noexcept { return firstRenderObserved_.load(std::memory_order_relaxed); }
     [[nodiscard]] bool health_ready() const noexcept { return source_frame_observed() && render_observed(); }
+    [[nodiscard]] std::uint64_t render_frames() const noexcept { return sequence_.load(std::memory_order_relaxed); }
 
     ~CaptureRunner() { stop(); }
 
@@ -694,7 +864,7 @@ private:
             if (size.Width != captureSize_.Width || size.Height != captureSize_.Height) {
                 frame.Close();
                 captureSize_ = size;
-                framePool_.Recreate(renderer_.winrt_device(), DirectXPixelFormat::B8G8R8A8UIntNormalized, 2, captureSize_);
+                framePool_.Recreate(gpu_.winrt_device(), DirectXPixelFormat::B8G8R8A8UIntNormalized, 2, captureSize_);
                 telemetry_.event("content_size_changed");
                 return;
             }
@@ -702,7 +872,7 @@ private:
             auto access = frame.Surface().as<AbiDxgiInterfaceAccess>();
             winrt::com_ptr<ID3D11Texture2D> texture;
             winrt::check_hresult(access->GetInterface(__uuidof(ID3D11Texture2D), texture.put_void()));
-            renderer_.cache_source(texture.get());
+            captureSource_.publish(texture.get());
             bool expected = false;
             if (firstSourceFrameObserved_.compare_exchange_strong(expected, true, std::memory_order_relaxed)) {
                 telemetry_.event("first_source_frame");
@@ -728,34 +898,37 @@ private:
                 const auto now = qpc_now();
                 const auto nowQpc = static_cast<std::uint64_t>(now.QuadPart);
 
-                auto candidates = evidenceProvider_.sample(sourceRect, nowQpc);
-                const auto uiaSnapshot = uiaEvidenceProvider_.diagnostic_snapshot();
-                for (const auto& candidate : uiaSnapshot.candidates) {
-                    const auto& r = candidate.screen_rect;
-                    const bool intersectsSource = r.valid()
-                        && r.right > sourceRect.left && r.left < sourceRect.right
-                        && r.bottom > sourceRect.top && r.top < sourceRect.bottom;
-                    if (intersectsSource) candidates.push_back(candidate);
-                }
-
+                const auto evidenceSnapshot = evidenceSampler_.sample(sourceRect, nowQpc);
+                evidenceHub_.publish(evidenceSnapshot);
                 const auto frameSettings = runtime_settings_snapshot();
-                candidates.erase(std::remove_if(candidates.begin(), candidates.end(), [&](const visual::core::PoiCandidate& candidate) {
-                    return !visual::core::should_follow(candidate.kind, frameSettings);
-                }), candidates.end());
-
+                const auto& routedCandidates = workspace_.movement_permitted(viewId_)
+                    ? evidenceSnapshot.candidates
+                    : noMovementCandidates_;
+                const auto stepped = viewUpdateStep_.update({
+                    sourceRect,
+                    frameSettings,
+                    routedCandidates,
+                    nowQpc,
+                    static_cast<std::uint64_t>(qpcFreq_.QuadPart),
+                    evidenceSnapshot.pointer_movement_qpc});
+                const auto& view = stepped.view;
+                const auto& locator = stepped.locator;
                 const double zoom = frameSettings.zoom;
                 const bool tracking = frameSettings.tracking_enabled;
-                const auto view = viewController_.update(
-                    sourceRect, zoom, tracking, candidates, nowQpc,
-                    static_cast<std::uint64_t>(qpcFreq_.QuadPart));
                 const auto selectedSource = view.selected_poi ? view.selected_poi->source : visual::core::PoiSource::Pointer;
-                const bool showLocator = view.selected_poi && visual::core::should_show_locator(view.selected_poi->kind, frameSettings);
-                const auto locator = showLocator
-                    ? visual::core::make_locator_target(*view.selected_poi, view.viewport)
-                    : visual::core::LocatorTarget{};
                 publish_context_view(notifyWindow_, view.viewport, zoom);
 
-                const HRESULT presentHr = renderer_.render_cached(sourceMonitor_.rect, view.viewport, locator, frameSettings.visual_mode);
+                const auto captureFrame = captureSource_.snapshot();
+                if (captureFrame.generation < lastRenderedFrameGeneration_) {
+                    telemetry_.event("capture_frame_generation_regressed");
+                    throw winrt::hresult_error(E_UNEXPECTED);
+                }
+                if (captureFrame.generation > 0 && lastRenderedFrameGeneration_ == 0) {
+                    telemetry_.event("first_render_source_generation");
+                }
+                lastRenderedFrameGeneration_ = captureFrame.generation;
+                const HRESULT presentHr = renderer_.render(
+                    captureFrame, sourceMonitor_.rect, view.viewport, locator, frameSettings.visual_mode);
                 if (presentHr != S_FALSE) {
                     if (SUCCEEDED(presentHr)) {
                         bool expected = false;
@@ -763,14 +936,15 @@ private:
                             telemetry_.event("first_render_frame");
                         }
                     }
-                    const double pointerAgeMs = age_ms(evidenceProvider_.last_pointer_movement_qpc(), nowQpc);
-                    const double uiaSnapshotAgeMs = age_ms(uiaSnapshot.sampled_qpc, nowQpc);
+                    const double pointerAgeMs = age_ms(evidenceSnapshot.pointer_movement_qpc, nowQpc);
+                    const double uiaSnapshotAgeMs = age_ms(evidenceSnapshot.uia_sampled_qpc, nowQpc);
                     const double selectedAgeMs = view.selected_poi ? age_ms(view.selected_poi->timestamp_qpc, nowQpc) : -1.0;
                     const auto selectedRect = view.selected_poi ? view.selected_poi->screen_rect : visual::core::ScreenRect{};
                     telemetry_.frame(++sequence_, now, zoom, tracking, view.selected_poi.has_value(), selectedSource,
                                      locator.visible, view.action, view.viewport, presentHr,
-                                     pointerAgeMs, uiaSnapshotAgeMs, uiaSnapshot.current_caret_present,
-                                     uiaSnapshot.current_focus_present, selectedAgeMs, selectedRect);
+                                     pointerAgeMs, uiaSnapshotAgeMs, evidenceSnapshot.uia_current_caret_present,
+                                     evidenceSnapshot.uia_current_focus_present, selectedAgeMs, selectedRect,
+                                     viewId_.value, captureFrame.generation, frameSettings.visual_mode);
                     if (FAILED(presentHr)) throw winrt::hresult_error(presentHr);
                 }
 
@@ -794,14 +968,19 @@ private:
         }
     }
 
+    GpuDeviceDomain& gpu_;
+    CaptureSource& captureSource_;
     Renderer& renderer_;
     Telemetry& telemetry_;
+    visual::core::WorkspaceCoordinator& workspace_;
+    visual::tracking::EvidenceHub& evidenceHub_;
+    visual::core::ViewId viewId_{};
+    std::vector<visual::core::PoiCandidate> noMovementCandidates_{};
     MonitorRecord sourceMonitor_;
     HWND notifyWindow_{};
     LARGE_INTEGER qpcFreq_{};
-    visual::tracking::Win32EvidenceProvider evidenceProvider_{};
-    visual::tracking::UiaEvidenceProvider uiaEvidenceProvider_{};
-    visual::core::ViewController viewController_{};
+    visual::tracking::EvidenceSampler evidenceSampler_{};
+    visual::core::ViewUpdateStep viewUpdateStep_{};
     GraphicsCaptureItem item_{nullptr};
     Direct3D11CaptureFramePool framePool_{nullptr};
     GraphicsCaptureSession session_{nullptr};
@@ -813,8 +992,130 @@ private:
     std::atomic<bool> failurePosted_{false};
     std::atomic<bool> firstSourceFrameObserved_{false};
     std::atomic<bool> firstRenderObserved_{false};
-    std::uint64_t sequence_{};
+    std::atomic<std::uint64_t> sequence_{0};
+    std::uint64_t lastRenderedFrameGeneration_{};
 };
+
+
+
+class CaptureOnlyPump {
+public:
+    CaptureOnlyPump(GpuDeviceDomain& gpu, CaptureSource& source, Telemetry& telemetry,
+                    const MonitorRecord& monitor, std::uint64_t sourceId)
+        : gpu_(gpu), source_(source), telemetry_(telemetry), monitor_(monitor), sourceId_(sourceId) {}
+    void start() {
+        auto factory=winrt::get_activation_factory<GraphicsCaptureItem,IGraphicsCaptureItemInterop>();
+        winrt::check_hresult(factory->CreateForMonitor(monitor_.handle,winrt::guid_of<GraphicsCaptureItem>(),winrt::put_abi(item_)));
+        size_=item_.Size();
+        pool_=Direct3D11CaptureFramePool::CreateFreeThreaded(gpu_.winrt_device(),DirectXPixelFormat::B8G8R8A8UIntNormalized,2,size_);
+        session_=pool_.CreateCaptureSession(item_); session_.IsCursorCaptureEnabled(false);
+        token_=pool_.FrameArrived([this](const Direct3D11CaptureFramePool& sender,const winrt::Windows::Foundation::IInspectable&){on_frame(sender);});
+        session_.StartCapture(); telemetry_.event("capture_source_"+std::to_string(sourceId_)+"_started");
+    }
+    void stop() noexcept {
+        try{if(pool_)pool_.FrameArrived(token_);}catch(...){}
+        try{if(session_)session_.Close();}catch(...){}
+        try{if(pool_)pool_.Close();}catch(...){}
+        session_=nullptr;pool_=nullptr;item_=nullptr;
+    }
+    ~CaptureOnlyPump(){stop();}
+    [[nodiscard]] bool frame_observed()const noexcept{return observed_.load(std::memory_order_relaxed);}
+private:
+    void on_frame(const Direct3D11CaptureFramePool& sender) noexcept {
+        try{
+            auto frame=sender.TryGetNextFrame(); if(!frame)return;
+            auto size=frame.ContentSize(); if(size.Width<=0||size.Height<=0)return;
+            if(size.Width!=size_.Width||size.Height!=size_.Height){frame.Close();size_=size;pool_.Recreate(gpu_.winrt_device(),DirectXPixelFormat::B8G8R8A8UIntNormalized,2,size_);return;}
+            auto access=frame.Surface().as<AbiDxgiInterfaceAccess>();winrt::com_ptr<ID3D11Texture2D> texture;
+            winrt::check_hresult(access->GetInterface(__uuidof(ID3D11Texture2D),texture.put_void()));
+            source_.publish(texture.get());
+            bool expected=false;if(observed_.compare_exchange_strong(expected,true,std::memory_order_relaxed))
+                telemetry_.event("capture_source_"+std::to_string(sourceId_)+"_first_frame");
+        }catch(...){telemetry_.event("capture_source_"+std::to_string(sourceId_)+"_failure");}
+    }
+    GpuDeviceDomain& gpu_; CaptureSource& source_; Telemetry& telemetry_; MonitorRecord monitor_; std::uint64_t sourceId_{};
+    GraphicsCaptureItem item_{nullptr}; Direct3D11CaptureFramePool pool_{nullptr}; GraphicsCaptureSession session_{nullptr};
+    winrt::event_token token_{}; winrt::Windows::Graphics::SizeInt32 size_{}; std::atomic<bool> observed_{false};
+};
+
+class SecondaryViewRunner {
+public:
+    SecondaryViewRunner(CaptureSource& source, Renderer& renderer, Telemetry& telemetry,
+                        const MonitorRecord& sourceMonitor, visual::core::ViewId viewId,
+                        double zoom, visual::core::VisualMode mode,
+                        visual::core::WorkspaceRuntimeGraph* graph = nullptr)
+        : source_(source), renderer_(renderer), telemetry_(telemetry), sourceMonitor_(sourceMonitor),
+          viewId_(viewId), zoom_(zoom), mode_(mode), graph_(graph) {}
+
+    void start() {
+        thread_ = std::jthread([this](std::stop_token stop) { loop(stop); });
+        telemetry_.event("secondary_view_started");
+    }
+    void stop() noexcept {
+        if (thread_.joinable()) { thread_.request_stop(); thread_.join(); }
+    }
+    ~SecondaryViewRunner() { stop(); }
+    [[nodiscard]] bool render_observed() const noexcept { return rendered_.load(std::memory_order_relaxed); }
+    [[nodiscard]] std::uint64_t frames() const noexcept { return frames_.load(std::memory_order_relaxed); }
+
+private:
+    void loop(std::stop_token stop) noexcept {
+        try {
+            const visual::core::ScreenRect sourceRect{
+                static_cast<double>(sourceMonitor_.rect.left), static_cast<double>(sourceMonitor_.rect.top),
+                static_cast<double>(sourceMonitor_.rect.right), static_cast<double>(sourceMonitor_.rect.bottom)};
+            visual::core::VisualSettings settings{};
+            settings.zoom = zoom_;
+            settings.tracking_enabled = false;
+            settings.visual_mode = mode_;
+            const std::vector<visual::core::PoiCandidate> noEvidence;
+            auto next = std::chrono::steady_clock::now();
+            while (!stop.stop_requested()) {
+                next += std::chrono::milliseconds(16);
+                if (graph_ && !graph_->view_active(viewId_)) {
+                    std::this_thread::sleep_until(next);
+                    continue;
+                }
+                const auto qpc = qpc_now();
+                const auto stepped = step_.update({
+                    sourceRect, settings, noEvidence, static_cast<std::uint64_t>(qpc.QuadPart),
+                    static_cast<std::uint64_t>(qpc_frequency().QuadPart)});
+                const auto frame = source_.snapshot();
+                if (frame.generation > 0) {
+                    const HRESULT hr = renderer_.render(
+                        frame, sourceMonitor_.rect, stepped.view.viewport, stepped.locator, settings.visual_mode);
+                    if (hr != S_FALSE) {
+                        const auto seq = frames_.fetch_add(1, std::memory_order_relaxed) + 1;
+                        rendered_.store(SUCCEEDED(hr), std::memory_order_relaxed);
+                        telemetry_.frame(seq, qpc, settings.zoom, false, false, visual::core::PoiSource::Pointer,
+                            stepped.locator.visible, stepped.view.action, stepped.view.viewport, hr,
+                            -1.0, -1.0, false, false, -1.0, {}, viewId_.value, frame.generation, settings.visual_mode);
+                        if (FAILED(hr)) throw winrt::hresult_error(hr);
+                    }
+                }
+                std::this_thread::sleep_until(next);
+                if (std::chrono::steady_clock::now() > next + std::chrono::milliseconds(64))
+                    next = std::chrono::steady_clock::now();
+            }
+        } catch (...) {
+            telemetry_.event("secondary_view_failure");
+        }
+    }
+
+    CaptureSource& source_;
+    Renderer& renderer_;
+    Telemetry& telemetry_;
+    MonitorRecord sourceMonitor_;
+    visual::core::ViewId viewId_{};
+    double zoom_{4.0};
+    visual::core::VisualMode mode_{visual::core::VisualMode::Inverted};
+    visual::core::ViewUpdateStep step_{};
+    visual::core::WorkspaceRuntimeGraph* graph_{};
+    std::jthread thread_{};
+    std::atomic<bool> rendered_{false};
+    std::atomic<std::uint64_t> frames_{0};
+};
+
 
 constexpr int kHotkeyZoom1 = 101;
 constexpr int kHotkeyZoom2 = 102;
@@ -933,12 +1234,12 @@ void show_detail_context_menu(HWND hwnd, LPARAM l_param) noexcept {
     }
     HMENU menu = CreatePopupMenu();
     if (!menu) return;
-    AppendMenuW(menu, MF_STRING, 1, L"Visual Settings...\tCtrl+Alt+S");
+    AppendMenuW(menu, MF_STRING, 1, L"Vision Settings...\tCtrl+Alt+S");
     AppendMenuW(menu, MF_STRING, 2, L"1x View / Return\tCtrl+Alt+0");
     AppendMenuW(menu, MF_STRING | (g_trackingEnabled.load(std::memory_order_relaxed) ? MF_CHECKED : 0), 3, L"Tracking\tCtrl+Alt+T");
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(menu, MF_STRING, 4, L"Help / Ask Visual\tCtrl+Alt+H");
-    AppendMenuW(menu, MF_STRING, 5, L"Exit Visual\tCtrl+Alt+Q");
+    AppendMenuW(menu, MF_STRING, 4, L"Help / Ask Vision\tCtrl+Alt+H");
+    AppendMenuW(menu, MF_STRING, 5, L"Exit Vision\tCtrl+Alt+Q");
     SetForegroundWindow(hwnd);
     const UINT command = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_RIGHTBUTTON, point.x, point.y, 0, hwnd, nullptr);
     DestroyMenu(menu);
@@ -993,7 +1294,7 @@ LRESULT CALLBACK window_proc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lPar
     case kCaptureErrorMessage:
         g_shutdownReason.store(static_cast<int>(ShutdownReason::CaptureFailure), std::memory_order_relaxed);
         if (!g_healthCheckMode.load(std::memory_order_relaxed)) {
-            MessageBoxW(hwnd, L"Capture/render loop failed. See visual_app_telemetry.csv.", L"Visual", MB_OK | MB_ICONERROR);
+            MessageBoxW(hwnd, L"Capture/render loop failed. See visual_app_telemetry.csv.", L"Vision", MB_OK | MB_ICONERROR);
         }
         DestroyWindow(hwnd);
         return 0;
@@ -1044,12 +1345,12 @@ WindowPlacement create_detail_window(HINSTANCE instance, const MonitorRecord& de
         exStyle |= WS_EX_TOPMOST;
     }
 
-    HWND hwnd = CreateWindowExW(exStyle, kWindowClass, L"Visual - Detail", style, x, y, width, height,
+    HWND hwnd = CreateWindowExW(exStyle, kWindowClass, L"Vision - Detail", style, x, y, width, height,
                                 nullptr, nullptr, instance, nullptr);
     if (!hwnd) winrt::throw_last_error();
     if (!g_healthCheckMode.load(std::memory_order_relaxed) && !register_hotkeys(hwnd)) {
         DestroyWindow(hwnd);
-        throw std::runtime_error("Visual could not register its Ctrl+Alt shortcuts. Another application may already be using one of them.");
+        throw std::runtime_error("Vision could not register its Ctrl+Alt shortcuts. Another application may already be using one of them.");
     }
     SetWindowPos(hwnd, singleMonitor ? HWND_TOPMOST : HWND_TOP, x, y, width, height, SWP_SHOWWINDOW | SWP_NOACTIVATE);
     ShowWindow(hwnd, SW_SHOWNOACTIVATE);
@@ -1071,6 +1372,78 @@ int find_monitor_by_device(const std::vector<MonitorRecord>& monitors, const std
     }
     return -1;
 }
+
+class WorkspaceRuntimeCollection {
+public:
+    struct SourceWorker {
+        visual::core::SourceId id{};
+        std::unique_ptr<CaptureSource> source;
+        std::unique_ptr<CaptureOnlyPump> pump;
+    };
+    struct ViewWorker {
+        visual::core::ViewId id{};
+        std::unique_ptr<OutputPresenter> output;
+        std::unique_ptr<Renderer> renderer;
+        std::unique_ptr<SecondaryViewRunner> runner;
+        WindowPlacement window{};
+    };
+
+    CaptureSource& add_source(GpuDeviceDomain& gpu, Telemetry& telemetry,
+                              const MonitorRecord& monitor, visual::core::SourceId id) {
+        auto worker = std::make_unique<SourceWorker>();
+        worker->id = id;
+        worker->source = std::make_unique<CaptureSource>(gpu);
+        worker->pump = std::make_unique<CaptureOnlyPump>(gpu, *worker->source, telemetry, monitor, id.value);
+        auto& source = *worker->source;
+        sources_.push_back(std::move(worker));
+        return source;
+    }
+
+    SecondaryViewRunner& add_view(HINSTANCE instance, GpuDeviceDomain& gpu, Telemetry& telemetry,
+                                  visual::core::WorkspaceRuntimeGraph& graph, CaptureSource& source,
+                                  const MonitorRecord& sourceMonitor, const MonitorRecord& destinationMonitor,
+                                  visual::core::ViewId id, double zoom, visual::core::VisualMode mode,
+                                  std::uint32_t presentDelayMs = 0) {
+        auto worker = std::make_unique<ViewWorker>();
+        worker->id = id;
+        worker->window = create_detail_window(instance, destinationMonitor, true);
+        worker->output = std::make_unique<OutputPresenter>(gpu, presentDelayMs);
+        worker->renderer = std::make_unique<Renderer>(gpu, *worker->output);
+        worker->renderer->initialize(worker->window.hwnd, worker->window.width, worker->window.height);
+        worker->runner = std::make_unique<SecondaryViewRunner>(
+            source, *worker->renderer, telemetry, sourceMonitor, id, zoom, mode, &graph);
+        auto& runner = *worker->runner;
+        views_.push_back(std::move(worker));
+        return runner;
+    }
+
+    void start() {
+        for (auto& source : sources_) source->pump->start();
+        for (auto& view : views_) view->runner->start();
+    }
+    void stop() noexcept {
+        for (auto& view : views_) view->runner->stop();
+        for (auto& source : sources_) source->pump->stop();
+        for (auto& view : views_) if (IsWindow(view->window.hwnd)) DestroyWindow(view->window.hwnd);
+    }
+    [[nodiscard]] CaptureOnlyPump* source_worker(visual::core::SourceId id) noexcept {
+        for (auto& source : sources_) if (source->id == id) return source->pump.get();
+        return nullptr;
+    }
+    [[nodiscard]] SecondaryViewRunner* view_worker(visual::core::ViewId id) noexcept {
+        for (auto& view : views_) if (view->id == id) return view->runner.get();
+        return nullptr;
+    }
+    void stop_source(visual::core::SourceId id) noexcept {
+        if (auto* worker = source_worker(id)) worker->stop();
+    }
+    ~WorkspaceRuntimeCollection() { stop(); }
+
+private:
+    std::vector<std::unique_ptr<SourceWorker>> sources_;
+    std::vector<std::unique_ptr<ViewWorker>> views_;
+};
+
 
 int choose_source(const std::vector<MonitorRecord>& monitors, int requested, const std::wstring& persisted_device) {
     if (requested >= 0) return requested;
@@ -1106,11 +1479,11 @@ std::vector<visual::ui::MonitorOption> make_monitor_options(const std::vector<Mo
 
 } // namespace
 
-int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
+int run_workspace_generation(HINSTANCE instance, const Options& options, std::uint64_t processGeneration) {
     try {
-        SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
-        winrt::init_apartment(winrt::apartment_type::multi_threaded);
-        const auto options = parse_options();
+        g_shutdownReason.store(static_cast<int>(ShutdownReason::User), std::memory_order_relaxed);
+        g_captureFailed.store(false, std::memory_order_relaxed);
+        g_contextViewMessagePending.store(false, std::memory_order_relaxed);
         g_healthCheckMode.store(options.healthCheck, std::memory_order_relaxed);
 
         g_settingsPath = visual::settings::default_settings_path();
@@ -1124,6 +1497,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
             std::scoped_lock lock(g_assistanceMutex);
             g_assistanceState = persistedAssistance;
         }
+        g_selectedViewId.store(visual::core::kCurrentDetailViewId.value, std::memory_order_relaxed);
         apply_runtime_settings(persistedSettings);
         if (options.zoomSpecified) {
             g_zoom.store(options.zoom, std::memory_order_relaxed);
@@ -1132,9 +1506,25 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
 
         const auto monitors = enumerate_monitors();
         if (monitors.empty()) {
-            if (!options.healthCheck) MessageBoxW(nullptr, L"No active display was detected.", L"Visual", MB_OK | MB_ICONERROR);
+            if (!options.healthCheck) MessageBoxW(nullptr, L"No active display was detected.", L"Vision", MB_OK | MB_ICONERROR);
             return 2;
         }
+
+        visual::core::MonitorRegistry monitorRegistry;
+        std::vector<visual::core::MonitorSnapshot> monitorSnapshots;
+        monitorSnapshots.reserve(monitors.size());
+        for (const auto& monitor : monitors) {
+            visual::core::MonitorSnapshot snapshot{};
+            snapshot.bounds = {static_cast<double>(monitor.rect.left), static_cast<double>(monitor.rect.top),
+                               static_cast<double>(monitor.rect.right), static_cast<double>(monitor.rect.bottom)};
+            snapshot.primary = monitor.primary;
+            snapshot.dpi_x = monitor.dpiX;
+            snapshot.dpi_y = monitor.dpiY;
+            snapshot.orientation = monitor.mode.dmDisplayOrientation;
+            snapshot.identity.gdi_device_name = monitor.deviceName;
+            monitorSnapshots.push_back(std::move(snapshot));
+        }
+        (void)monitorRegistry.update(std::move(monitorSnapshots));
 
         const bool singleMonitor = options.forceSingleMonitor || monitors.size() == 1;
         const int sourceIndex = choose_source(monitors, options.sourceIndex, persistedSettings.context_monitor_device);
@@ -1143,56 +1533,103 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         if (sourceIndex < 0 || sourceIndex >= static_cast<int>(monitors.size())
             || destIndex < 0 || destIndex >= static_cast<int>(monitors.size())
             || (!singleMonitor && sourceIndex == destIndex)) {
-            if (!options.healthCheck) MessageBoxW(nullptr, L"Invalid Context/Detail screen selection.", L"Visual", MB_OK | MB_ICONERROR);
+            if (!options.healthCheck) MessageBoxW(nullptr, L"Invalid Context/Detail screen selection.", L"Vision", MB_OK | MB_ICONERROR);
             return 3;
         }
 
-        // Persist the resolved Context and Detail roles only when they came from normal settings/default
-        // selection. Explicit command-line monitor indices remain temporary diagnostic overrides.
-        bool roleSettingsChanged = false;
-        if (!singleMonitor && options.sourceIndex < 0) {
-            if (persistedSettings.context_monitor_device != monitors[static_cast<std::size_t>(sourceIndex)].deviceName) {
-                persistedSettings.context_monitor_device = monitors[static_cast<std::size_t>(sourceIndex)].deviceName;
-                roleSettingsChanged = true;
-            }
-        }
-        if (!singleMonitor && options.destIndex < 0) {
-            if (persistedSettings.detail_monitor_device != monitors[static_cast<std::size_t>(destIndex)].deviceName) {
-                persistedSettings.detail_monitor_device = monitors[static_cast<std::size_t>(destIndex)].deviceName;
-                roleSettingsChanged = true;
-            }
-        }
-        if (!persistedSettings.reference_monitor_device.empty()) {
-            const int referenceIndex = find_monitor_by_device(monitors, persistedSettings.reference_monitor_device);
-            if (referenceIndex < 0 || referenceIndex == sourceIndex || referenceIndex == destIndex) {
-                persistedSettings.reference_monitor_device.clear();
-                roleSettingsChanged = true;
-            }
-        }
-        if (singleMonitor) {
-            if (!persistedSettings.context_monitor_device.empty() || !persistedSettings.detail_monitor_device.empty()
-                || !persistedSettings.reference_monitor_device.empty()) {
-                persistedSettings.context_monitor_device.clear();
-                persistedSettings.detail_monitor_device.clear();
-                persistedSettings.reference_monitor_device.clear();
-                roleSettingsChanged = true;
-            }
-        }
-        if (roleSettingsChanged) {
-            {
-                std::scoped_lock lock(g_settingsMutex);
-                g_settings.context_monitor_device = persistedSettings.context_monitor_device;
-                g_settings.detail_monitor_device = persistedSettings.detail_monitor_device;
-                g_settings.reference_monitor_device = persistedSettings.reference_monitor_device;
-            }
-            if (!options.healthCheck) persist_current_settings();
-        }
+        // Persisted display roles are user intent. Runtime resolution is transient and must not
+        // rewrite intent merely because a display is temporarily absent or a fallback was selected.
+        const visual::core::WorkspaceIntent workspaceIntent{
+            persistedSettings.context_monitor_device,
+            persistedSettings.detail_monitor_device,
+            persistedSettings.reference_monitor_device
+        };
+        visual::core::ResolvedWorkspace resolvedWorkspace{};
+        resolvedWorkspace.detail_binding.source_monitor_device =
+            monitors[static_cast<std::size_t>(sourceIndex)].deviceName;
+        resolvedWorkspace.detail_binding.destination_monitor_device =
+            monitors[static_cast<std::size_t>(destIndex)].deviceName;
+        resolvedWorkspace.single_monitor_fallback = singleMonitor;
+        resolvedWorkspace.context_intent_resolved = workspaceIntent.context_monitor_device.empty()
+            || find_monitor_by_device(monitors, workspaceIntent.context_monitor_device) >= 0;
+        resolvedWorkspace.detail_intent_resolved = workspaceIntent.detail_monitor_device.empty()
+            || find_monitor_by_device(monitors, workspaceIntent.detail_monitor_device) >= 0;
+        resolvedWorkspace.reference_intent_resolved = workspaceIntent.reference_monitor_device.empty()
+            || find_monitor_by_device(monitors, workspaceIntent.reference_monitor_device) >= 0;
 
-        Telemetry telemetry(options.logPath);
+        visual::core::ViewSessionState detailSession{};
+        detailSession.id = visual::core::kCurrentDetailViewId;
+        detailSession.binding = resolvedWorkspace.detail_binding;
+        visual::core::WorkspaceCoordinator workspace(detailSession);
+        workspace.set_topology_generation(monitorRegistry.snapshot().generation);
+        visual::core::WorkspaceRuntimeGraph runtimeGraph;
+        (void)runtimeGraph.add_source(visual::core::SourceId{1});
+        (void)runtimeGraph.add_view(detailSession.id, visual::core::SourceId{1});
+        (void)runtimeGraph.select(detailSession.id);
+        g_selectedViewId.store(workspace.snapshot().selected_view.value, std::memory_order_relaxed);
+
+        Telemetry telemetry(options.logPath, processGeneration > 1);
+        telemetry.event("workspace_generation_" + std::to_string(processGeneration));
+        telemetry.event("workspace_1_topology_generation_2");
+        telemetry.event(resolvedWorkspace.context_intent_resolved ? "context_binding_resolved" : "context_binding_fallback_unresolved_intent");
+        telemetry.event(resolvedWorkspace.detail_intent_resolved ? "detail_binding_resolved" : "detail_binding_fallback_unresolved_intent");
+        telemetry.event(resolvedWorkspace.reference_intent_resolved ? "reference_binding_resolved_or_unused" : "reference_binding_unresolved_intent");
+        telemetry.event("view_selected_detail_1");
+        telemetry.event("movement_owner_detail_1");
         telemetry.event("telemetry_started");
         auto window = create_detail_window(instance, monitors[static_cast<std::size_t>(destIndex)], singleMonitor);
-        Renderer renderer;
+        GpuDeviceDomain gpu;
+        gpu.initialize();
+        CaptureSource captureSource(gpu);
+        OutputPresenter output(gpu);
+        Renderer renderer(gpu, output, options.reconstructionMode);
         renderer.initialize(window.hwnd, window.width, window.height);
+
+        WindowPlacement secondaryWindow{};
+        std::unique_ptr<OutputPresenter> secondaryOutput;
+        std::unique_ptr<Renderer> secondaryRenderer;
+        std::unique_ptr<SecondaryViewRunner> secondaryRunner;
+        if (options.fanoutSelfTest) {
+            visual::core::ViewSessionState secondarySession{};
+            secondarySession.id = visual::core::ViewId{2};
+            secondarySession.binding = resolvedWorkspace.detail_binding;
+            if (!workspace.add_session(secondarySession)) throw std::runtime_error("Unable to add secondary fan-out ViewSession");
+            (void)runtimeGraph.add_view(secondarySession.id, visual::core::SourceId{1});
+            secondaryWindow = create_detail_window(instance, monitors[static_cast<std::size_t>(destIndex)], true);
+            telemetry.event("fanout_secondary_window_created");
+            secondaryOutput = std::make_unique<OutputPresenter>(gpu, 120);
+            telemetry.event("fanout_secondary_output_allocated");
+            secondaryRenderer = std::make_unique<Renderer>(gpu, *secondaryOutput);
+            try {
+                secondaryRenderer->initialize(secondaryWindow.hwnd, secondaryWindow.width, secondaryWindow.height);
+            } catch (const winrt::hresult_error& e) {
+                telemetry.event("fanout_secondary_renderer_hresult_" + std::to_string(static_cast<unsigned>(e.code().value)));
+                throw;
+            }
+            telemetry.event("fanout_secondary_renderer_created");
+            secondaryRunner = std::make_unique<SecondaryViewRunner>(
+                captureSource, *secondaryRenderer, telemetry, monitors[static_cast<std::size_t>(sourceIndex)],
+                secondarySession.id, 4.0, visual::core::VisualMode::Inverted, &runtimeGraph);
+            telemetry.event("fanout_source_one_views_two");
+        }
+
+        WorkspaceRuntimeCollection extraRuntime;
+        if (options.multiSourceSelfTest) {
+            if (monitors.size() < 2) throw std::runtime_error("Multi-source self-test requires two displays");
+            SetWindowDisplayAffinity(window.hwnd, kExcludeFromCapture);
+            const visual::core::SourceId source2{2};
+            const visual::core::ViewId view3{3};
+            (void)runtimeGraph.add_source(source2);
+            (void)runtimeGraph.add_view(view3, source2);
+            auto& source = extraRuntime.add_source(
+                gpu, telemetry, monitors[static_cast<std::size_t>(destIndex)], source2);
+            (void)extraRuntime.add_view(
+                instance, gpu, telemetry, runtimeGraph, source,
+                monitors[static_cast<std::size_t>(destIndex)],
+                monitors[static_cast<std::size_t>(sourceIndex)],
+                view3, 3.0, visual::core::VisualMode::Grayscale);
+            telemetry.event("multisource_two_sources_two_views_ready");
+        }
 
         visual::ui::ContextOverlay contextOverlay;
         if (!options.healthCheck && !singleMonitor) {
@@ -1263,8 +1700,16 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
             }
         }
 
-        CaptureRunner capture(renderer, telemetry, monitors[static_cast<std::size_t>(sourceIndex)], window.hwnd);
+        visual::tracking::EvidenceHub evidenceHub;
+        CaptureRunner capture(gpu, captureSource, renderer, telemetry, workspace, evidenceHub,
+                              detailSession.id, monitors[static_cast<std::size_t>(sourceIndex)], window.hwnd);
         capture.start();
+        if (secondaryRunner) secondaryRunner->start();
+        extraRuntime.start();
+        if (options.topologyReconcileSelfTest && processGeneration == 1) {
+            telemetry.event("topology_reconcile_self_test_signal");
+            PostMessageW(window.hwnd, WM_DISPLAYCHANGE, 0, 0);
+        }
         if (!options.healthCheck && !singleMonitor && g_hintWindow
             && claim_assistance_hint(AssistanceHint::ScreenRoles)) {
             g_hintWindow->show(L"Context and Detail",
@@ -1273,6 +1718,9 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
             telemetry.event("assistance_hint_screen_roles");
         }
         if (options.healthCheck) {
+            bool multiFailureInjected = false;
+            std::uint64_t primaryFramesAtSource2Stop = 0;
+            std::uint64_t source2ViewFramesAtStop = 0;
             const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(options.healthTimeoutMs);
             while (std::chrono::steady_clock::now() < deadline) {
                 MSG healthMsg{};
@@ -1282,9 +1730,34 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
                         DispatchMessageW(&healthMsg);
                     }
                 }
-                if (capture.health_ready()) {
+                const bool fanoutReady = !options.fanoutSelfTest
+                    || (secondaryRunner && secondaryRunner->render_observed()
+                        && secondaryRunner->frames() >= 5 && capture.render_frames() >= 30);
+                if (options.multiSourceSelfTest && !multiFailureInjected
+                    && extraRuntime.source_worker(visual::core::SourceId{2})
+                    && extraRuntime.source_worker(visual::core::SourceId{2})->frame_observed()
+                    && extraRuntime.view_worker(visual::core::ViewId{3})
+                    && extraRuntime.view_worker(visual::core::ViewId{3})->frames() >= 5
+                    && capture.render_frames() >= 30) {
+                    primaryFramesAtSource2Stop = capture.render_frames();
+                    source2ViewFramesAtStop = extraRuntime.view_worker(visual::core::ViewId{3})->frames();
+                    extraRuntime.stop_source(visual::core::SourceId{2});
+                    (void)runtimeGraph.set_source_state(visual::core::SourceId{2}, visual::core::RuntimeNodeState::Failed);
+                    multiFailureInjected = true;
+                    telemetry.event("multisource_source_2_suspended");
+                }
+                const bool multiSourceReady = !options.multiSourceSelfTest
+                    || (multiFailureInjected
+                        && capture.render_frames() >= primaryFramesAtSource2Stop + 20
+                        && extraRuntime.view_worker(visual::core::ViewId{3})->frames() <= source2ViewFramesAtStop + 1);
+                if (capture.health_ready() && fanoutReady && multiSourceReady) {
+                    if (options.fanoutSelfTest) telemetry.event("fanout_health_pass");
+                    if (options.multiSourceSelfTest) telemetry.event("multisource_health_pass");
                     telemetry.event("health_check_pass");
+                    extraRuntime.stop();
+                    if (secondaryRunner) secondaryRunner->stop();
                     capture.stop();
+                    if (IsWindow(secondaryWindow.hwnd)) DestroyWindow(secondaryWindow.hwnd);
                     if (IsWindow(window.hwnd)) DestroyWindow(window.hwnd);
                     return 0;
                 }
@@ -1298,7 +1771,10 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
                 std::this_thread::sleep_for(std::chrono::milliseconds(20));
             }
             telemetry.event("health_check_timeout");
+            extraRuntime.stop();
+            if (secondaryRunner) secondaryRunner->stop();
             capture.stop();
+            if (IsWindow(secondaryWindow.hwnd)) DestroyWindow(secondaryWindow.hwnd);
             if (IsWindow(window.hwnd)) DestroyWindow(window.hwnd);
             return 30;
         }
@@ -1310,7 +1786,10 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
             TranslateMessage(&msg);
             DispatchMessageW(&msg);
         }
+        extraRuntime.stop();
+        if (secondaryRunner) secondaryRunner->stop();
         capture.stop();
+        if (IsWindow(secondaryWindow.hwnd)) DestroyWindow(secondaryWindow.hwnd);
         g_settingsWindow = nullptr;
         settingsWindow.destroy();
         g_helpWindow = nullptr;
@@ -1337,15 +1816,55 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         }
     } catch (const winrt::hresult_error& e) {
         const std::wstring text = L"HRESULT failure: " + format_hr(e.code()) + L"\n" + std::wstring(e.message().c_str());
-        if (!g_healthCheckMode.load(std::memory_order_relaxed)) MessageBoxW(nullptr, text.c_str(), L"Visual", MB_OK | MB_ICONERROR);
+        if (!g_healthCheckMode.load(std::memory_order_relaxed)) MessageBoxW(nullptr, text.c_str(), L"Vision", MB_OK | MB_ICONERROR);
         return 20;
     } catch (const std::exception& e) {
         const std::string s = e.what();
         const std::wstring message(s.begin(), s.end());
-        if (!g_healthCheckMode.load(std::memory_order_relaxed)) MessageBoxW(nullptr, message.c_str(), L"Visual", MB_OK | MB_ICONERROR);
+        if (!g_healthCheckMode.load(std::memory_order_relaxed)) MessageBoxW(nullptr, message.c_str(), L"Vision", MB_OK | MB_ICONERROR);
         return 21;
     } catch (...) {
-        if (!g_healthCheckMode.load(std::memory_order_relaxed)) MessageBoxW(nullptr, L"Unknown fatal error.", L"Visual", MB_OK | MB_ICONERROR);
+        if (!g_healthCheckMode.load(std::memory_order_relaxed)) MessageBoxW(nullptr, L"Unknown fatal error.", L"Vision", MB_OK | MB_ICONERROR);
         return 22;
+    }
+}
+
+
+int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
+    try {
+        SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+        winrt::init_apartment(winrt::apartment_type::multi_threaded);
+        const auto options = parse_options();
+
+        visual::core::TopologyReconciler reconciler(500);
+        std::uint64_t topologyGeneration = 1;
+        for (;;) {
+            const int result = run_workspace_generation(instance, options, topologyGeneration);
+            if (result != 12 || (options.healthCheck && !options.topologyReconcileSelfTest)) return result;
+
+            const auto monotonic_ms = []() -> std::uint64_t {
+                return static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
+                    std::chrono::steady_clock::now().time_since_epoch()).count());
+            };
+            reconciler.signal_change(monotonic_ms());
+            while (reconciler.poll(monotonic_ms()) != visual::core::TopologyReconcileState::RebuildReady) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            }
+
+            // DestroyWindow posts WM_QUIT. A new in-process workspace generation must not
+            // inherit that terminal message from the previous detail window.
+            MSG stale{};
+            while (PeekMessageW(&stale, nullptr, WM_QUIT, WM_QUIT, PM_REMOVE)) {}
+            reconciler.rebuild_completed(++topologyGeneration);
+        }
+    } catch (const winrt::hresult_error& e) {
+        const std::wstring text = L"HRESULT failure during topology reconciliation: " + format_hr(e.code())
+            + L"\n" + std::wstring(e.message().c_str());
+        MessageBoxW(nullptr, text.c_str(), L"Vision", MB_OK | MB_ICONERROR);
+        return 20;
+    } catch (const std::exception& e) {
+        const std::string text = e.what();
+        MessageBoxA(nullptr, text.c_str(), "Vision", MB_OK | MB_ICONERROR);
+        return 21;
     }
 }

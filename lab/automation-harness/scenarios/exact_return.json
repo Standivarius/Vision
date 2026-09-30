@@ -1,0 +1,58 @@
+{
+  "schema_version": "0.1",
+  "id": "exact_return",
+  "version": "1.0",
+  "title": "Vision 1x Overview & Exact Return Smoke",
+  "category": "zoom_return",
+  "tags": ["safe_smoke", "return", "exact_1x", "geometry"],
+  "description": "Verifies 1x dimensions derived correctly from 2x viewport and returns to exact coordinate with delta 0 px.",
+  "flags": {
+    "deterministic": true,
+    "interactive_desktop": true,
+    "visual_review": false,
+    "physical_only": true,
+    "privileged": false,
+    "destructive": false,
+    "not_yet_automatable": false
+  },
+  "capabilities_required": {
+    "min_displays": 2,
+    "requires_physical_console": true,
+    "requires_dev_binary": true
+  },
+  "fixture": {
+    "type": "powershell",
+    "entrypoint": "app/run-return-smoke.ps1",
+    "args": []
+  },
+  "timeout_sec": 30.0,
+  "assertions": [
+    {
+      "id": "exit_code_zero",
+      "name": "Process Exit Clean",
+      "type": "exit_code",
+      "op": "eq",
+      "expected": 0,
+      "critical": true
+    },
+    {
+      "id": "pass_in_summary",
+      "name": "Smoke Reported Pass",
+      "type": "regex_match",
+      "target": "stdout",
+      "op": "regex",
+      "expected": "Pass: True",
+      "critical": true
+    },
+    {
+      "id": "return_delta_zero",
+      "name": "Return Maximum Delta 0 px",
+      "type": "regex_match",
+      "target": "stdout",
+      "op": "regex",
+      "expected": "Return maximum viewport-coordinate delta: 0 px",
+      "critical": true
+    }
+  ],
+  "requested_evidence": ["stdout", "stderr", "telemetry", "summary"]
+}

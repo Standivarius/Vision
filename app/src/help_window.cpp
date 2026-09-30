@@ -81,7 +81,7 @@ bool HelpWindow::create(HINSTANCE instance,
 
     hwnd_ = CreateWindowExW(WS_EX_APPWINDOW | WS_EX_CONTROLPARENT,
                             kHelpClass,
-                            L"Visual Help / Ask Visual",
+                            L"Vision Help / Ask Vision",
                             WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_CLIPCHILDREN,
                             x, y, width, height, owner, nullptr, instance, this);
     return hwnd_ != nullptr;
@@ -189,7 +189,7 @@ void HelpWindow::create_controls() {
                                 DEFAULT_PITCH | FF_DONTCARE, L"Segoe UI");
 
     intro_ = make_control(hwnd_, L"STATIC",
-        L"Ask in your own words. Visual answers known questions locally and only uses an online assistant when a configured endpoint is needed.",
+        L"Ask in your own words. Vision answers known questions locally and only uses an online assistant when a configured endpoint is needed.",
         SS_LEFT | SS_NOPREFIX, -1);
     question_edit_ = make_control(hwnd_, L"EDIT", L"",
         WS_TABSTOP | WS_BORDER | ES_AUTOHSCROLL, kIdQuestion);
@@ -207,13 +207,13 @@ void HelpWindow::create_controls() {
     make_control(hwnd_, L"BUTTON", L"Colour & Contrast", BS_PUSHBUTTON | WS_TABSTOP, kIdColour);
     make_control(hwnd_, L"BUTTON", L"Settings", BS_PUSHBUTTON | WS_TABSTOP, kIdSettings);
 
-    answer_title_ = make_control(hwnd_, L"STATIC", L"Common Visual help", SS_LEFT, -1);
+    answer_title_ = make_control(hwnd_, L"STATIC", L"Common Vision help", SS_LEFT, -1);
     answer_edit_ = CreateWindowExW(WS_EX_CLIENTEDGE, L"STATIC",
-        L"Choose a topic above, or type a question.\r\n\r\nExamples: Where is Freeze View? What does the View Locator show? Why isn't Visual following my text cursor?",
+        L"Choose a topic above, or type a question.\r\n\r\nExamples: Where is Freeze View? What does the View Locator show? Why isn't Vision following my text cursor?",
         WS_CHILD | WS_VISIBLE | SS_LEFT | SS_NOPREFIX,
         0, 0, 10, 10, hwnd_, nullptr, instance_, nullptr);
     status_ = make_control(hwnd_, L"STATIC",
-        visual::assistant::remote_configured() ? L"Local help + configured online fallback" : L"Local Visual help - online fallback not configured",
+        visual::assistant::remote_configured() ? L"Local help + configured online fallback" : L"Local Vision help - online fallback not configured",
         SS_LEFT | SS_NOPREFIX, -1);
     make_control(hwnd_, L"BUTTON", L"&Close", BS_PUSHBUTTON | WS_TABSTOP, kIdClose);
 
@@ -271,7 +271,7 @@ void HelpWindow::ask() {
     SendMessageW(question_edit_, WM_GETTEXT, static_cast<WPARAM>(ARRAYSIZE(question_buffer)), reinterpret_cast<LPARAM>(question_buffer));
     const std::wstring question(question_buffer);
     if (question.empty()) {
-        show_answer(L"Ask Visual", L"Type a short question, or choose one of the common topics.", L"Local Visual help");
+        show_answer(L"Ask Vision", L"Type a short question, or choose one of the common topics.", L"Local Vision help");
         return;
     }
 
@@ -282,8 +282,8 @@ void HelpWindow::ask() {
     SetWindowTextW(ask_button_, L"Working...");
     SetWindowTextW(answer_title_, L"Working...");
     SetWindowTextW(answer_edit_,
-        L"Ask Visual is checking Visual help and the online product knowledge.\r\n\r\nThis can take a few seconds.");
-    SetWindowTextW(status_, L"Working - waiting for Ask Visual...");
+        L"Ask Vision is checking Vision help and the online product knowledge.\r\n\r\nThis can take a few seconds.");
+    SetWindowTextW(status_, L"Working - waiting for Ask Vision...");
     RedrawWindow(hwnd_, nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW | RDW_ALLCHILDREN);
 
     const HWND target = hwnd_;
@@ -300,7 +300,7 @@ void HelpWindow::ask() {
 
 void HelpWindow::show_topic(visual::core::HelpTopic topic) {
     const auto answer = visual::core::help_answer(topic);
-    show_answer(answer.title, answer.body, L"Local Visual help");
+    show_answer(answer.title, answer.body, L"Local Vision help");
 }
 
 void HelpWindow::show_answer(const std::wstring& title, const std::wstring& body, const std::wstring& status) {
