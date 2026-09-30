@@ -1,10 +1,16 @@
-# Next-chat handover: Visual / Doxa programme
+﻿# Next-chat handover: Vision / Doxa programme
+
+> **Current authoritative transition package (2026-09-30):**
+> - `artifacts/2026-09-30__VISION_RESEARCH_PRE_OPUS_HANDOVER_v1.0.md`
+> - `artifacts/2026-09-30__VISION_NEW_CHAT_START_PROMPT_v1.0.md`
+>
+> These supersede older next-chat bootstrap instructions where they conflict.
 
 ## User intent
 
 The next phase is a structured programme, not an isolated feature sprint. Build against the canonical inventory and work breakdown in `docs/project/programme/`.
 
-Terminology correction: **Visual** is the product/software name. “Vision” was accidental wording and is not a separate product.
+Terminology correction: **Vision** is the product/software name. â€œVisionâ€ was accidental wording and is not a separate product.
 
 ## Start here
 
@@ -18,68 +24,49 @@ Read, in order:
 6. `app/packaging/README.md`
 7. `docs/project/hardware/installation_and_support_architecture.md`
 8. `docs/project/foundation/doxa_dual_workspace_shared_detail_concept.md`
-9. `docs/project/foundation/visual_adoption_and_contextual_assistance_spec.md`
+9. `docs/project/foundation/vision_adoption_and_contextual_assistance_spec.md`
 10. relevant current implementation before making claims
 
 ## Current baseline
 
-- Canonical repo: `C:\dev\Visual` on `MARIUS-DELL`.
+- Canonical repo: `C:\dev\Vision` on `MARIUS-DELL`.
 - Current public line: `0.1.0-alpha.11`.
 - Inventory-start HEAD: `f8e53d4` (`visual: switch Ask Visual to NVIDIA Nemotron`).
-- Visual two-screen alpha is real and publicly installable/updateable.
-- Current core includes Context 1x + magnified Detail, tracking, viewport, View Locator, settings/persistence, colour modes, help/Ask Visual and single-instance behaviour.
+- Vision two-screen alpha is real and publicly installable/updateable.
+- Current core includes Context 1x + magnified Detail, tracking, viewport, View Locator, settings/persistence, colour modes, help/Ask Vision and single-instance behaviour.
 - Current CMake defines 9 CTests.
-- Ask Visual primary backend is NVIDIA Nemotron through the Doxa Cloudflare Worker, with Dify/Muse fallback.
+- Ask Vision primary backend is NVIDIA Nemotron through the Doxa Cloudflare Worker, with Dify/Muse fallback.
 - Alpha artifacts are still unsigned.
 
-## Hardware decision
+## Current programme decision
 
-Near-term: use the available older **SM768-based Doxa** as the first real Doxa hardware/integration bench.
+The owner simplified the programme on 2026-09-29. This replaces the older SM768-first/four-screen-Doxa execution plan.
 
-Later: use **SM770** for final production qualification.
+1. **Doxa Installer** is independent from Vision. Hardware-specific work waits for the real SM770-based Doxa unit. Do not couple controller/driver/firmware logic into Vision.
+2. **Vision** is the active product. It should be one generic Windows low-vision application supporting ordinary 2, 3 and 4 monitor systems; Doxa later becomes one qualified hardware configuration.
+3. **Broader Doxa software/use-case research is parked.**
 
-Do not fork Visual by chip generation. Put hardware differences behind the Doxa setup/hardware adapter and qualified baseline data.
+Vision's active sequence is:
 
-## Product tracks
+`technical + commercial ZoomText/SuperNova research -> feature/value scope -> proposed 2-4 monitor architecture/development plan -> independent Opus review -> implementation`
 
-1. Installer/lifecycle/hardware enablement.
-2. Visual two-screen low-vision product hardening **and gradual evolution toward a broader low-vision product**.
-3. Doxa four-screen workspace concept: laptop organiser + Left Workspace + Centre shared Detail + Right Workspace.
-4. Ask Visual/support infrastructure.
-5. Competitive/commercial investigation of a broader/lower-cost Visual alternative to ZoomText/SuperNova and other relevant low-vision products.
-6. Separate Doxa opportunity-discovery research for multi-monitor use cases **outside low vision/accessibility**, including the software that serves those workflows and possible Doxa-specific products.
+Pricing strategy is intentionally later, after product scope and dealer/assessor evidence.
 
-Both research streams are **planned research**, not current implementation requests. The low-vision stream should guide incremental expansion of the current Visual; the broader Doxa stream should remain open-ended and should not assume a particular industry/use case.
+## Pre-Opus state
 
-## Immediate work before SM768
+The following artifacts now define the pre-implementation package:
 
-Prefer work items in `work_breakdown.md`, especially:
+- `artifacts/2026-09-30__gpt-5.6-sol__vision_feature_and_commercial_research_v0.2.md`
+- `artifacts/2026-09-30__gpt-5.6-sol__incumbent_hands_on_validation_v0.2.md`
+- `artifacts/2026-09-30__gpt-5.6-sol__vision_pre_opus_development_plan_v0.2.md`
+- `artifacts/2026-09-30__gpt-5.6-sol__vision_opus_review_prompt_v0.2.md`
+- `artifacts/2026-09-30__gpt-5.6-sol__vision_pre_opus_review_package_v0.2.md`
 
-- `GOV-001` status-doc reconciliation;
-- `VIS-001` browser caret;
-- `VIS-002` pointer-boundary policy;
-- `VIS-005` two-screen acceptance suite;
-- `INS-001` hardware adapter interface;
-- `INS-002` baseline manifest schema;
-- `INS-003` machine-vs-interactive health separation;
-- `INS-006` code signing;
-- `D4-001` and `D4-002` architecture/state model only.
+The Dell comparison harness under `lab/incumbent-research/` has been validated against Vision using repeatable pointer, caret, focus and cross-monitor workloads with screen recording/ground-truth evidence. ZoomText/SuperNova hands-on runs remain explicitly unclaimed until their system-level installers are elevated and installed legitimately.
 
-Do not invent SM768 IDs/driver versions before observing the hardware.
+The proposed architecture is a hypothesis for review, not permission to implement: separate monitor/topology registry, capture sources, shared/appropriately-scoped evidence, and per-output view sessions so the current one-source/one-Detail baseline can evolve to generic 2-4 monitor behaviour without a Doxa fork.
 
-## Once SM768 is available
-
-Treat the first session as structured qualification:
-
-- enumerate controller/PnP/display/driver state;
-- capture exact topology/resolution/refresh/DPI;
-- run graphics health + sustained Visual smokes;
-- test reboot/disconnect/reconnect;
-- implement the smallest real hardware adapter from observed facts;
-- then validate installer and Visual behaviour.
-
-Only after that should physical four-screen Doxa prototyping become a mainline activity.
-
+Do **not** invoke Opus unless the owner asks to proceed from this checkpoint. Do **not** start the multi-monitor refactor before the independent review is reconciled.
 ## Repository safety
 
 The working tree contains unrelated modified/untracked bridge/scripts/artifacts. Preserve them. Stage only files belonging to the current work item. Avoid destructive Git operations.
@@ -92,8 +79,8 @@ Do not let GitHub Project configuration block engineering. The canonical work ID
 
 ## Key design constraints
 
-- Visual core should remain Windows-native and hardware-agnostic where practical.
-- Doxa workspace behaviour should reuse the Visual core, not become a permanent fork.
+- Vision core should remain Windows-native and hardware-agnostic where practical.
+- Doxa workspace behaviour should reuse the Vision core, not become a permanent fork.
 - AI is optional/noncritical; deterministic setup/render/tracking must not depend on it.
 - No proprietary competitor source/assets/confidential implementation details.
 - Use observed behaviour and public documentation for ZoomText/SuperNova research.

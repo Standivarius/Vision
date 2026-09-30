@@ -1,6 +1,6 @@
-# Visual / Doxa programme
+# Vision / Doxa programme
 
-**Purpose:** canonical programme-level inventory, roadmap and handover for the Visual / Doxa work.
+**Purpose:** canonical programme-level inventory, roadmap and handover for the Vision / Doxa work.
 
 This directory answers four questions:
 

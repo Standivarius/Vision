@@ -1,0 +1,14 @@
+[
+  {
+    "name": "opus",
+    "pid": 18076,
+    "out": "C:\\dev\\Vision\\artifacts\\2026-09-30__opus-5.5-xhigh__vision_independent_review_v0.1.md",
+    "err": "C:\\dev\\Vision\\artifacts\\2026-09-30__opus-5.5-xhigh__vision_independent_review_v0.1.stderr.log"
+  },
+  {
+    "name": "astra",
+    "pid": 11360,
+    "out": "C:\\dev\\Vision\\artifacts\\2026-09-30__gpt-6-astra-xhigh__vision_independent_review_v0.1.md",
+    "err": "C:\\dev\\Vision\\artifacts\\2026-09-30__gpt-6-astra-xhigh__vision_independent_review_v0.1.stderr.log"
+  }
+]

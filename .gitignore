@@ -61,3 +61,44 @@ artifacts/spike1_analyze*.log
 artifacts/ffmpeg_*.txt
 artifacts/*_launcher.json
 artifacts/*_analysis.log
+
+# Generated verification/build trees
+app/build_release_verify/
+
+# Incumbent-review disposable browser/profile capture
+lab/incumbent-research/review/
+
+# Local runtime telemetry
+visual_app_telemetry.csv
+
+# Python runtime cache
+**/__pycache__/
+*.pyc
+
+# Raw/generated historical evidence retained locally; promote durable interpretation to Markdown.
+artifacts/vendor/
+artifacts/dell-lifecycle-*/
+artifacts/doxa-pilot*/
+artifacts/doxa-surrogate*/
+artifacts/doxa-test-*/
+artifacts/release-repro-*/
+artifacts/clean-room-release-*/
+artifacts/alpha*-*/
+artifacts/_inspect_*/
+artifacts/_work_*/
+artifacts/*.csv
+!artifacts/2026-09-30__gpt-5.6-sol__repository_consolidation_manifest_v0.1.csv
+artifacts/*.mp4
+artifacts/*.png
+artifacts/*.jsonl
+artifacts/*.tmp
+
+# Generated test-farm aggregates; durable conclusions live in dated reports.
+lab/benchmarks/farm_aggregates/
+
+# Local copies of incumbent manuals are research inputs, not repository-owned content.
+lab/incumbent-research/manuals/
+lab/incumbent-research/b64test.txt
+
+# Empty failed review attempt; xhigh review is the retained evidence.
+artifacts/2026-09-30__gpt-6-astra__vision_independent_review_v0.1.md
