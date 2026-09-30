@@ -1,4 +1,4 @@
-name: Release Visual Alpha
+name: Release Vision Alpha
 
 on:
   push:
@@ -13,7 +13,7 @@ jobs:
     runs-on: windows-2022
     env:
       RELEASE_DIR: ${{ github.workspace }}\app\packaging\out
-      REPO_URL: https://github.com/Standivarius/Visual
+      REPO_URL: https://github.com/Standivarius/Vision
       RELEASE_TAG: ${{ github.ref_name }}
       TARGET_COMMIT: ${{ github.sha }}
       DOTNET_CLI_HOME: ${{ github.workspace }}\tools\release-cache\dotnet-home
@@ -36,22 +36,22 @@ jobs:
           $version = $tag.Substring(1)
 
           if ($version -notmatch '^\d+\.\d+\.\d+-alpha\.\d+(?:\+[0-9A-Za-z.-]+)?$') {
-            throw "Visual alpha version must match MAJOR.MINOR.PATCH-alpha.N; got: $version"
+            throw "Vision alpha version must match MAJOR.MINOR.PATCH-alpha.N; got: $version"
           }
 
           "version=$version" >> $env:GITHUB_OUTPUT
-          Write-Host "Visual alpha version: $version"
+          Write-Host "Vision alpha version: $version"
 
       - name: Prepare and verify pinned release dependencies
         shell: pwsh
         run: |
-          if ([string]::IsNullOrWhiteSpace($env:DOXA_CLOUD_CLIENT_TOKEN)) { throw "GitHub secret DOXA_CLOUD_CLIENT_TOKEN is required for a cloud-enabled Visual release" }
+          if ([string]::IsNullOrWhiteSpace($env:DOXA_CLOUD_CLIENT_TOKEN)) { throw "GitHub secret DOXA_CLOUD_CLIENT_TOKEN is required for a cloud-enabled Vision release" }
           $state = .\app\packaging\ensure-release-dependencies.ps1
           $dotnet = .\app\packaging\get-dotnet-sdk.ps1 -Version 8.0.425 -Offline
           & $dotnet tool restore --configfile $state.nuget_config
           if ($LASTEXITCODE -ne 0) { throw "Pinned local vpk restore failed: $LASTEXITCODE" }
 
-      - name: Build and test Visual with offline dependency mode
+      - name: Build and test Vision with offline dependency mode
         shell: pwsh
         env:
           VISUAL_RELEASE_VERSION: ${{ steps.version.outputs.version }}
@@ -69,7 +69,7 @@ jobs:
             --pre true `
             --outputDir $env:RELEASE_DIR
 
-      - name: Package Visual alpha from verified local dependencies
+      - name: Package Vision alpha from verified local dependencies
         shell: pwsh
         env:
           VISUAL_RELEASE_VERSION: ${{ steps.version.outputs.version }}
@@ -106,6 +106,6 @@ jobs:
             --outputDir $env:RELEASE_DIR `
             --publish true `
             --pre true `
-            --releaseName "Visual $env:VISUAL_RELEASE_VERSION" `
+            --releaseName "Vision $env:VISUAL_RELEASE_VERSION" `
             --tag $env:RELEASE_TAG `
             --targetCommitish $env:TARGET_COMMIT

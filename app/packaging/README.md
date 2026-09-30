@@ -1,14 +1,14 @@
-# Visual alpha packaging and support
+# Vision alpha packaging and support
 
-Visual uses Velopack 1.2.0 for Windows alpha packaging, native lifecycle startup and controlled update-maintenance plumbing.
+Vision uses Velopack 1.2.0 for Windows alpha packaging, native lifecycle startup and controlled update-maintenance plumbing.
 
 ## Identity
 
 - package id: `Standivarius.Visual`
-- friendly name: `Visual Alpha`
+- friendly name: `Standivarius - Vision`
 - channel: `alpha`
 - canonical default version: `0.1.0-alpha.3`
-- public repository: `https://github.com/Standivarius/Visual`
+- public repository: `https://github.com/Standivarius/Vision`
 
 ## Pinned toolchain
 
@@ -31,7 +31,7 @@ See `REPRODUCIBILITY.md` for the locked dependency manifest, verified offline ca
 For a release candidate, prefer `package.ps1 -OfflineDependencies` or `clean-room-release.ps1` rather than relying on globally installed SDK/tool caches.
 ## Native lifecycle integration
 
-`app/src/velopack_entry.cpp` owns the real application entry point. It executes `Velopack::VelopackApp::Build().Run()` before normal Visual initialization, handles explicit update-maintenance commands, then delegates normal launches to `VisualProductMain` in `main.cpp`.
+`app/src/velopack_entry.cpp` owns the real application entry point. It executes `Velopack::VelopackApp::Build().Run()` before normal Vision initialization, handles explicit update-maintenance commands, then delegates normal launches to `VisualProductMain` in `main.cpp`.
 
 The SDK file is named `velopack_libc_win_x64_msvc.dll`, while the MSVC import library records the runtime dependency name `velopack_libc.dll`. CMake therefore copies the SDK DLL to `velopack_libc.dll`, which is the name shipped in the package.
 
@@ -51,7 +51,7 @@ The build acquires the pinned native SDK when necessary, builds `visual_app.exe`
 .\app\packaging\package.ps1 -Version 0.1.0-alpha.2
 ```
 
-The script builds/tests Visual, stages only intended shipping files, restores the pinned `vpk`, and runs normal `vpk --yes pack` for the alpha channel. `--yes` keeps repeated local/CI output-directory use noninteractive; it does not bypass application validation.
+The script builds/tests Vision, stages only intended shipping files, restores the pinned `vpk`, and runs normal `vpk --yes pack` for the alpha channel. `--yes` keeps repeated local/CI output-directory use noninteractive; it does not bypass application validation.
 
 To package an already-built matching version:
 
@@ -85,7 +85,7 @@ It verifies:
 
 - Release build and CTest;
 - ProductVersion;
-- x64 PE machine type for Visual and the native Velopack runtime;
+- x64 PE machine type for Vision and the native Velopack runtime;
 - normal `vpk` packaging with no lifecycle-validation bypass;
 - Setup/full-package/feed output;
 - feed contains the requested version;

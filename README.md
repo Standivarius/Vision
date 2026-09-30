@@ -1,6 +1,6 @@
-# Visual
+# Vision
 
-`Visual` is the canonical local repository and current product name for Doxa's Windows low-vision magnification application.
+`Vision` is the canonical local repository and current product name for Doxa's Windows low-vision magnification application.
 
 The application itself lives under `app/`.
 
