@@ -34,6 +34,7 @@ private:
     LRESULT handle_message(UINT message, WPARAM w_param, LPARAM l_param);
     void create_controls();
     void layout_controls(int client_width, int client_height);
+    void refresh_fonts(UINT dpi);
     void set_font_recursive(HWND root);
     void ask();
     void show_topic(visual::core::HelpTopic topic);
@@ -44,6 +45,7 @@ private:
     HWND hwnd_{};
     HFONT font_{};
     HFONT heading_font_{};
+    UINT current_dpi_{96};
     ContextProvider context_provider_{};
     bool busy_{};
 

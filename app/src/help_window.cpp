@@ -1,5 +1,8 @@
 #include "help_window.h"
 
+#include "ui_dpi.h"
+#include "core/ui_strings.h"
+
 #include "assistant_client.h"
 
 #include <windowsx.h>
@@ -27,6 +30,12 @@ constexpr int kIdFreeze = 2014;
 constexpr int kIdShortcuts = 2015;
 constexpr int kIdColour = 2016;
 constexpr int kIdSettings = 2017;
+
+using visual::core::UiStringId;
+
+const wchar_t* text(UiStringId id) noexcept {
+    return visual::core::ui_string(id).data();
+}
 
 struct AsyncAnswer {
     visual::assistant::AnswerResult result;
@@ -72,16 +81,18 @@ bool HelpWindow::create(HINSTANCE instance,
     wc.hIcon = LoadIconW(nullptr, IDI_APPLICATION);
     if (!RegisterClassExW(&wc) && GetLastError() != ERROR_CLASS_ALREADY_EXISTS) return false;
 
+    current_dpi_ = dpi_support::for_rect(preferred_monitor_rect);
+    const auto px = [this](int value) { return dpi_support::scale(value, current_dpi_); };
     const int available_width = preferred_monitor_rect.right - preferred_monitor_rect.left;
     const int available_height = preferred_monitor_rect.bottom - preferred_monitor_rect.top;
-    const int width = std::min(kWindowWidth, std::max(560, available_width - 100));
-    const int height = std::min(kWindowHeight, std::max(500, available_height - 100));
-    const int x = preferred_monitor_rect.left + std::max(20, (available_width - width) / 2);
-    const int y = preferred_monitor_rect.top + std::max(20, (available_height - height) / 2);
+    const int width = std::min(px(kWindowWidth), std::max(px(560), available_width - px(100)));
+    const int height = std::min(px(kWindowHeight), std::max(px(500), available_height - px(100)));
+    const int x = preferred_monitor_rect.left + std::max(px(20), (available_width - width) / 2);
+    const int y = preferred_monitor_rect.top + std::max(px(20), (available_height - height) / 2);
 
     hwnd_ = CreateWindowExW(WS_EX_APPWINDOW | WS_EX_CONTROLPARENT,
                             kHelpClass,
-                            L"Vision Help / Ask Vision",
+                            text(UiStringId::HelpTitle),
                             WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_CLIPCHILDREN,
                             x, y, width, height, owner, nullptr, instance, this);
     return hwnd_ != nullptr;
@@ -141,6 +152,30 @@ LRESULT HelpWindow::handle_message(UINT message, WPARAM w_param, LPARAM l_param)
     case WM_SIZE:
         layout_controls(LOWORD(l_param), HIWORD(l_param));
         return 0;
+    case WM_DPICHANGED: {
+        current_dpi_ = HIWORD(w_param) ? HIWORD(w_param) : dpi_support::kDefaultDpi;
+        const auto* suggested = reinterpret_cast<const RECT*>(l_param);
+        if (suggested) {
+            SetWindowPos(hwnd_, nullptr, suggested->left, suggested->top,
+                         suggested->right - suggested->left, suggested->bottom - suggested->top,
+                         SWP_NOZORDER | SWP_NOACTIVATE);
+        }
+        refresh_fonts(current_dpi_);
+        RECT client{};
+        if (GetClientRect(hwnd_, &client)) {
+            layout_controls(client.right - client.left, client.bottom - client.top);
+        }
+        return 0;
+    }
+    case WM_SETTINGCHANGE: {
+        current_dpi_ = GetDpiForWindow(hwnd_);
+        refresh_fonts(current_dpi_);
+        RECT client{};
+        if (GetClientRect(hwnd_, &client)) {
+            layout_controls(client.right - client.left, client.bottom - client.top);
+        }
+        return 0;
+    }
     case WM_COMMAND:
         switch (LOWORD(w_param)) {
         case kIdAsk: ask(); return 0;
@@ -162,7 +197,7 @@ LRESULT HelpWindow::handle_message(UINT message, WPARAM w_param, LPARAM l_param)
         if (question_edit_) EnableWindow(question_edit_, TRUE);
         if (ask_button_) {
             EnableWindow(ask_button_, TRUE);
-            SetWindowTextW(ask_button_, L"&Ask");
+            SetWindowTextW(ask_button_, text(UiStringId::HelpAsk));
         }
         if (answer) show_answer(answer->result.title, answer->result.answer, answer->result.status);
         if (question_edit_) SetFocus(question_edit_);
@@ -181,80 +216,92 @@ LRESULT HelpWindow::handle_message(UINT message, WPARAM w_param, LPARAM l_param)
 }
 
 void HelpWindow::create_controls() {
-    font_ = CreateFontW(-19, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET,
-                        OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY,
-                        DEFAULT_PITCH | FF_DONTCARE, L"Segoe UI");
-    heading_font_ = CreateFontW(-22, 0, 0, 0, FW_SEMIBOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET,
-                                OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY,
-                                DEFAULT_PITCH | FF_DONTCARE, L"Segoe UI");
-
     intro_ = make_control(hwnd_, L"STATIC",
-        L"Ask in your own words. Vision answers known questions locally and only uses an online assistant when a configured endpoint is needed.",
+        text(UiStringId::HelpIntro),
         SS_LEFT | SS_NOPREFIX, -1);
     question_edit_ = make_control(hwnd_, L"EDIT", L"",
         WS_TABSTOP | WS_BORDER | ES_AUTOHSCROLL, kIdQuestion);
     SetWindowLongPtrW(question_edit_, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
     question_edit_original_proc_ = reinterpret_cast<WNDPROC>(
         SetWindowLongPtrW(question_edit_, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(&HelpWindow::question_edit_proc)));
-    ask_button_ = make_control(hwnd_, L"BUTTON", L"&Ask", BS_DEFPUSHBUTTON | WS_TABSTOP, kIdAsk);
+    ask_button_ = make_control(hwnd_, L"BUTTON", text(UiStringId::HelpAsk), BS_DEFPUSHBUTTON | WS_TABSTOP, kIdAsk);
 
-    make_control(hwnd_, L"BUTTON", L"Screen Roles", BS_PUSHBUTTON | WS_TABSTOP, kIdScreenRoles);
-    make_control(hwnd_, L"BUTTON", L"Tracking", BS_PUSHBUTTON | WS_TABSTOP, kIdTracking);
-    make_control(hwnd_, L"BUTTON", L"View Locator", BS_PUSHBUTTON | WS_TABSTOP, kIdViewLocator);
-    make_control(hwnd_, L"BUTTON", L"1x View / Return", BS_PUSHBUTTON | WS_TABSTOP, kIdOneX);
-    make_control(hwnd_, L"BUTTON", L"Freeze / Hooked Areas", BS_PUSHBUTTON | WS_TABSTOP, kIdFreeze);
-    make_control(hwnd_, L"BUTTON", L"Shortcuts", BS_PUSHBUTTON | WS_TABSTOP, kIdShortcuts);
-    make_control(hwnd_, L"BUTTON", L"Colour & Contrast", BS_PUSHBUTTON | WS_TABSTOP, kIdColour);
-    make_control(hwnd_, L"BUTTON", L"Settings", BS_PUSHBUTTON | WS_TABSTOP, kIdSettings);
+    make_control(hwnd_, L"BUTTON", text(UiStringId::HelpScreenRoles), BS_PUSHBUTTON | WS_TABSTOP, kIdScreenRoles);
+    make_control(hwnd_, L"BUTTON", text(UiStringId::HelpTracking), BS_PUSHBUTTON | WS_TABSTOP, kIdTracking);
+    make_control(hwnd_, L"BUTTON", text(UiStringId::HelpViewLocator), BS_PUSHBUTTON | WS_TABSTOP, kIdViewLocator);
+    make_control(hwnd_, L"BUTTON", text(UiStringId::HelpOneXReturn), BS_PUSHBUTTON | WS_TABSTOP, kIdOneX);
+    make_control(hwnd_, L"BUTTON", text(UiStringId::HelpFreeze), BS_PUSHBUTTON | WS_TABSTOP, kIdFreeze);
+    make_control(hwnd_, L"BUTTON", text(UiStringId::HelpShortcuts), BS_PUSHBUTTON | WS_TABSTOP, kIdShortcuts);
+    make_control(hwnd_, L"BUTTON", text(UiStringId::HelpColourContrast), BS_PUSHBUTTON | WS_TABSTOP, kIdColour);
+    make_control(hwnd_, L"BUTTON", text(UiStringId::HelpSettings), BS_PUSHBUTTON | WS_TABSTOP, kIdSettings);
 
-    answer_title_ = make_control(hwnd_, L"STATIC", L"Common Vision help", SS_LEFT, -1);
+    answer_title_ = make_control(hwnd_, L"STATIC", text(UiStringId::HelpCommonTitle), SS_LEFT, -1);
     answer_edit_ = CreateWindowExW(WS_EX_CLIENTEDGE, L"STATIC",
         L"Choose a topic above, or type a question.\r\n\r\nExamples: Where is Freeze View? What does the View Locator show? Why isn't Vision following my text cursor?",
         WS_CHILD | WS_VISIBLE | SS_LEFT | SS_NOPREFIX,
         0, 0, 10, 10, hwnd_, nullptr, instance_, nullptr);
     status_ = make_control(hwnd_, L"STATIC",
-        visual::assistant::remote_configured() ? L"Local help + configured online fallback" : L"Local Vision help - online fallback not configured",
+        visual::assistant::remote_configured() ? text(UiStringId::HelpStatusLocalOnline) : text(UiStringId::HelpStatusLocalOnly),
         SS_LEFT | SS_NOPREFIX, -1);
-    make_control(hwnd_, L"BUTTON", L"&Close", BS_PUSHBUTTON | WS_TABSTOP, kIdClose);
+    make_control(hwnd_, L"BUTTON", text(UiStringId::HelpClose), BS_PUSHBUTTON | WS_TABSTOP, kIdClose);
 
+    refresh_fonts(current_dpi_);
+}
+
+void HelpWindow::refresh_fonts(UINT dpi) {
+    HFONT next_body = dpi_support::create_message_font(dpi);
+    HFONT next_heading = dpi_support::create_message_font(dpi, FW_SEMIBOLD, 116);
+    if (!next_body || !next_heading) {
+        if (next_body) DeleteObject(next_body);
+        if (next_heading) DeleteObject(next_heading);
+        return;
+    }
+
+    HFONT old_body = font_;
+    HFONT old_heading = heading_font_;
+    font_ = next_body;
+    heading_font_ = next_heading;
     set_font_recursive(hwnd_);
-    if (answer_title_ && heading_font_) SendMessageW(answer_title_, WM_SETFONT, reinterpret_cast<WPARAM>(heading_font_), TRUE);
+    if (answer_title_) SendMessageW(answer_title_, WM_SETFONT, reinterpret_cast<WPARAM>(heading_font_), TRUE);
+    if (old_body) DeleteObject(old_body);
+    if (old_heading) DeleteObject(old_heading);
 }
 
 void HelpWindow::layout_controls(int client_width, int client_height) {
     if (!question_edit_) return;
-    const int margin = 24;
-    const int content_width = std::max(500, client_width - margin * 2);
-    int y = 20;
+    const auto px = [this](int value) { return dpi_support::scale(value, current_dpi_); };
+    const int margin = px(24);
+    const int content_width = std::max(px(500), client_width - margin * 2);
+    int y = px(20);
 
-    SetWindowPos(intro_, nullptr, margin, y, content_width, 48, SWP_NOZORDER);
-    y += 58;
-    const int ask_width = 110;
-    SetWindowPos(question_edit_, nullptr, margin, y, content_width - ask_width - 12, 36, SWP_NOZORDER);
-    SetWindowPos(ask_button_, nullptr, margin + content_width - ask_width, y, ask_width, 36, SWP_NOZORDER);
-    y += 52;
+    SetWindowPos(intro_, nullptr, margin, y, content_width, px(48), SWP_NOZORDER);
+    y += px(58);
+    const int ask_width = px(110);
+    SetWindowPos(question_edit_, nullptr, margin, y, content_width - ask_width - px(12), px(36), SWP_NOZORDER);
+    SetWindowPos(ask_button_, nullptr, margin + content_width - ask_width, y, ask_width, px(36), SWP_NOZORDER);
+    y += px(52);
 
-    const int gap = 8;
+    const int gap = px(8);
     const int button_width = (content_width - gap * 3) / 4;
     const int ids_row1[] = {kIdScreenRoles, kIdTracking, kIdViewLocator, kIdOneX};
     const int ids_row2[] = {kIdFreeze, kIdShortcuts, kIdColour, kIdSettings};
     for (int i = 0; i < 4; ++i) {
-        SetWindowPos(GetDlgItem(hwnd_, ids_row1[i]), nullptr, margin + i * (button_width + gap), y, button_width, 34, SWP_NOZORDER);
+        SetWindowPos(GetDlgItem(hwnd_, ids_row1[i]), nullptr, margin + i * (button_width + gap), y, button_width, px(34), SWP_NOZORDER);
     }
-    y += 42;
+    y += px(42);
     for (int i = 0; i < 4; ++i) {
-        SetWindowPos(GetDlgItem(hwnd_, ids_row2[i]), nullptr, margin + i * (button_width + gap), y, button_width, 34, SWP_NOZORDER);
+        SetWindowPos(GetDlgItem(hwnd_, ids_row2[i]), nullptr, margin + i * (button_width + gap), y, button_width, px(34), SWP_NOZORDER);
     }
-    y += 54;
+    y += px(54);
 
-    SetWindowPos(answer_title_, nullptr, margin, y, content_width, 34, SWP_NOZORDER);
-    y += 36;
-    const int footer_height = 56;
-    const int answer_height = std::max(150, client_height - y - footer_height - margin);
+    SetWindowPos(answer_title_, nullptr, margin, y, content_width, px(34), SWP_NOZORDER);
+    y += px(36);
+    const int footer_height = px(56);
+    const int answer_height = std::max(px(150), client_height - y - footer_height - margin);
     SetWindowPos(answer_edit_, nullptr, margin, y, content_width, answer_height, SWP_NOZORDER);
-    y += answer_height + 10;
-    SetWindowPos(status_, nullptr, margin, y + 6, content_width - 130, 28, SWP_NOZORDER);
-    SetWindowPos(GetDlgItem(hwnd_, kIdClose), nullptr, margin + content_width - 115, y, 115, 36, SWP_NOZORDER);
+    y += answer_height + px(10);
+    SetWindowPos(status_, nullptr, margin, y + px(6), content_width - px(130), px(28), SWP_NOZORDER);
+    SetWindowPos(GetDlgItem(hwnd_, kIdClose), nullptr, margin + content_width - px(115), y, px(115), px(36), SWP_NOZORDER);
 }
 
 void HelpWindow::set_font_recursive(HWND root) {
@@ -271,7 +318,7 @@ void HelpWindow::ask() {
     SendMessageW(question_edit_, WM_GETTEXT, static_cast<WPARAM>(ARRAYSIZE(question_buffer)), reinterpret_cast<LPARAM>(question_buffer));
     const std::wstring question(question_buffer);
     if (question.empty()) {
-        show_answer(L"Ask Vision", L"Type a short question, or choose one of the common topics.", L"Local Vision help");
+        show_answer(text(UiStringId::HelpAskPromptTitle), text(UiStringId::HelpAskPromptBody), text(UiStringId::HelpStatusLocal));
         return;
     }
 
@@ -279,11 +326,11 @@ void HelpWindow::ask() {
     busy_ = true;
     EnableWindow(question_edit_, FALSE);
     EnableWindow(ask_button_, FALSE);
-    SetWindowTextW(ask_button_, L"Working...");
-    SetWindowTextW(answer_title_, L"Working...");
+    SetWindowTextW(ask_button_, text(UiStringId::HelpWorking));
+    SetWindowTextW(answer_title_, text(UiStringId::HelpWorking));
     SetWindowTextW(answer_edit_,
-        L"Ask Vision is checking Vision help and the online product knowledge.\r\n\r\nThis can take a few seconds.");
-    SetWindowTextW(status_, L"Working - waiting for Ask Vision...");
+        text(UiStringId::HelpWorkingBody));
+    SetWindowTextW(status_, text(UiStringId::HelpWorkingStatus));
     RedrawWindow(hwnd_, nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW | RDW_ALLCHILDREN);
 
     const HWND target = hwnd_;
@@ -300,7 +347,7 @@ void HelpWindow::ask() {
 
 void HelpWindow::show_topic(visual::core::HelpTopic topic) {
     const auto answer = visual::core::help_answer(topic);
-    show_answer(answer.title, answer.body, L"Local Vision help");
+    show_answer(answer.title, answer.body, text(UiStringId::HelpStatusLocal));
 }
 
 void HelpWindow::show_answer(const std::wstring& title, const std::wstring& body, const std::wstring& status) {

@@ -196,6 +196,16 @@ target_link_libraries(visual_help_catalog_tests PRIVATE visual_core)
 target_compile_options(visual_help_catalog_tests PRIVATE /W4 /permissive- /EHsc)
 add_test(NAME help_catalog_tests COMMAND visual_help_catalog_tests)
 
+add_executable(visual_ui_strings_tests tests/ui_strings_tests.cpp)
+target_link_libraries(visual_ui_strings_tests PRIVATE visual_core)
+target_compile_options(visual_ui_strings_tests PRIVATE /W4 /permissive- /EHsc)
+add_test(NAME ui_strings_tests COMMAND visual_ui_strings_tests)
+
+add_executable(visual_command_bindings_tests tests/command_bindings_tests.cpp)
+target_link_libraries(visual_command_bindings_tests PRIVATE visual_core)
+target_compile_options(visual_command_bindings_tests PRIVATE /W4 /permissive- /EHsc)
+add_test(NAME command_bindings_tests COMMAND visual_command_bindings_tests)
+
 add_executable(visual_assistant_client_tests tests/assistant_client_tests.cpp src/assistant_client.cpp)
 target_link_libraries(visual_assistant_client_tests PRIVATE visual_core winhttp)
 target_compile_definitions(visual_assistant_client_tests PRIVATE UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX)

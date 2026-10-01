@@ -13,6 +13,7 @@
 #include <windows.graphics.directx.direct3d11.interop.h>
 
 #include "core/poi_evidence.h"
+#include "core/command_bindings.h"
 #include "core/locator_model.h"
 #include "core/monitor_registry.h"
 #include "core/topology_reconciler.h"
@@ -1117,16 +1118,6 @@ private:
 };
 
 
-constexpr int kHotkeyZoom1 = 101;
-constexpr int kHotkeyZoom2 = 102;
-constexpr int kHotkeyZoom3 = 103;
-constexpr int kHotkeyZoom4 = 104;
-constexpr int kHotkeyTracking = 110;
-constexpr int kHotkeySettings = 111;
-constexpr int kHotkeyHelp = 112;
-constexpr int kHotkeyNormalReturn = 120;
-constexpr int kHotkeyExit = 199;
-
 void refresh_settings_window() noexcept {
     if (!g_settingsWindow) return;
     try {
@@ -1161,8 +1152,13 @@ void toggle_normal_return() noexcept {
         g_previousMagnifiedZoom.store(current, std::memory_order_relaxed);
         g_zoom.store(1.0, std::memory_order_relaxed);
         if (g_hintWindow && claim_assistance_hint(AssistanceHint::OneXReturn)) {
-            g_hintWindow->show(L"1x View / Return",
-                L"You are at 1x. Press Ctrl+Alt+0 again to return to your previous zoom and exact position.");
+            std::wstring message = L"You are at 1x.";
+            if (const auto* binding = visual::core::hotkey_for_command(visual::core::VisionCommand::NormalReturn)) {
+                message += L" Press ";
+                message += binding->display;
+                message += L" again to return to your previous zoom and exact position.";
+            }
+            g_hintWindow->show(L"1x View / Return", message);
         }
     }
 }
@@ -1186,26 +1182,52 @@ void show_help() noexcept {
     if (g_helpWindow) g_helpWindow->show();
 }
 
-bool register_hotkeys(HWND hwnd) noexcept {
-    constexpr UINT modifiers = MOD_CONTROL | MOD_ALT | MOD_NOREPEAT;
-    struct Binding { int id; UINT key; };
-    constexpr Binding bindings[] = {
-        {kHotkeyZoom1, '1'},
-        {kHotkeyZoom2, '2'},
-        {kHotkeyZoom3, '3'},
-        {kHotkeyZoom4, '4'},
-        {kHotkeyTracking, 'T'},
-        {kHotkeySettings, 'S'},
-        {kHotkeyHelp, 'H'},
-        {kHotkeyNormalReturn, '0'},
-        {kHotkeyExit, 'Q'},
-    };
+UINT win32_hotkey_modifiers(std::uint8_t modifiers) noexcept {
+    UINT result = 0;
+    if ((modifiers & visual::core::HotkeyControl) != 0) result |= MOD_CONTROL;
+    if ((modifiers & visual::core::HotkeyAlt) != 0) result |= MOD_ALT;
+    if ((modifiers & visual::core::HotkeyShift) != 0) result |= MOD_SHIFT;
+    if ((modifiers & visual::core::HotkeyWin) != 0) result |= MOD_WIN;
+    if ((modifiers & visual::core::HotkeyNoRepeat) != 0) result |= MOD_NOREPEAT;
+    return result;
+}
 
+bool execute_command(visual::core::VisionCommand command, HWND hwnd) noexcept {
+    using visual::core::VisionCommand;
+    switch (command) {
+    case VisionCommand::Zoom1: set_zoom(1); return true;
+    case VisionCommand::Zoom2: set_zoom(2); return true;
+    case VisionCommand::Zoom3: set_zoom(3); return true;
+    case VisionCommand::Zoom4: set_zoom(4); return true;
+    case VisionCommand::ToggleTracking: toggle_tracking(); return true;
+    case VisionCommand::OpenSettings: show_settings(); return true;
+    case VisionCommand::OpenHelp: show_help(); return true;
+    case VisionCommand::NormalReturn: toggle_normal_return(); return true;
+    case VisionCommand::Exit: DestroyWindow(hwnd); return true;
+    default: return false;
+    }
+}
+
+std::wstring menu_entry(std::wstring_view label, visual::core::VisionCommand command) {
+    std::wstring value(label);
+    if (const auto* binding = visual::core::hotkey_for_command(command)) {
+        value += L"\t";
+        value += binding->display;
+    }
+    return value;
+}
+
+bool register_hotkeys(HWND hwnd) noexcept {
     std::size_t registered = 0;
-    for (; registered < std::size(bindings); ++registered) {
-        if (!RegisterHotKey(hwnd, bindings[registered].id, modifiers, bindings[registered].key)) {
+    for (; registered < visual::core::kInternalAlphaHotkeys.size(); ++registered) {
+        const auto& binding = visual::core::kInternalAlphaHotkeys[registered];
+        if (!RegisterHotKey(
+                hwnd,
+                binding.registration_id,
+                win32_hotkey_modifiers(binding.modifiers),
+                binding.virtual_key)) {
             for (std::size_t i = 0; i < registered; ++i) {
-                UnregisterHotKey(hwnd, bindings[i].id);
+                UnregisterHotKey(hwnd, visual::core::kInternalAlphaHotkeys[i].registration_id);
             }
             return false;
         }
@@ -1214,15 +1236,9 @@ bool register_hotkeys(HWND hwnd) noexcept {
 }
 
 void unregister_hotkeys(HWND hwnd) noexcept {
-    UnregisterHotKey(hwnd, kHotkeyZoom1);
-    UnregisterHotKey(hwnd, kHotkeyZoom2);
-    UnregisterHotKey(hwnd, kHotkeyZoom3);
-    UnregisterHotKey(hwnd, kHotkeyZoom4);
-    UnregisterHotKey(hwnd, kHotkeyTracking);
-    UnregisterHotKey(hwnd, kHotkeySettings);
-    UnregisterHotKey(hwnd, kHotkeyHelp);
-    UnregisterHotKey(hwnd, kHotkeyNormalReturn);
-    UnregisterHotKey(hwnd, kHotkeyExit);
+    for (const auto& binding : visual::core::kInternalAlphaHotkeys) {
+        UnregisterHotKey(hwnd, binding.registration_id);
+    }
 }
 
 void show_detail_context_menu(HWND hwnd, LPARAM l_param) noexcept {
@@ -1234,12 +1250,17 @@ void show_detail_context_menu(HWND hwnd, LPARAM l_param) noexcept {
     }
     HMENU menu = CreatePopupMenu();
     if (!menu) return;
-    AppendMenuW(menu, MF_STRING, 1, L"Vision Settings...\tCtrl+Alt+S");
-    AppendMenuW(menu, MF_STRING, 2, L"1x View / Return\tCtrl+Alt+0");
-    AppendMenuW(menu, MF_STRING | (g_trackingEnabled.load(std::memory_order_relaxed) ? MF_CHECKED : 0), 3, L"Tracking\tCtrl+Alt+T");
+    const auto settings_entry = menu_entry(L"Vision Settings...", visual::core::VisionCommand::OpenSettings);
+    const auto return_entry = menu_entry(L"1x View / Return", visual::core::VisionCommand::NormalReturn);
+    const auto tracking_entry = menu_entry(L"Tracking", visual::core::VisionCommand::ToggleTracking);
+    const auto help_entry = menu_entry(L"Help / Ask Vision", visual::core::VisionCommand::OpenHelp);
+    const auto exit_entry = menu_entry(L"Exit Vision", visual::core::VisionCommand::Exit);
+    AppendMenuW(menu, MF_STRING, 1, settings_entry.c_str());
+    AppendMenuW(menu, MF_STRING, 2, return_entry.c_str());
+    AppendMenuW(menu, MF_STRING | (g_trackingEnabled.load(std::memory_order_relaxed) ? MF_CHECKED : 0), 3, tracking_entry.c_str());
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(menu, MF_STRING, 4, L"Help / Ask Vision\tCtrl+Alt+H");
-    AppendMenuW(menu, MF_STRING, 5, L"Exit Vision\tCtrl+Alt+Q");
+    AppendMenuW(menu, MF_STRING, 4, help_entry.c_str());
+    AppendMenuW(menu, MF_STRING, 5, exit_entry.c_str());
     SetForegroundWindow(hwnd);
     const UINT command = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_RIGHTBUTTON, point.x, point.y, 0, hwnd, nullptr);
     DestroyMenu(menu);
@@ -1254,25 +1275,14 @@ LRESULT CALLBACK window_proc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lPar
     switch (message) {
     case WM_KEYDOWN:
         if (wParam == VK_ESCAPE) { DestroyWindow(hwnd); return 0; }
-        if (wParam == '1') { set_zoom(1); return 0; }
-        if (wParam == '2') { set_zoom(2); return 0; }
-        if (wParam == '3') { set_zoom(3); return 0; }
-        if (wParam == '4') { set_zoom(4); return 0; }
-        if (wParam == 'T') { toggle_tracking(); return 0; }
-        if (wParam == 'S') { show_settings(); return 0; }
-        if (wParam == 'H') { show_help(); return 0; }
-        if (wParam == '0') { toggle_normal_return(); return 0; }
+        if (const auto command = visual::core::command_for_local_key(static_cast<unsigned int>(wParam))) {
+            if (execute_command(*command, hwnd)) return 0;
+        }
         break;
     case WM_HOTKEY:
-        if (wParam == kHotkeyZoom1) { set_zoom(1); return 0; }
-        if (wParam == kHotkeyZoom2) { set_zoom(2); return 0; }
-        if (wParam == kHotkeyZoom3) { set_zoom(3); return 0; }
-        if (wParam == kHotkeyZoom4) { set_zoom(4); return 0; }
-        if (wParam == kHotkeyTracking) { toggle_tracking(); return 0; }
-        if (wParam == kHotkeySettings) { show_settings(); return 0; }
-        if (wParam == kHotkeyHelp) { show_help(); return 0; }
-        if (wParam == kHotkeyNormalReturn) { toggle_normal_return(); return 0; }
-        if (wParam == kHotkeyExit) { DestroyWindow(hwnd); return 0; }
+        if (const auto command = visual::core::command_for_hotkey_id(static_cast<int>(wParam))) {
+            if (execute_command(*command, hwnd)) return 0;
+        }
         break;
     case kContextViewChangedMessage: {
         PendingContextView pending{};
@@ -1350,7 +1360,7 @@ WindowPlacement create_detail_window(HINSTANCE instance, const MonitorRecord& de
     if (!hwnd) winrt::throw_last_error();
     if (!g_healthCheckMode.load(std::memory_order_relaxed) && !register_hotkeys(hwnd)) {
         DestroyWindow(hwnd);
-        throw std::runtime_error("Vision could not register its Ctrl+Alt shortcuts. Another application may already be using one of them.");
+        throw std::runtime_error("Vision could not register one or more internal-alpha shortcuts. Another application may already be using them.");
     }
     SetWindowPos(hwnd, singleMonitor ? HWND_TOPMOST : HWND_TOP, x, y, width, height, SWP_SHOWWINDOW | SWP_NOACTIVATE);
     ShowWindow(hwnd, SW_SHOWNOACTIVATE);
