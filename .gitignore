@@ -125,3 +125,5 @@ bridge/openapi_chatgpt_pre_full_access_20260924.json
 
 # Raw owner/user-session materials; promote durable conclusions to artifacts/.
 lab/benchmarks/human/
+
+lab/benchmarks/display_physical_qualification/
