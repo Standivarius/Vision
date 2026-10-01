@@ -1,3 +1,6 @@
+﻿> **HISTORICAL / SUPERSEDED FOR SEQUENCING (2026-10-01).**
+> This file records the earlier research-stage execution plan. Do not use it to decide current next work.
+> The canonical current sequence is `docs/project/foundation/feature_roadmap.md`.
 # Visual / Doxa execution plan
 
 **Date:** 2026-09-23
@@ -15,7 +18,7 @@ The working value proposition is:
 
 This remains a hypothesis to validate with low-vision users and Doxa hardware.
 
-## Phase 1 — Finish the two-monitor Visual POC
+## Phase 1 â€” Finish the two-monitor Visual POC
 
 Purpose: create a stable experimental magnifier before Doxa hardware arrives.
 
@@ -60,7 +63,7 @@ Do not spend unbounded time on Chromium accessibility before the human regressio
 
 Do **not** expand into a general-purpose ZoomText/SuperNova replacement.
 
-## Phase 2 — Test persistent context / reference
+## Phase 2 â€” Test persistent context / reference
 
 Purpose: test the most important research mechanism before Doxa arrives.
 
@@ -100,7 +103,7 @@ Representative tasks:
 
 Record task time, errors, viewport movement, zoom changes, screen transitions, pointer/caret reacquisition and subjective workload/orientation.
 
-## Phase 3 — Doxa research before Doxa-specific software
+## Phase 3 â€” Doxa research before Doxa-specific software
 
 Continue literature/user-workflow research while waiting for the hardware.
 
@@ -119,7 +122,7 @@ Prepare experiments for:
 - task-dependent layouts;
 - individual differences in magnification, viewing distance, usable visual field and input habits.
 
-## Phase 4 — When Doxa arrives: physical experiments first
+## Phase 4 â€” When Doxa arrives: physical experiments first
 
 Before writing Doxa-specific behavior:
 
@@ -137,7 +140,7 @@ Allow the possibility that:
 - the laptop is useful only for a subgroup;
 - four active screens may be detrimental for some users.
 
-## Phase 5 — Doxa-specific Visual
+## Phase 5 â€” Doxa-specific Visual
 
 Only after physical evidence exists, reduce variability deliberately around the known Doxa environment.
 
@@ -154,7 +157,7 @@ Potential product capabilities:
 
 Avoid broad arbitrary-hardware support unless it directly serves the Doxa product.
 
-## Phase 6 — Packaging and support
+## Phase 6 â€” Packaging and support
 
 Do not build custom infrastructure unless necessary.
 

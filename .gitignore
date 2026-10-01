@@ -1,4 +1,4 @@
-# Environment and secret files
+﻿# Environment and secret files
 .env
 .env.*
 *.env
@@ -122,3 +122,6 @@ artifacts/visual-low-vision-features-*/*.csv
 artifacts/visual-low-vision-features-*/health-1_5x_csv
 bridge/openapi_chatgpt_compact_8k.json
 bridge/openapi_chatgpt_pre_full_access_20260924.json
+
+# Raw owner/user-session materials; promote durable conclusions to artifacts/.
+lab/benchmarks/human/

@@ -1,4 +1,20 @@
-﻿## CURRENT OPERATIONAL CHECKPOINT — 2026-09-30 POST-RASTER
+﻿## CURRENT OPERATIONAL CHECKPOINT - 2026-10-01 CANONICAL ROADMAP
+
+This section is the current operational truth for programme sequencing.
+
+- Canonical current roadmap: docs/project/foundation/feature_roadmap.md.
+- docs/project/foundation/execution_plan.md is historical and superseded for sequencing.
+- artifacts/2026-09-30__gpt-5.6-sol__vision_development_plan_v0.5.md remains provenance for the structural sequence; its “implementation not yet started / Batch 1 next” wording is historical.
+- Gates 0A/0B, Slices 1-9, P1/P2, raster #19, repository cleanup #24 and same-monitor #22 are complete for their current scopes.
+- #20 is substantially complete; remaining shortcut/text-size/resource work is external-alpha hardening rather than a reason to reopen architecture.
+- #21 owner/debug Windows Magnifier comparison is now documented. Genuine low-vision/assessor evidence remains required.
+- #23 contains current Word/Excel bounded-good evidence and the Edge 154 semantic-accessibility regression; compatibility remains a living workstream.
+- #11/#13/#14 should be qualified in one physical display session.
+- #25 Opus+Astra review follows the physical display evidence plus the first genuine low-vision/assessor evidence.
+- P3 active-source/view ownership + monitor-crossing is P0 first-product work after #25, not an optional Doxa-only idea.
+- Two-screen default remains one Context/source + one dedicated Detail. P3 becomes relevant when more than one source workspace is eligible to feed a shared Detail.
+- A broad C++->Rust rewrite is not on the critical path; an isolated post-alpha Rust spike is explicitly non-blocking.
+## CURRENT OPERATIONAL CHECKPOINT — 2026-09-30 POST-RASTER
 
 This section is the current operational truth and supersedes older same-file wording that says Batch 1, the structural refactor, or Slices 1–9 have not started.
 
