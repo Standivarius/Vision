@@ -1,4 +1,4 @@
-# Visual project documentation
+﻿# Visual project documentation
 
 ## Canonical development baseline
 
@@ -10,8 +10,8 @@ Dated files in `../../artifacts/` remain research/evidence/provenance rather tha
 
 ## Development operations
 
-- `development_operating_model.md` — agent/delegation/write/build/test operating rules.
-- `development_environment_baseline.md` — canonical machine/toolchain baseline.
+- `development_operating_model.md` â€” agent/delegation/write/build/test operating rules.
+- `development_environment_baseline.md` â€” canonical machine/toolchain baseline.
 
 ## Doxa hardware and installation
 
@@ -30,3 +30,7 @@ The hardware documentation deliberately keeps unverified hardware assumptions se
 ## Agent entry point
 
 Repository agents must follow `../../AGENTS.md`, which references the relevant project documents and establishes precedence.
+
+## Living validation ledgers
+
+- compatibility_ledger.md — versioned task-level workplace compatibility evidence and explicit untested boundaries.
