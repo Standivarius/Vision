@@ -89,6 +89,26 @@ private:
         return delta == 0;
     }
 
+    static bool semantic_range_rect(
+        IUIAutomationTextRange* range,
+        const core::ScreenRect& focused_control,
+        core::ScreenRect& result) noexcept {
+        core::ScreenRect direct{};
+        if (first_bounding_rect(range, direct)
+            && core::plausible_semantic_caret_rect(direct, focused_control)) {
+            result = direct;
+            return true;
+        }
+
+        core::ScreenRect character{};
+        if (character_context_rect(range, character)
+            && core::plausible_semantic_caret_rect(character, focused_control)) {
+            result = character;
+            return true;
+        }
+        return false;
+    }
+
     static IUIAutomationTextRange* first_range(IUIAutomationTextRangeArray* ranges) noexcept {
         if (!ranges) return nullptr;
         int length = 0;
@@ -106,16 +126,18 @@ private:
         int process_id = 0;
         focused->get_CurrentProcessId(&process_id);
 
+        core::ScreenRect focused_control_rect{};
         RECT focus_rect{};
         if (SUCCEEDED(focused->get_CurrentBoundingRectangle(&focus_rect))) {
+            focused_control_rect = {
+                static_cast<double>(focus_rect.left), static_cast<double>(focus_rect.top),
+                static_cast<double>(focus_rect.right), static_cast<double>(focus_rect.bottom)
+            };
             core::PoiCandidate focus{};
             focus.kind = core::PoiKind::Focus;
             focus.source = core::PoiSource::UiaFocus;
             focus.confidence = core::PoiConfidence::High;
-            focus.screen_rect = {
-                static_cast<double>(focus_rect.left), static_cast<double>(focus_rect.top),
-                static_cast<double>(focus_rect.right), static_cast<double>(focus_rect.bottom)
-            };
+            focus.screen_rect = focused_control_rect;
             focus.timestamp_qpc = now;
             focus.process_id = static_cast<std::uint32_t>(std::max(0, process_id));
             if (focus.usable()) out.push_back(focus);
@@ -131,8 +153,7 @@ private:
             IUIAutomationTextRange* caret_range = nullptr;
             if (SUCCEEDED(text2->GetCaretRange(&active, &caret_range)) && caret_range) {
                 core::ScreenRect rect{};
-                if (!first_bounding_rect(caret_range, rect)) character_context_rect(caret_range, rect);
-                if (rect.valid()) {
+                if (semantic_range_rect(caret_range, focused_control_rect, rect)) {
                     core::PoiCandidate caret{};
                     caret.kind = core::PoiKind::Caret;
                     caret.source = core::PoiSource::UiaTextPattern2Caret;
@@ -160,8 +181,7 @@ private:
                     if (range) {
                         if (range_is_degenerate(range)) {
                             core::ScreenRect rect{};
-                            if (!first_bounding_rect(range, rect)) character_context_rect(range, rect);
-                            if (rect.valid()) {
+                            if (semantic_range_rect(range, focused_control_rect, rect)) {
                                 core::PoiCandidate caret{};
                                 caret.kind = core::PoiKind::Caret;
                                 caret.source = core::PoiSource::UiaTextPatternSelection;

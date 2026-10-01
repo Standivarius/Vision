@@ -30,6 +30,22 @@ struct ScreenRect {
     [[nodiscard]] bool valid() const noexcept { return right > left && bottom > top; }
 };
 
+// Degenerate UIA TextPattern ranges are sometimes reported with the bounding
+// rectangle of the entire focused edit control rather than a real insertion
+// point. Treat such control-sized geometry as imprecise so focus remains the
+// safe fallback instead of promoting a false high-confidence caret.
+[[nodiscard]] inline bool plausible_semantic_caret_rect(
+    const ScreenRect& caret,
+    const ScreenRect& focused_control,
+    double control_size_fraction = 0.90) noexcept {
+    if (!caret.valid()) return false;
+    if (!focused_control.valid()) return true;
+    const double clamped = std::clamp(control_size_fraction, 0.5, 1.0);
+    const bool control_sized = caret.width() >= focused_control.width() * clamped
+        && caret.height() >= focused_control.height() * clamped;
+    return !control_sized;
+}
+
 struct PoiCandidate {
     PoiKind kind{PoiKind::Focus};
     PoiSource source{PoiSource::UiaFocus};
