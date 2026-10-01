@@ -1,4 +1,4 @@
-﻿# Vision feature and development roadmap
+# Vision feature and development roadmap
 
 **Date:** 2026-10-01
 **Status:** canonical current roadmap for product sequencing and implementation planning
@@ -158,34 +158,44 @@ Current bounded-good task evidence includes:
 - Standard focusable-control navigation.
 - Word 16.0.20326.20158 ordinary document editing, selection, ribbon focus and return to editing.
 - Excel 16.0.20326.20158 grid navigation and formula-bar editing.
+- Chrome 154 deterministic HTML-editing provider path with strict target-PID attribution.
+- Teams 26225.1806.5074.1452 global-search focus tracking through its WebView2 surface; caret precision is unavailable in the tested empty-search state, and Vision now rejects the provider's control-sized pseudo-caret geometry.
 
 Current known issue:
 
-- Edge 154 ordinary textarea semantic accessibility no longer reproduces the validated Edge 153 UIA geometry/focus behaviour. Treat as a browser/accessibility-provider compatibility issue until a current path is proven.
+- Edge 154 ordinary HTML-editing semantic geometry remains severely degraded relative to both Edge 153 historical evidence and Chrome 154 on the same host. Forced accessibility/provider variants do not provide a practical recovery.
 
-The living source of truth is `docs/project/compatibility_ledger.md`.
+Current host limitation:
 
+- classic Outlook 16.0.20326.20158 is installed but not configured, so compose/read compatibility remains untested rather than failed.
+
+The living source of truth is docs/project/compatibility_ledger.md.
 ## 5. Current tranche — validation and hardening before the next independent review
 
 This is the programme's current position.
 
-### 5.1 #20 UI/DPI/hotkey/localisation residuals
+### 5.1 #20 UI/DPI/hotkey/localisation foundation
 
-**Status:** substantially complete / remain in progress.
+**Status:** complete; issue #20 closed on 2026-10-02.
 
-Do now only where it is non-disruptive and evidence-driven.
+Its acceptance criteria are satisfied:
 
-Before broader external alpha:
+- AltGr collision evidence exists for Romanian Programmers and German layouts;
+- caption-dependent Settings layout lookup is removed;
+- Settings/Help have real mixed-DPI 150% <-> 100% evidence;
+- stable language-neutral string keys and command seams exist;
+- the current Ctrl+Alt profile is explicitly internal-alpha only and unsafe for external release.
 
-- choose final shortcut model after accessibility/user evidence;
-- qualify Windows text-size/accessibility scaling;
-- continue resource/string-key migration as UI surfaces are touched.
+Broader-alpha follow-ons remain, but are not unfinished #20 acceptance work:
+
+- choose the final user-facing shortcut model after accessibility/user evidence;
+- run a genuine Windows text-size/accessibility-scale qualification pass;
+- extend stable string keys to smaller surfaces as those surfaces are touched.
 
 Do not delay the next independent review merely because every minor string is not yet catalogued.
-
 ### 5.2 #21 Windows Magnifier + low-vision/assessor evidence
 
-**Status:** owner/debug comparator session underway; genuine low-vision/assessor evidence still required.
+**Status:** owner/debug comparator session complete; genuine low-vision/assessor evidence still required.
 
 Owner/debug findings already established on current Dell/Word setup:
 
@@ -206,33 +216,48 @@ The owner/debug session is protocol/evidence preparation, not a substitute for l
 
 ### 5.3 #23 compatibility ledger
 
-**Status:** active living workstream.
+**Status:** active living workstream; first meaningful workplace tranche is established.
+
+Current tranche now includes Word, Excel, strict-PID Chrome 154 provider evidence, the bounded Edge 154 regression, and Teams global-search focus behaviour.
 
 Next priority applications/workflows:
 
-1. current Chromium/Edge semantic-editing path and the Edge 154 regression;
-2. Outlook compose/read/navigation;
-3. Teams / modern web-app compose and controls;
-4. real PDF application selected from actual pilot use;
-5. pilot user's essential application.
+1. Outlook compose/read/navigation only when a configured or safely isolated profile is available;
+2. Teams chat compose/navigation and other modern controls only with a privacy-safe test surface;
+3. a real PDF application selected from actual pilot use;
+4. the pilot user's essential application;
+5. re-test Edge only after a materially newer browser/provider build rather than continuing launch-flag experiments on 154.
 
-Compatibility claims remain task/version/topology bounded.
-
+Compatibility claims remain task/version/topology bounded. Do not block the physical/user review gates on exhaustive application coverage.
 ### 5.4 #11 + #13 + #14 combined physical display qualification
 
-**Status:** implementation foundation exists; physical evidence remains.
+**Status:** same-port external HDMI disconnect/reconnect qualified; broader physical protocol remains open.
 
-Use one controlled owner-at-Dell session to collect:
+Direct evidence now establishes for the current Dell topology:
 
-- **#11 identity:** whether the same physical displays remain distinguishable across changes, especially identical-panel/port/reboot cases;
-- **#13 lifecycle:** actual event ordering and whether the current debounce is supported by evidence;
-- **#14 recovery:** whether Vision survives/rebuilds and returns to intended roles without stale-generation movement or wrong-monitor binding.
+- the external SGT2271 display returned with the same observed display identity on same-port reconnect;
+- disconnect and reconnect notification clusters around WM_DISPLAYCHANGE settled inside roughly 300 ms;
+- the same Vision process rebuilt in-process through three workspace generations;
+- temporary missing Detail intent did not overwrite persisted monitor intent;
+- reconnect restored the intended Detail binding with no observed wrong-monitor binding;
+- post-recovery rendering continued without failure markers.
 
-The combined protocol is:
-`artifacts/2026-09-30__gpt-5.6-sol__display_physical_qualification_protocol_v0.1.md`.
+This is positive but deliberately bounded evidence. It does not yet freeze a universal durable display key or lifecycle rule.
+
+Remaining useful physical actions:
+
+- secondary display power off/on;
+- primary designation change and restore;
+- resolution change and restore;
+- scaling change/restore if safe;
+- reboot/port swap later if practical;
+- lock/unlock separately because secure-desktop/session behaviour is a distinct boundary.
+
+The combined protocol is artifacts/2026-09-30__gpt-5.6-sol__display_physical_qualification_protocol_v0.1.md.
+
+Current checkpoint is artifacts/2026-10-02__gpt-5.6-sol__display_physical_qualification_checkpoint_v0.1.md.
 
 Do not run three independent disruption campaigns.
-
 ## 6. Review Gate #25 — Opus + Astra
 
 Call the next independent Opus + Astra review **after** the current validation/hardening tranche has produced enough new evidence.
@@ -243,16 +268,16 @@ Already satisfied for the gate:
 - P1/P2;
 - raster conclusion;
 - repository consolidation;
-- mixed-DPI/UI/localisation foundation;
+- #20 mixed-DPI/UI/localisation foundation complete;
 - same-monitor verdict;
-- living compatibility ledger with meaningful Word/Excel current evidence;
-- Windows Magnifier owner/debug comparison.
+- living compatibility ledger with meaningful Word/Excel/Chrome/Teams evidence;
+- Windows Magnifier owner/debug comparison complete;
+- first bounded physical #11/#13/#14 evidence from same-port HDMI disconnect/reconnect.
 
 Still required before the normal gate:
 
-- first genuine low-vision or assessor evidence;
-- physical #11/#13/#14 display identity/lifecycle/recovery evidence.
-
+- first genuine low-vision user or experienced assessor evidence;
+- enough broader physical #11/#13/#14 qualification beyond the same-port HDMI path to support identity/lifecycle/recovery conclusions.
 A targeted earlier review is justified only if new evidence creates a genuine architectural contradiction.
 
 The review should specifically challenge:
@@ -411,17 +436,14 @@ For multi-source/crossing work, add:
 
 Unless new evidence creates a contradiction, execute in this order:
 
-1. **Finish the current #21 owner/debug documentation** and retain the comparator findings.
-2. **Run combined #11/#13/#14 physical display qualification** when the owner can safely perform the required display actions.
-3. **Obtain the first genuine low-vision/assessor #21 session.**
-4. **Continue #23 compatibility opportunistically**, prioritising Edge current-version semantics, Outlook and Teams; do not block the physical/user gates on exhaustive coverage.
-5. **Complete only necessary #20 residuals** before broader external alpha; final shortcut choice should use the user evidence.
-6. **Run Review Gate #25: Opus + Astra.**
-7. **Implement P3 active-source/view ownership + crossing policy.**
-8. **Then P4/P5/P6 orientation, viewport and monitor-role productisation.**
-9. Continue P7/P8 visual presets/supportability toward broader alpha.
-10. Re-evaluate second-layer features and the optional Rust spike after the first-product behaviour stabilises.
-
+1. **Finish the remaining combined #11/#13/#14 physical display qualification** when the owner can safely perform the required display actions; same-port HDMI disconnect/reconnect is already qualified.
+2. **Obtain the first genuine low-vision/assessor #21 session.** The owner/debug comparator is complete and must not be repeated as a substitute.
+3. **Continue #23 compatibility opportunistically only where safe and useful**; Outlook, Teams compose, PDF and the pilot essential app remain bounded gaps, but exhaustive coverage must not delay the physical/user gates.
+4. **Run Review Gate #25: Opus + Astra** after those two evidence streams are sufficient.
+5. **Implement P3 active-source/view ownership + crossing policy.**
+6. **Then P4/P5/P6 orientation, viewport and monitor-role productisation.**
+7. Continue P7/P8 visual presets/supportability toward broader alpha.
+8. Re-evaluate second-layer features and the optional Rust spike after the first-product behaviour stabilises.
 ## 12. What should not happen next
 
 Do not:
