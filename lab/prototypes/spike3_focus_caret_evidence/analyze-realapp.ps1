@@ -1,16 +1,17 @@
 param(
  [Parameter(Mandatory=$true)][string]$RunDir,
- [Parameter(Mandatory=$true)][string]$TargetProcessName
+ [Parameter(Mandatory=$true)][string]$TargetProcessName,
+ [int]$TargetProcessId = 0
 )
 $ErrorActionPreference='Stop'
 $telemetry=Join-Path $RunDir 'focus_caret_telemetry.jsonl'
 if(-not(Test-Path $telemetry)){throw "Missing telemetry: $telemetry"}
 $samples=@(Get-Content $telemetry|Where-Object{$_.Trim()}|ForEach-Object{$_|ConvertFrom-Json})
-$rows=@($samples|Where-Object{[IO.Path]::GetFileNameWithoutExtension([string]$_.foreground.image)-ieq$TargetProcessName})
+$rows=if($TargetProcessId-gt0){@($samples|Where-Object{[int]$_.foreground.pid-eq$TargetProcessId})}else{@($samples|Where-Object{[IO.Path]::GetFileNameWithoutExtension([string]$_.foreground.image)-ieq$TargetProcessName})}
 function P($n,$d){if($d-le0){0}else{[math]::Round(100*$n/$d,1)}}
 $n=$rows.Count
 $stats=[ordered]@{
- run_dir=$RunDir;target_process=$TargetProcessName;total_samples=$samples.Count;target_samples=$n;target_coverage_percent=P $n $samples.Count
+ run_dir=$RunDir;target_process=$TargetProcessName;target_process_id=$TargetProcessId;total_samples=$samples.Count;target_samples=$n;target_coverage_percent=P $n $samples.Count
  win32_focus_percent=P (@($rows|?{$_.win32.focus_hwnd-ne'0x0'}).Count) $n
  win32_caret_percent=P (@($rows|?{$null-ne$_.win32.caret_screen_rect}).Count) $n
  uia_focus_percent=P (@($rows|?{$_.uia.focused-eq$true}).Count) $n

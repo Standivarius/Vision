@@ -31,22 +31,32 @@ Add-Type -TypeDefinition @'
 using System;using System.Runtime.InteropServices;
 public static class Spike3ChromeWindow {
  [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
+ [DllImport("user32.dll")] public static extern bool BringWindowToTop(IntPtr h);
  [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h,int n);
+ [DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr h,IntPtr a,int x,int y,int cx,int cy,uint f);
  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
  [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h,out uint pid);
  [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h,IntPtr p);
  [DllImport("kernel32.dll")] public static extern uint GetCurrentThreadId();
  [DllImport("user32.dll")] public static extern bool AttachThreadInput(uint a,uint b,bool attach);
+ [DllImport("user32.dll")] public static extern void SwitchToThisWindow(IntPtr h,bool altTab);
  public static bool ForceForeground(IntPtr h){
    if(h==IntPtr.Zero) return false;
    var fg=GetForegroundWindow();
    uint current=GetCurrentThreadId();
    uint fgTid=fg==IntPtr.Zero?0:GetWindowThreadProcessId(fg,IntPtr.Zero);
-   bool attached=false;
-   if(fgTid!=0 && fgTid!=current) attached=AttachThreadInput(current,fgTid,true);
+   uint targetTid=GetWindowThreadProcessId(h,IntPtr.Zero);
+   bool attachedFg=false, attachedTarget=false;
+   if(fgTid!=0 && fgTid!=current) attachedFg=AttachThreadInput(current,fgTid,true);
+   if(targetTid!=0 && targetTid!=current && targetTid!=fgTid) attachedTarget=AttachThreadInput(current,targetTid,true);
    ShowWindow(h,9);
+   BringWindowToTop(h);
+   SetWindowPos(h,new IntPtr(-1),0,0,0,0,0x0001|0x0002|0x0010);
+   SetWindowPos(h,new IntPtr(-2),0,0,0,0,0x0001|0x0002|0x0010);
+   SwitchToThisWindow(h,true);
    bool ok=SetForegroundWindow(h);
-   if(attached) AttachThreadInput(current,fgTid,false);
+   if(attachedTarget) AttachThreadInput(current,targetTid,false);
+   if(attachedFg) AttachThreadInput(current,fgTid,false);
    return ok;
  }
  public static uint ForegroundPid(){var h=GetForegroundWindow();uint pid=0;if(h!=IntPtr.Zero)GetWindowThreadProcessId(h,out pid);return pid;}
@@ -78,7 +88,7 @@ try {
    Start-Sleep -Milliseconds 150
    $fgPid=[int][Spike3ChromeWindow]::ForegroundPid()
    $fgProc=Get-Process -Id $fgPid -ErrorAction SilentlyContinue
-   if($fgProc -and $fgProc.ProcessName -ieq 'chrome'){$foregroundOk=$true;break}
+   if($fgPid -eq $browser.Id){$foregroundOk=$true;break}
   }
   if(-not$foregroundOk){throw "Chrome fixture never became foreground; last foreground PID=$fgPid"}
   Start-Sleep -Milliseconds 500
@@ -89,7 +99,7 @@ try {
   $manifest=[ordered]@{captured_at=(Get-Date).ToString('o');run_type='chrome_local_fixture';target_process_name='chrome';browser_pid=$browser.Id;probe_completed_marker=$completed;probe_exit=$p.ExitCode;sample_ms=$SampleMs;fixture=$html}
   $manifest|ConvertTo-Json -Depth 4|Set-Content -Encoding UTF8 (Join-Path $run 'realapp_manifest.json')
   if(-not$completed){throw "Probe did not complete. See $probeErr"}
-  & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $root 'analyze-realapp.ps1') -RunDir $run -TargetProcessName 'chrome'
+  & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $root 'analyze-realapp.ps1') -RunDir $run -TargetProcessName 'chrome' -TargetProcessId $browser.Id
   if($LASTEXITCODE-ne0){throw "Analysis failed: $LASTEXITCODE"}
   Write-Host "Spike 3 Chrome run complete: $run"
 }
