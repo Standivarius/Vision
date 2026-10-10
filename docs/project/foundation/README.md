@@ -44,6 +44,7 @@ If new evidence contradicts the foundation, record the evidence and update the r
 - vision_adoption_and_contextual_assistance_spec.md — terminology alignment, deterministic contextual help and optional Ask Vision decisions.
 - doxa_dual_workspace_shared_detail_concept.md — Doxa-specific two-workspace + shared-Detail concept.
 - experimentation_and_validation.md — spike design, evidence interpretation and experimental conclusions.
+- reconstruction_lab.md — calibrated REA/Ghidra + Windows runtime workflow for targeted binary/mechanism research.
 - opus_5_5_prompting_instructions.md — current reusable Opus 5.5 review/prompting guidance.
 - execution_plan.md — historical research-stage plan; superseded for sequencing by feature_roadmap.md.
 
