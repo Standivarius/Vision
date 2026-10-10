@@ -1,0 +1,13 @@
+rule:
+  meta:
+    name: expose workspace topology generation telemetry
+    namespace: vision-reconstruction/topology
+    authors:
+      - OpenAI Vision calibration
+    scopes:
+      static: file
+      dynamic: unsupported
+  features:
+    - and:
+      - substring: "workspace_generation_"
+      - substring: "topology"
