@@ -1,4 +1,4 @@
-﻿# Zero-side-effect tests for owner-only disconnected session recovery policy.
+# Zero-side-effect tests for owner-only disconnected session recovery policy.
 $ErrorActionPreference='Stop'
 $script=Join-Path $PSScriptRoot 'Recover-VisionConsole.ps1'
 function Check([string]$name,[string[]]$sessions,[string]$expected){
@@ -26,7 +26,7 @@ Check 'active physical console' @($header,'DELL console 2 Active . 10/18/2026') 
 Check 'no owner session' @($header,'other console 3 Active . 10/18/2026') 'CONSOLE_ALREADY_ACTIVE'
 Check 'multiple disconnected owner sessions' @($header,'DELL 2 Disc . 10/18/2026','DELL 4 Disc . 10/18/2026') 'AMBIGUOUS_MULTIPLE_DISCONNECTED_SESSIONS'
 # Compile installer task specification without registration/elevation, no mutation.
-$trigger=New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) -RepetitionInterval (New-TimeSpan -Minutes 1) -RepetitionDuration (New-TimeSpan -Days 3650)
+$trigger=New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) -RepetitionInterval (New-TimeSpan -Minutes 1)
 $principal=New-ScheduledTaskPrincipal -UserId 'SYSTEM' -LogonType ServiceAccount -RunLevel Highest
 if($trigger.Repetition.Interval -ne 'PT1M' -or $principal.UserId -ne 'SYSTEM'){throw 'Task specification invalid'}
 'PASS recovery task specification'

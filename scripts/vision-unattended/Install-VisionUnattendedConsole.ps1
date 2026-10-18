@@ -5,6 +5,19 @@ $taskName='VisionConsoleRecovery'
 $root=Join-Path $env:ProgramData 'StandivariusVisionConsoleRecovery'
 $source=Join-Path $PSScriptRoot 'Recover-VisionConsole.ps1'
 $destination=Join-Path $root 'Recover-VisionConsole.ps1'
+$script:installStep='preflight'
+function Write-InstallReport([string]$message){
+ try{
+  if(Test-Path $root){
+   [IO.File]::AppendAllText((Join-Path $root 'install-report.log'),((Get-Date -Format o)+' '+$message+[Environment]::NewLine))
+  }
+ }catch{}
+}
+trap {
+ Write-InstallReport ('FAILED step='+$script:installStep+' type='+$_.Exception.GetType().Name+' error='+$_.Exception.Message)
+ Write-Error ('RECOVERY_INSTALL_FAILED step='+$script:installStep+': '+$_.Exception.Message) -ErrorAction Continue
+ exit 1
+}
 $p=New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
 if(-not $p.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)){
  Write-Error 'Run once as administrator (Start-Process -Verb RunAs).'
@@ -16,6 +29,7 @@ if($Uninstall){
  Write-Host "REMOVED $taskName. Historical logs preserved: $root"
  exit 0
 }
+$script:installStep='file-protection'
 if(-not(Test-Path $source)){throw "Source missing: $source"}
 [void][IO.Directory]::CreateDirectory($root)
 $acl=New-Object Security.AccessControl.DirectorySecurity
@@ -47,17 +61,35 @@ foreach($ace in $actual.Access){
  }
 }
 $action=New-ScheduledTaskAction -Execute (Join-Path $env:windir 'System32\WindowsPowerShell\v1.0\powershell.exe') -Argument ('-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "'+$destination+'"')
-$trigger=New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) -RepetitionInterval (New-TimeSpan -Minutes 1) -RepetitionDuration (New-TimeSpan -Days 3650)
+$script:installStep='task-definition'
+$trigger=New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) -RepetitionInterval (New-TimeSpan -Minutes 1)
 $principal=New-ScheduledTaskPrincipal -UserId 'SYSTEM' -LogonType ServiceAccount -RunLevel Highest
 $settings=New-ScheduledTaskSettingsSet -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Minutes 1) -MultipleInstances IgnoreNew
-$task=Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force
+$script:installStep='task-registration'
+Write-InstallReport 'START task-registration'
+try {
+ $task=Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force -ErrorAction Stop
+}catch {
+ Write-InstallReport ('CIM_REGISTRATION_FAILED '+$_.Exception.Message+'; attempting schtasks fallback')
+ $taskCommand=(Join-Path $env:windir 'System32\WindowsPowerShell\v1.0\powershell.exe')+' -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File '+$destination
+ $taskExe=Join-Path $env:windir 'System32\schtasks.exe'
+ $fallbackOutput=@(& $taskExe /Create /TN $taskName /TR $taskCommand /SC MINUTE /MO 1 /RU SYSTEM /RL HIGHEST /F 2>&1)
+ if($LASTEXITCODE -ne 0){throw ('Both task registration methods failed; schtasks: '+($fallbackOutput -join ' '))}
+ $task=Get-ScheduledTask -TaskName $taskName -ErrorAction Stop
+}
 if(-not $task){throw 'Scheduled task installation failed'}
+Write-InstallReport 'PASS task-registration'
 try{
  $t=Get-ScheduledTask -TaskName 'VisionOpenAITunnelKeepalive' -ErrorAction SilentlyContinue
  if($t -and $t.State -ne 'Running'){Start-ScheduledTask -TaskName 'VisionOpenAITunnelKeepalive';Write-Host 'Started existing Vision tunnel keepalive'}
 }catch{Write-Warning 'Tunnel keepalive check could not complete'}
+$script:installStep='verification'
 $probe=@(& powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $destination -Probe)
+$probeExit=$LASTEXITCODE
+if($probeExit -ne 0){throw "Safe probe failed with exit=$probeExit"}
 $check=Get-ScheduledTask -TaskName $taskName -ErrorAction Stop
+if($check.Principal.UserId -notmatch '^(SYSTEM|NT AUTHORITY\\SYSTEM|S-1-5-18)$'){throw 'Task principal is not SYSTEM'}
+Write-InstallReport ('SUCCESS task='+$taskName+' probe_exit='+$LASTEXITCODE)
 @{status='INSTALLED';task=$taskName;principal=$check.Principal.UserId;runlevel=[string]$check.Principal.RunLevel;task_state=[string]$check.State;script_path=$destination;hash=(Get-FileHash $destination -Algorithm SHA256).Hash;probe=($probe -join '');auto_recovery='one disconnected owner session only';security='no unlock, no drivers, no Windows policy change'}|ConvertTo-Json -Depth 5
 if(-not $NoImmediateHandoff){
  $mySession=[Diagnostics.Process]::GetCurrentProcess().SessionId

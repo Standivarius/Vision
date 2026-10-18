@@ -1,6 +1,6 @@
-# Vision Dell unattended console recovery — owner-approved 2026-10-18
+# Vision Dell unattended console recovery â€” owner-approved 2026-10-18
 
-Status: prepared and dry-run tested; installation requires one-time admin UAC
+Status: Vision bridge watcher installed and independently verified; physical-console recovery installer corrected but privileged task not yet installed; its registration still requires one-time admin UAC
 because an ordinary user context cannot transfer a disconnected Remote Desktop
 session back to the physical display console (tscon Access denied, code 5).
 
@@ -30,7 +30,7 @@ If Windows is genuinely locked by the user or has rebooted to sign-in, it
 cannot unlock it or create a new authenticated session. Such a case remains
 blocked rather than bypassed.
 
-## One-time command — only if the recovery task is not yet installed
+## One-time command â€” only if the recovery task is not yet installed
 
 From a regular PowerShell on Dell (a remote RDP session is fine), paste one line:
 
@@ -78,3 +78,11 @@ no interruption of active RDP and no ambiguous-session takeover. SYSTEM task
 registration and genuine future disconnect/recovery are unverified until
 the one-time elevated install and subsequent end-to-end reattach test.
 
+
+## Actual installation status — 2026-10-18
+
+Installed locally without elevation: Task Scheduler task VisionBridgeRecoveryUser, user DELL, limited runlevel, once-per-minute indefinite repetition. Script: scripts/vision-unattended/Keep-VisionBridgeOnline.ps1. Verified a completed scheduled run returned LastTaskResult 0, and the existing VisionOpenAITunnelKeepalive is Running. It never touches the separate ProjectDevDell tunnel. The existing four-screen console is available.
+
+Not yet installed: VisionConsoleRecovery SYSTEM task. An earlier elevated installer execution created the ACL-protected ProgramData directory and script but did not register the SYSTEM task. The installer has since been made idempotent, adds step-level error logging to ProgramData/install-report.log, validates its probe exit code and Task Scheduler principal, uses indefinite repetition, and includes schtasks.exe registration fallback. No non-elevated API was found that may legitimately register a SYSTEM task; current Windows UAC requires user consent (ConsentPromptBehaviorAdmin=5). Do not claim automatic RDP console transfer is functioning until the task is registered and its actual transfer tested.
+
+Physical Doxa startup test: 4 monitors, physical console, unlocked, and the existing POC controller SmokeTest PASS. The attended automatic-focus test still has a UI Automation locator issue. The older earlier run logged RIGHT switch, but not the full return-and-shutdown pass. The experimental alternative test runner was not promoted.
