@@ -95,6 +95,69 @@ int main() {
         changed.identity = 22;
         require(!same_poi_target(prior, changed), "changed_focus_new_target", "focus identity change must count as new activity", failures);
     }
+
+    // A live foreground Win32 caret must remain authoritative when the
+    // insertion point is unchanged; otherwise a broad Word document focus
+    // rectangle drags the 4x Detail viewport away after 250 ms.
+    {
+        auto previous = make(PoiKind::Caret, PoiSource::Win32Caret, 60'000);
+        previous.process_id = 42;
+        previous.identity = 0x1234;
+        previous.screen_rect = {5173, 493, 5174, 532};
+        auto observed = previous;
+        observed.timestamp_qpc = 60'600;
+        const auto refreshed = live_win32_caret_timestamp(observed, previous, 0);
+        require(refreshed == 60'600, "word_still_foreground",
+                "live Win32 caret must refresh while foreground owner is unchanged", failures);
+        observed.timestamp_qpc = refreshed;
+        auto broadFocus = make(PoiKind::Focus, PoiSource::UiaFocus, 60'600);
+        broadFocus.process_id = previous.process_id;
+        broadFocus.screen_rect = {3901, 343, 5580, 920};
+        const auto selected = select_best_poi({observed, broadFocus}, 60'600, freq);
+        require(selected && selected->source == PoiSource::Win32Caret,
+                "word_caret_outlives_focus",
+                "live caret must not yield to unrelated broad focus rectangle", failures);
+    }
+
+    // The same stationary caret must NOT reclaim Detail after the user
+    // deliberately moves the pointer. Only a new caret position may do so.
+    {
+        auto oldCaret = make(PoiKind::Caret, PoiSource::Win32Caret, 70'000);
+        oldCaret.process_id = 45;
+        oldCaret.identity = 0x20;
+        auto unchanged = oldCaret;
+        unchanged.timestamp_qpc = 70'350;
+        const auto retained = live_win32_caret_timestamp(unchanged, oldCaret, 70'180);
+        require(retained == 70'000, "pointer_barrier_retains_stale_caret",
+                "stationary caret after pointer motion must remain old evidence", failures);
+        unchanged.timestamp_qpc = retained;
+        auto pointer = make(PoiKind::Pointer, PoiSource::Pointer, 70'180);
+        const auto selected = select_best_poi({unchanged, pointer}, 70'350, freq, {}, 70'180);
+        require(!selected, "pointer_barrier_prevents_caret_reclaim",
+                "stale pointer and pre-pointer stationary caret must not steal the view", failures);
+
+        auto moved = unchanged;
+        moved.timestamp_qpc = 70'355;
+        moved.screen_rect.left += 65;
+        moved.screen_rect.right += 65;
+        const auto newTimestamp = live_win32_caret_timestamp(moved, unchanged, 70'180);
+        require(newTimestamp == 70'355, "caret_motion_after_pointer",
+                "new caret geometry after pointer intent must be eligible", failures);
+    }
+
+    // A different owning process is a new caret, not a continuation of a
+    // stale Word insertion point when switching to Excel.
+    {
+        auto word = make(PoiKind::Caret, PoiSource::Win32Caret, 80'000);
+        word.process_id = 50;
+        word.identity = 0xCA;
+        auto excel = word;
+        excel.process_id = 51;
+        excel.timestamp_qpc = 80'350;
+        require(live_win32_caret_timestamp(excel, word, 80'170) == 80'350,
+                "cross_app_caret_identity",
+                "Word caret must not suppress fresh Excel caret geometry", failures);
+    }
     if (!failures.empty()) {
         std::cerr << "poi_arbitration_tests FAILED: " << failures.size() << " failure(s)\n";
         for (const auto& f : failures) std::cerr << "  " << f.name << ": " << f.message << "\n";

@@ -65,6 +65,24 @@ struct PoiCandidate {
         && within_tolerance(a.screen_rect.right, b.screen_rect.right)
         && within_tolerance(a.screen_rect.bottom, b.screen_rect.bottom);
 }
+
+// A caret visibly owned by the foreground thread remains current evidence
+// while GetGUIThreadInfo continues to expose its HWND and geometry. Unlike
+// a cached UIA range, this is independently re-observed on each frame.
+//
+// A deliberate pointer movement is an intent barrier. If the caret has not
+// actually moved since that pointer event, retain the old timestamp so a
+// stationary insertion point cannot steal the view back from the pointer.
+[[nodiscard]] inline std::uint64_t live_win32_caret_timestamp(
+    const PoiCandidate& observation,
+    const std::optional<PoiCandidate>& previous,
+    std::uint64_t pointer_movement_qpc) noexcept {
+    if (!previous || !same_poi_target(observation, *previous)) return observation.timestamp_qpc;
+    if (pointer_movement_qpc != 0 && pointer_movement_qpc >= previous->timestamp_qpc)
+        return previous->timestamp_qpc;
+    return observation.timestamp_qpc;
+}
+
 struct PoiSelectionPolicy {
     double max_caret_age_ms{250.0};
     double max_focus_age_ms{500.0};
