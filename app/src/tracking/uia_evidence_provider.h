@@ -215,6 +215,19 @@ private:
         IUIAutomation* uia = nullptr;
         const HRESULT create = CoCreateInstance(CLSID_CUIAutomation, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&uia));
         if (SUCCEEDED(create) && uia) {
+
+            // UIA's default transaction timeout is 20 seconds. Word
+            // providers can block this background observer and delay shutdown.
+            // A failed observation falls back to the independent Win32 path.
+            constexpr DWORD kConnectionTimeoutMs = 1000;
+            constexpr DWORD kTransactionTimeoutMs = 2500;
+            IUIAutomation2* configured = nullptr;
+            if (SUCCEEDED(uia->QueryInterface(IID_PPV_ARGS(&configured))) && configured) {
+                (void)configured->put_ConnectionTimeout(kConnectionTimeoutMs);
+                (void)configured->put_TransactionTimeout(kTransactionTimeoutMs);
+                configured->Release();
+            }
+
             while (!stop.stop_requested()) {
                 std::vector<core::PoiCandidate> sampled;
                 sample_once(uia, sampled);

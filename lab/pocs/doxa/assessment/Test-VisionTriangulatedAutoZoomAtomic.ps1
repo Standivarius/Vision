@@ -300,8 +300,12 @@ finally{
  $after=New-Object VisionAutoFocusTestNative+POINT
  [void][VisionAutoFocusTestNative]::GetCursorPos([ref]$after)
  $results.pointer_restored=($after.X -eq $originalPointer.X -and $after.Y -eq $originalPointer.Y)
- [void][VisionAutoFocusTestNative]::SetForegroundWindow($originalForeground)
- $results.focus_restored=([VisionAutoFocusTestNative]::GetForegroundWindow() -eq $originalForeground)
+ # Controlled restoration: wait for the desktop to accept the focus change.
+ # Do not click, type or inject Alt into the original user application.
+ . (Join-Path $PSScriptRoot 'Restore-VisionForeground.ps1')
+ $restoration=Restore-VisionForeground -OriginalHwnd $originalForeground
+ $results.focus_restored=[bool]$restoration.restored
+ $results.focus_restore_method=[string]$restoration.status
  $output=Join-Path $root ('artifacts\vision-poc-a-graphics-20261017\poc-a-auto-zoom-atomic-'+[DateTime]::UtcNow.ToString('yyyyMMdd-HHmmss')+'.json')
  if(Test-Path $output){throw 'Evidence path exists; refuse overwrite'}
  [IO.File]::WriteAllText($output,($results|ConvertTo-Json -Depth 8),[Text.UTF8Encoding]::new($false))
