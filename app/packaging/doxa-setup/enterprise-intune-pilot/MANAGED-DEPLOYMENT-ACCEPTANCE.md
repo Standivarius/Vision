@@ -1,5 +1,7 @@
 # Doxa Setup — app-only pilot on two managed Windows platforms
 
+**25 October 2026 live-state addendum:** The 24 October engineering baseline below predates owner's approval of temporary MARIUS-DELL Intune enrollment. Dell is now enrolled, a Dell-only Intune app is published/assigned and its first SYSTEM run failed due PowerShell policy; corrected commands are live, installation retry remains pending. The original prohibition on enrolling Dell below was superseded by explicit owner authorisation **only for Intune**, not ManageEngine. The separate ManageEngine agent-managed test has not run: see [current pilot runbook](MANAGEENGINE-REAL-PILOT-RUNBOOK.md). Keep other 24 October historical instructions as original context, not current deployment state.
+
 **Engineering baseline: 24 October 2026.** Unapproved, unsigned **app-only** test payload. No Silicon Motion MSI, INF, CAT or SYS is bundled; no driver, firmware or display configuration is changed. Do not deploy to production devices.
 
 ## Shared installer contract

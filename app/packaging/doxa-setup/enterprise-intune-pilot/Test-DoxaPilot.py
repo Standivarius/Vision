@@ -1,10 +1,11 @@
 import os, tempfile, subprocess, json, pathlib, hashlib, argparse, zipfile, shutil
 base=pathlib.Path(__file__).resolve().parent
-script=base/"DoxaPilot.ps1"
 parser=argparse.ArgumentParser()
+parser.add_argument("--script",default=str(base/"DoxaPilot.ps1"))
 parser.add_argument("--payload",default=str(base/"DoxaSetupPayload.zip"))
 opts=parser.parse_args()
-payload=pathlib.Path(opts.payload)
+script=pathlib.Path(opts.script).resolve()
+payload=pathlib.Path(opts.payload).resolve()
 assert script.is_file() and payload.is_file()
 ps=os.path.join(os.environ.get("WINDIR","C:\\Windows"),"System32","WindowsPowerShell","v1.0","powershell.exe")
 with tempfile.TemporaryDirectory(prefix="DoxaEnterprisePilotTest-") as tmp:
