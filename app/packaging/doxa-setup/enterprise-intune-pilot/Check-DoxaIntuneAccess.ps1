@@ -4,8 +4,8 @@ param(
 )
 # Read-only DMR Intune access gate. No new tenant or Azure subscription.
 # With -Authenticate: Microsoft first-party Graph CLI device-code sign-in.
-# Only requests DeviceManagementServiceConfig.Read.All and DeviceManagementApps.Read.All.
-# Never prints or persists auth tokens. Does not enumerate device identities or write Intune settings.
+# Only requests DeviceManagementManagedDevices.Read.All and DeviceManagementApps.Read.All.
+# Never prints or persists auth tokens. Lists only the first Intune device page and outputs the current Dell's summary; no Graph writes.
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
 if(-not $TenantId){
@@ -24,14 +24,14 @@ if(-not $Authenticate){
   tenant_id=$TenantId
   microsoft_authority_reachable=$true
   graph_app='Microsoft Graph Command Line Tools (Microsoft first-party)'
-  requested_permissions=@('DeviceManagementServiceConfig.Read.All','DeviceManagementApps.Read.All')
+  requested_permissions=@('DeviceManagementManagedDevices.Read.All','DeviceManagementApps.Read.All')
   tenant_configuration_read=$false
   tenant_modified=$false
   guidance='Rerun with -Authenticate only when the account owner can complete Microsoft device-code sign-in and any admin consent.'
  }|ConvertTo-Json -Depth 3
  return
 }
-$scope='https://graph.microsoft.com/DeviceManagementServiceConfig.Read.All https://graph.microsoft.com/DeviceManagementApps.Read.All'
+$scope='https://graph.microsoft.com/DeviceManagementManagedDevices.Read.All https://graph.microsoft.com/DeviceManagementApps.Read.All'
 $flow=Invoke-RestMethod -Method Post -Uri ([string]$metadata.device_authorization_endpoint) -ContentType 'application/x-www-form-urlencoded' -Body @{client_id=$clientId;scope=$scope} -TimeoutSec 25
 Write-Output ('SIGN_IN_URL='+[string]$flow.verification_uri)
 Write-Output ('DEVICE_CODE='+[string]$flow.user_code)
@@ -61,14 +61,23 @@ try{
  if(-not $accessToken){throw 'Sign-in timed out without completing'}
  $headers=@{Authorization=('Bearer '+$accessToken);Accept='application/json'}
  $queries=[ordered]@{
-  intune_service='https://graph.microsoft.com/v1.0/deviceManagement'
   intune_apps='https://graph.microsoft.com/v1.0/deviceAppManagement/mobileApps?$top=1'
+  managed_devices='https://graph.microsoft.com/v1.0/deviceManagement/managedDevices?$top=100'
  }
  $results=[ordered]@{}
  foreach($name in $queries.Keys){
   try{
    $result=Invoke-RestMethod -Method Get -Uri $queries[$name] -Headers $headers -TimeoutSec 25
-   $results[$name]=if($name -eq 'intune_service'){'READ_OK'}else{'READ_OK (at least '+@($result.value).Count+' returned in first page)'}
+   if($name -eq 'managed_devices'){
+    $matches=@($result.value | Where-Object {[string]$_.deviceName -ieq $env:COMPUTERNAME})
+    $results[$name]=[ordered]@{
+     response='READ_OK'
+     first_page_count=@($result.value).Count
+     more_pages=([bool]$result.'@odata.nextLink')
+     dell_found_on_first_page=($matches.Count -gt 0)
+     dell=if($matches.Count){@($matches|ForEach-Object {[ordered]@{device_name=[string]$_.deviceName;management_agent=[string]$_.managementAgent;compliance=[string]$_.complianceState;enrolled=[string]$_.enrolledDateTime;last_sync=[string]$_.lastSyncDateTime}})}else{@()}
+    }
+   } else { $results[$name]='READ_OK (at least '+@($result.value).Count+' app(s) returned on first page)' }
   }catch{
    $httpStatus='unknown'
    try{$httpStatus=[int]$_.Exception.Response.StatusCode}catch{}
