@@ -73,15 +73,19 @@ try{
     $results[$name]=[ordered]@{
      response='READ_OK'
      first_page_count=@($result.value).Count
-     more_pages=([bool]$result.'@odata.nextLink')
+     more_pages=($null -ne $result.PSObject.Properties['@odata.nextLink'] -and [bool]$result.'@odata.nextLink')
      dell_found_on_first_page=($matches.Count -gt 0)
      dell=if($matches.Count){@($matches|ForEach-Object {[ordered]@{device_name=[string]$_.deviceName;management_agent=[string]$_.managementAgent;compliance=[string]$_.complianceState;enrolled=[string]$_.enrolledDateTime;last_sync=[string]$_.lastSyncDateTime}})}else{@()}
     }
    } else { $results[$name]='READ_OK (at least '+@($result.value).Count+' app(s) returned on first page)' }
   }catch{
-   $httpStatus='unknown'
-   try{$httpStatus=[int]$_.Exception.Response.StatusCode}catch{}
-   $results[$name]='HTTP_'+$httpStatus
+   $httpStatus=$null
+   if($null -ne $_.Exception.PSObject.Properties['Response']){
+    try{$httpStatus=[int]$_.Exception.Response.StatusCode}catch{}
+   }
+   if($null -ne $httpStatus){$results[$name]='HTTP_'+$httpStatus}
+   else{$results[$name]='CLIENT_ERROR_'+$_.Exception.GetType().Name}
+   # Keep diagnostics in the process, but do not print response bodies or tokens.
   }
  }
  [ordered]@{
