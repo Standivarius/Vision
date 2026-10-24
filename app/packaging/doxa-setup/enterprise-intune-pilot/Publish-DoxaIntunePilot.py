@@ -26,6 +26,10 @@ DEVICE_NAME = "MARIUS-DELL"
 GROUP_NAME = "Doxa Intune pilot - MARIUS-DELL (24 October 2026)"
 GROUP_ALIAS = "doxa-intune-marius-dell-pilot-20261024"
 APP_NAME = "Standivarius Doxa Setup - MARIUS-DELL app-only pilot"
+# IDs observed in the first genuine Microsoft tenant mutation; prevent duplicate
+# objects or accidental re-use of a different app/group. Not credentials.
+KNOWN_PILOT_GROUP_ID = "3f74c6a3-d470-4d78-8c17-756381465095"
+KNOWN_PILOT_APP_ID = "5ebf4ee9-0e28-4a2d-913c-82c4ac5495a4"
 GRAPH = "https://graph.microsoft.com/v1.0"
 SCOPES = [
     "DeviceManagementApps.ReadWrite.All",
@@ -182,6 +186,8 @@ def ensure_private_group(token, device_id):
     if found:
         ensure(found[0].get("securityEnabled") and not found[0].get("mailEnabled"),
                "Existing group is not a dedicated security group")
+        ensure(found[0].get("id", "").lower() == KNOWN_PILOT_GROUP_ID,
+               "Unexpected group ID; refusing to target another group")
         group_id = found[0]["id"]
     else:
         group = call("POST", "/groups", token, {
@@ -207,7 +213,23 @@ def ensure_private_group(token, device_id):
 def create_app(token, file, encrypted, clear_size):
     existing = call("GET", "/deviceAppManagement/mobileApps", token,
                     params={"$filter": f"displayName eq '{APP_NAME}'", "$select": "id,displayName,publishingState"})
-    ensure(not existing.get("value"), "Pilot app already exists: verify and reconcile before re-executing")
+    found = existing.get("value", [])
+    ensure(len(found) <= 1, "More than one named pilot app; refuse to proceed")
+    if found:
+        ensure(found[0].get("id", "").lower() == KNOWN_PILOT_APP_ID,
+               "Existing app is not the exact original Microsoft-created Doxa pilot")
+        current = call("GET", f"/deviceAppManagement/mobileApps/{KNOWN_PILOT_APP_ID}", token)
+        ensure(current.get("displayName") == APP_NAME and
+               current.get("publisher") == "DMR Ergonomics SRL (Standivarius)" and
+               current.get("@odata.type", "").endswith("win32LobApp") and
+               "DoxaPilot.ps1" in current.get("installCommandLine", "") and
+               current.get("publishingState") == "notPublished" and
+               not current.get("committedContentVersion"),
+               "Existing Intune app is changed or already published; manual reconciliation required")
+        assignments = call("GET", f"/deviceAppManagement/mobileApps/{KNOWN_PILOT_APP_ID}/assignments", token)
+        ensure(not assignments.get("value"), "Existing Doxa pilot has assignments; refusing mutation")
+        print("REUSING_UNPUBLISHED_PILOT_APP=" + KNOWN_PILOT_APP_ID, flush=True)
+        return KNOWN_PILOT_APP_ID
     script = (ROOT / "enterprise-intune-pilot" / "DoxaPilot.ps1").read_bytes()
     ensure(b"Get-FileHash" in script and b"'Detect'" in script,
            "Expected content-hash detection script missing")
@@ -237,6 +259,42 @@ def create_app(token, file, encrypted, clear_size):
     return app["id"]
 
 
+def upload_azure_blocks(sas, encrypted):
+    """Azure Put Block/Put Block List, as in Microsoft's Win32 Intune uploader.
+    A single Put Blob succeeded HTTP-wise but failed the actual Intune commit.
+    Never output the SAS URI; only assert the final uploaded byte count.
+    """
+    ensure(sas.startswith("https://") and "?" in sas, "Invalid Azure SAS URI")
+    ensure(len(encrypted) > 48, "Not an encrypted Intune package")
+    BLOCK_SIZE = 4 * 1024 * 1024
+    block_ids = []
+    for i, start in enumerate(range(0, len(encrypted), BLOCK_SIZE)):
+        block_id = base64.b64encode(f"{i:08d}".encode("ascii")).decode("ascii")
+        block_ids.append(block_id)
+        separator = "&" if "?" in sas else "?"
+        url = sas + separator + urllib.parse.urlencode(
+            {"comp": "block", "blockid": block_id})
+        response = SESSION.put(url, data=encrypted[start:start+BLOCK_SIZE],
+                               headers={"x-ms-version": "2020-10-02",
+                                        "Content-Type": "application/octet-stream"},
+                               timeout=100)
+        ensure(response.status_code == 201, "Azure block upload failed HTTP " + str(response.status_code))
+    # Commit the ordered list of uploaded blocks (distinct from Intune Graph /commit).
+    xml = '<?xml version="1.0" encoding="utf-8"?><BlockList>' + "".join(
+        "<Latest>" + b + "</Latest>" for b in block_ids) + "</BlockList>"
+    uri = sas + "&comp=blocklist"
+    result = SESSION.put(uri, data=xml.encode("utf-8"),
+                         headers={"Content-Type": "application/xml",
+                                  "x-ms-version": "2020-10-02"}, timeout=100)
+    ensure(result.status_code == 201, "Azure block list commit failed HTTP " + str(result.status_code))
+    head = SESSION.head(sas, headers={"x-ms-version": "2020-10-02"}, timeout=30)
+    ensure(head.status_code == 200, "Azure uploaded blob HEAD failed HTTP " + str(head.status_code))
+    actual = int(head.headers.get("Content-Length", "-1"))
+    ensure(actual == len(encrypted),
+           f"Azure blob size mismatch: expected {len(encrypted)} bytes; actual {actual}")
+    print("AZURE_BLOCK_UPLOAD_VERIFIED_BYTES=" + str(actual), flush=True)
+
+
 def upload_app(token, app_id, encrypted, clear_size, crypto):
     url = f"/deviceAppManagement/mobileApps/{app_id}/microsoft.graph.win32LobApp"
     cv = call("POST", url + "/contentVersions", token,
@@ -256,11 +314,9 @@ def upload_app(token, app_id, encrypted, clear_size, crypto):
         ensure("failed" not in str(state.get("uploadState", "")).lower(), "Azure upload URI failed")
         time.sleep(5)
     ensure(sas, "Microsoft never supplied an Azure Storage upload URI")
-    response = SESSION.put(sas, data=encrypted,
-                           headers={"x-ms-blob-type":"BlockBlob",
-                                    "x-ms-version":"2020-10-02",
-                                    "Content-Type":"application/octet-stream"}, timeout=100)
-    ensure(response.status_code in (201,202), "Azure encrypted upload HTTP " + str(response.status_code))
+    upload_azure_blocks(sas, encrypted)
+    # Azure Blob block-list is committed before asking Intune to decrypt and verify.
+    time.sleep(5)
     call("POST", key + "/commit", token, {"fileEncryptionInfo": {
         "@odata.type": "microsoft.graph.fileEncryptionInfo", **crypto}})
     for _ in range(35):

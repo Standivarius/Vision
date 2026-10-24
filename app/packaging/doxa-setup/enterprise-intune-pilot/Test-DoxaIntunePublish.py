@@ -113,9 +113,68 @@ class TestDoxaIntunePilot(unittest.TestCase):
         self.assertNotIn("graph.microsoft.com", error)
         self.assertNotIn("do-not-print", error)
 
+    def test_reuses_only_original_unassigned_not_published_app(self):
+        calls = []
+        def fake_call(method, path, token, payload=None, params=None):
+            calls.append((method,path))
+            if path == "/deviceAppManagement/mobileApps":
+                return {"value": [{"id": pub.KNOWN_PILOT_APP_ID, "displayName": pub.APP_NAME}]}
+            if path.endswith("/assignments"):
+                return {"value":[]}
+            return {
+                "displayName": pub.APP_NAME,
+                "publisher": "DMR Ergonomics SRL (Standivarius)",
+                "@odata.type": "#microsoft.graph.win32LobApp",
+                "installCommandLine": "powershell.exe -File DoxaPilot.ps1 -Action Install",
+                "publishingState": "notPublished",
+                "committedContentVersion": ""
+            }
+        with patch.object(pub, "call", fake_call):
+            self.assertEqual(pub.create_app("FAKE_TOKEN",None,None,0),pub.KNOWN_PILOT_APP_ID)
+        self.assertTrue(all(method == "GET" for method,path in calls))
+
+    def test_rejects_edited_existing_app(self):
+        def fake_call(method, path, token, payload=None, params=None):
+            if path == "/deviceAppManagement/mobileApps":
+                return {"value": [{"id": pub.KNOWN_PILOT_APP_ID}]}
+            return {"displayName": "Some other app", "publisher": "Wrong"}
+        with patch.object(pub, "call", fake_call):
+            with self.assertRaisesRegex(RuntimeError,"Existing Intune app is changed"):
+                pub.create_app("FAKE_TOKEN",None,None,0)
+
+    def test_azure_upload_uses_block_list_not_single_put_blob(self):
+        class Response:
+            def __init__(self, code, length=None):
+                self.status_code = code
+                self.headers = {} if length is None else {"Content-Length":str(length)}
+        uploaded = b"A" * 42960
+        calls = []
+        def mock_put(url, data, headers, timeout):
+            calls.append((url, data, headers))
+            return Response(201)
+        def mock_head(url, headers, timeout):
+            return Response(200,len(uploaded))
+        with patch.object(pub.SESSION,"put",side_effect=mock_put), patch.object(pub.SESSION,"head",side_effect=mock_head):
+            pub.upload_azure_blocks("https://example.invalid/content?sig=TEST-FAKE-ONLY",uploaded)
+        self.assertEqual(len(calls),2)
+        self.assertIn("&comp=block&", calls[0][0])
+        self.assertEqual(calls[0][1],uploaded)
+        self.assertIn("&comp=blocklist",calls[1][0])
+        self.assertIn(b"<Latest>",calls[1][1])
+        self.assertIn(b"</BlockList>",calls[1][1])
+
+    def test_azure_upload_rejects_size_mismatch(self):
+        class Response:
+            def __init__(self, code, length=None):
+                self.status_code=code
+                self.headers={} if length is None else {"Content-Length":str(length)}
+        with patch.object(pub.SESSION,"put",return_value=Response(201)), patch.object(pub.SESSION,"head",return_value=Response(200,1)):
+            with self.assertRaisesRegex(RuntimeError,"Azure blob size mismatch"):
+                pub.upload_azure_blocks("https://example.invalid/content?sig=FAKE",b"A"*200)
+
     def test_existing_group_with_unrelated_member_refused(self):
         def fake_call(method, path, token, payload=None, params=None):
-            return {"value": [{"id": "g", "displayName": pub.GROUP_NAME,
+            return {"value": [{"id": pub.KNOWN_PILOT_GROUP_ID, "displayName": pub.GROUP_NAME,
                                "securityEnabled": True, "mailEnabled": False}]}
         with patch.object(pub, "call", fake_call), patch.object(pub, "members", return_value={"other-device"}):
             with self.assertRaisesRegex(RuntimeError, "other members"):
