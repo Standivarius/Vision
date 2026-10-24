@@ -303,7 +303,7 @@ $send.Add_Click({
  $send.Enabled=$false
  $assistantStatus.Text=T 'Checking with Doxa AI...' 'Consultam Doxa AI...'
  try{
-  $script:aiJob=Start-Job -ScriptBlock {param($path,$question,$language) & $path -Question $question -Language $language} -ArgumentList @($assistantScript,$q,$script:lang)
+  $script:aiJob=Start-Job -ScriptBlock {param($path,$question,$language) & $path -Question $question -Language $language -AIConsentGranted} -ArgumentList @($assistantScript,$q,$script:lang)
   $aiTimer.Start()
  }catch{
   $send.Enabled=$true

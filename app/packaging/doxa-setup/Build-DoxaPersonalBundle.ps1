@@ -49,7 +49,6 @@ try {
   signing_status='UNSIGNED preview - not for public distribution'
   files=$digests
  }
- [IO.File]::WriteAllText((Join-Path $stage 'manifest.json'),($manifest|ConvertTo-Json -Depth 6),[Text.UTF8Encoding]::new($false))
  $launcher=@'
 @echo off
 setlocal
@@ -84,6 +83,13 @@ LIMITS:
 - Doxa hardware Setup is independent of the Standivarius Vision low-vision software.
 '@
  [IO.File]::WriteAllText((Join-Path $stage 'README-FIRST.txt'),$readme,[Text.UTF8Encoding]::new($false))
+ # The launcher and first-use readme are generated content, not part of the 16 source files.
+ # Include their digests so installer detection cannot accept edited or added executables.
+ $manifest['generated_files']=@(
+  [ordered]@{file='Open Doxa Setup.cmd';sha256=(Get-FileHash -LiteralPath (Join-Path $stage 'Open Doxa Setup.cmd') -Algorithm SHA256).Hash.ToLowerInvariant()},
+  [ordered]@{file='README-FIRST.txt';sha256=(Get-FileHash -LiteralPath (Join-Path $stage 'README-FIRST.txt') -Algorithm SHA256).Hash.ToLowerInvariant()}
+ )
+ [IO.File]::WriteAllText((Join-Path $stage 'manifest.json'),($manifest|ConvertTo-Json -Depth 6),[Text.UTF8Encoding]::new($false))
  if($TestOnly){
   [ordered]@{status='manifest_only';sources=$items.Count;staging=$stage;credential_files_bundled=$false;driver_msi_bundled=$false}|ConvertTo-Json -Compress
   return

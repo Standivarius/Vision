@@ -2,7 +2,8 @@ param(
  [Parameter(Mandatory=$true)][string]$Question,
  [ValidateSet('en','ro')][string]$Language='en',
  [string]$Endpoint='https://doxa-installer-assistant.marius-moldovan.workers.dev/v1/ask',
- [int]$TimeoutSec=35
+ [int]$TimeoutSec=35,
+ [switch]$AIConsentGranted
 )
 # Doxa Setup only (not Vision). Dedicated read-only curated-knowledge AI.
 # Provider key and curated retrieval live on Doxa's server. Client never executes AI output.
@@ -13,6 +14,9 @@ function Result([string]$Status,[string]$Answer){
  [ordered]@{schema_version=1;status=$Status;answer=$Answer;mutating_actions_enabled=$false;source='doxa_setup_only'} | ConvertTo-Json -Compress
 }
 if($Endpoint -cne $approved){Result 'endpoint_not_approved' '';return}
+# Fail closed at the network client, not only in the guided setup UI.
+# A caller must explicitly confirm the user selected remote AI after seeing the notice.
+if(-not $AIConsentGranted){Result 'consent_required' 'Remote AI is off. Open Doxa guided setup, read the AI notice, and explicitly enable remote AI before sending any question.';return}
 $policy=(& (Join-Path $PSScriptRoot 'Get-DoxaCloudAIPolicy.ps1') | Out-String)|ConvertFrom-Json
 if(-not [bool]$policy.cloud_ai_allowed){Result 'disabled_by_organization' 'Cloud AI was disabled by organizational policy. Local Doxa troubleshooting is still available.';return}
 if([string]::IsNullOrWhiteSpace($Question) -or $Question.Length -gt 1800){Result 'invalid_question' '';return}

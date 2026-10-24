@@ -16,6 +16,7 @@ function IsInstalled([string]$folder) {
  try{
   $m=Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8|ConvertFrom-Json
   if([string]$m.product -cne 'Standivarius Doxa Setup' -or @($m.files).Count -ne 16){return $false}
+  $allowed=@((Join-Path $folder 'manifest.json'))
   foreach($f in @($m.files)){
    $rel=[string]$f.file
    if($rel -notmatch '^app/packaging/doxa-setup/(?:[A-Za-z0-9._-]+|(?:personal-ui|assistant|knowledge|profiles)/[A-Za-z0-9._-]+)$'){return $false}
@@ -23,6 +24,25 @@ function IsInstalled([string]$folder) {
    if(-not $path.StartsWith(([IO.Path]::GetFullPath($folder).TrimEnd('\')+'\'),[StringComparison]::OrdinalIgnoreCase)){return $false}
    if(-not(Test-Path -LiteralPath $path -PathType Leaf)){return $false}
    if((Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash -ine [string]$f.sha256){return $false}
+   $allowed+=,$path
+  }
+  $generated=@($m.generated_files)
+  if($generated.Count -ne 2){return $false}
+  $names=@($generated|ForEach-Object {[string]$_.file})
+  if($names -notcontains 'Open Doxa Setup.cmd' -or $names -notcontains 'README-FIRST.txt'){return $false}
+  foreach($g in $generated){
+   $path=Join-Path $folder ([string]$g.file)
+   if(-not(Test-Path -LiteralPath $path -PathType Leaf)){return $false}
+   if((Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash -ine [string]$g.sha256){return $false}
+   $allowed+=,$path
+  }
+  # A valid manifest is insufficient if the unpacked payload contains extra files.
+  # Keep detection and removal confined to the exact 16 source files plus two generated files.
+  $actual=@(Get-ChildItem -LiteralPath $folder -File -Recurse -ErrorAction Stop)
+  if($actual.Count -ne $allowed.Count){return $false}
+  foreach($item in $actual){
+   if($allowed -notcontains $item.FullName){return $false}
+   if(($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0){return $false}
   }
   return $true
  }catch{return $false}
@@ -37,7 +57,9 @@ if($Action -eq 'Uninstall'){
  if(-not(Test-Path -LiteralPath $manifestPath)){[Console]::Error.WriteLine('Refusing to delete unrecognized directory');exit 33}
  try{$manifest=Get-Content -LiteralPath $manifestPath -Raw|ConvertFrom-Json}
  catch{[Console]::Error.WriteLine('Invalid manifest');exit 33}
- if([string]$manifest.product -cne 'Standivarius Doxa Setup'){[Console]::Error.WriteLine('Not a Doxa folder');exit 33}
+ if([string]$manifest.product -cne 'Standivarius Doxa Setup' -or -not(IsInstalled $target)){
+  [Console]::Error.WriteLine('Refusing to remove an altered or unrecognized Doxa directory');exit 33
+ }
  try{Remove-Item -LiteralPath $target -Recurse -Force -ErrorAction Stop;'REMOVED:DoxaSetupPilot';exit 0}
  catch{[Console]::Error.WriteLine('Could not remove Doxa pilot files');exit 35}
 }

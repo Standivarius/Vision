@@ -4,8 +4,8 @@ Pilot only. Provides deterministic install / detect / uninstall for the Doxa Set
 
 ## Package
 - DoxaPilot.ps1: install/uninstall/detect script with safe fail and exit codes
-- DoxaSetupPayload.zip: sixteen-source-file personal preview, SHA-256 manifest checked
-- Test-DoxaPilot.py: tests only an isolated temporary directory
+- DoxaSetupPayload.zip: sixteen-source-file personal preview, plus a separately hashed launcher and readme (19 total archive files)
+- Test-DoxaPilot.py: ten isolated temporary-directory checks, including unexpected-file detection, safe uninstall refusal and malicious extra-EXE ZIP rejection
 - README.md
 
 For Intune Win32 app, use Microsoft's Win32 Content Prep Tool with source folder this directory and setup file DoxaPilot.ps1. Copy the tool OUTSIDE the source folder.

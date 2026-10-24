@@ -22,9 +22,18 @@ try{
   if((Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash -ine $item.sha256){throw "Changed bundled file $($item.file)"}
   $checked++
  }
+ $generated=@($manifest.generated_files)
+ if($generated.Count -ne 2){throw 'Missing hashed launcher/readme entries'}
+ foreach($item in $generated){
+  if([string]$item.file -notin @('Open Doxa Setup.cmd','README-FIRST.txt')){throw 'Unexpected generated file'}
+  $path=Join-Path $testRoot ([string]$item.file)
+  if(-not(Test-Path -LiteralPath $path -PathType Leaf)){throw 'Missing generated file'}
+  if((Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash -ine [string]$item.sha256){throw 'Changed generated file'}
+ }
  $all=@(Get-ChildItem -LiteralPath $testRoot -Recurse -File)
  $forbidden=@($all|Where-Object {$_.Name -like '*.env' -or $_.Extension -in @('.msi','.dll','.cat','.sys','.dpapi','.pfx','.pem','.key') -or $_.Name -match '(token|secret|private.?key)'})
  if($forbidden.Count){throw 'Forbidden driver or credential content in ZIP'}
+ if($all.Count -ne 19){throw 'Unexpected extra content in personal bundle'}
  $wizard=Join-Path $testRoot 'app\packaging\doxa-setup\personal-ui\Start-DoxaGuidedSetup.ps1'
  $welcome=(& $wizard -JourneyTest | Out-String)|ConvertFrom-Json
  if($welcome.journey -ne 'PASS' -or $welcome.hardware_scans_before_consent -ne 0){throw 'Packaged consent wizard failed'}
@@ -48,7 +57,7 @@ try{
  $aiStatus='not_requested'
  if($LiveAI){
   $client=Join-Path $testRoot 'app\packaging\doxa-setup\personal-ui\Ask-DoxaInstaller.ps1'
-  $reply=(& $client -Question 'Why does RDP show one screen when the signed driver and all Doxa panels are detected?' -TimeoutSec 40|Out-String)|ConvertFrom-Json
+  $reply=(& $client -Question 'Why does RDP show one screen when the signed driver and all Doxa panels are detected?' -TimeoutSec 40 -AIConsentGranted|Out-String)|ConvertFrom-Json
   $aiStatus=[string]$reply.status
   if($aiStatus -ne 'answered'){throw ('Extracted client did not reach live Doxa AI: '+$aiStatus)}
  }

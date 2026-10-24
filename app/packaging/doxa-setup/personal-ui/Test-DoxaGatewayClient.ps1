@@ -4,6 +4,8 @@ $localKb=Join-Path $PSScriptRoot 'Get-DoxaKnowledgeAnswer.ps1'
 $identity=Join-Path $PSScriptRoot 'Get-DoxaDeviceSignature.ps1'
 $wrong=(& $client -Question 'Why one screen?' -Endpoint 'https://unapproved.example/v1/ask'|Out-String)|ConvertFrom-Json
 if($wrong.status -ne 'endpoint_not_approved'){throw 'Unapproved endpoint accepted'}
+$noConsent=(& $client -Question 'Why RDP shows one monitor?'|Out-String)|ConvertFrom-Json
+if($noConsent.status -ne 'consent_required'){throw 'Direct AI client accepted a question without explicit consent'}
 $identityResult=(& $identity -PublicOnly|Out-String)
 if(-not $identityResult.Contains('DEVICE_PRIVATE_KEY=WINDOWS_DPAPI')){throw 'Dell user private-key storage unavailable'}
 function Invoke-RestMethod{
@@ -17,7 +19,7 @@ function Invoke-RestMethod{
  if($payload.context.app_control_policy -ne 'not_checked'){throw 'Policy assertion not observed'}
  return [pscustomobject]@{status='answered';mode='read_only_guidance';answer='Signed Doxa driver and all three physical panels detected.'}
 }
-$mock=(& $client -Question 'Why RDP shows one monitor?'|Out-String)|ConvertFrom-Json
+$mock=(& $client -Question 'Why RDP shows one monitor?' -AIConsentGranted|Out-String)|ConvertFrom-Json
 if($mock.status -ne 'answered'){throw 'Mock signed request failed'}
 $power=(& $localKb -Question 'power cable causes display unstable drops'|Out-String)|ConvertFrom-Json
 if($power.status -ne 'curated_answer' -or $power.source_ids[0] -ne 'smi-display-unsteady'){throw 'Curated cable troubleshooting failed'}
@@ -25,7 +27,7 @@ $unrelated=@('watermelon xylophone noninstaller','What is the weather today?','W
 foreach($question in $unrelated){
  $unknown=(& $localKb -Question $question|Out-String)|ConvertFrom-Json
  if($unknown.status -ne 'out_of_scope'){throw ('Unrelated question was not refused: '+$question)}
- $clientRefusal=(& $client -Question $question|Out-String)|ConvertFrom-Json
+ $clientRefusal=(& $client -Question $question -AIConsentGranted|Out-String)|ConvertFrom-Json
  if($clientRefusal.status -ne 'out_of_scope'){throw ('Client should refuse locally: '+$question)}
 }
 $romanian=(& $localKb -Question 'Ce vreme este azi?' -Language ro|Out-String)|ConvertFrom-Json
