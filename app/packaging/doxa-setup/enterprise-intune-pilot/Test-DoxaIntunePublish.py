@@ -89,10 +89,29 @@ class TestDoxaIntunePilot(unittest.TestCase):
         self.assertNotIn("minimumSupportedOperatingSystem",body)
         self.assertEqual(body["minimumSupportedWindowsRelease"],"Windows11_23H2")
         self.assertEqual(body["@odata.type"],"#microsoft.graph.win32LobApp")
+        self.assertEqual(body["fileName"],"IntunePackage.intunewin")
         self.assertEqual(body["installExperience"]["@odata.type"],"microsoft.graph.win32LobAppInstallExperience")
         self.assertEqual(body["installExperience"]["runAsAccount"],"system")
         self.assertEqual(body["rules"][0]["ruleType"],"detection")
+        self.assertEqual(body["returnCodes"][0]["@odata.type"],"microsoft.graph.win32LobAppReturnCode")
+        self.assertEqual(body["returnCodes"][0]["returnCode"],0)
         self.assertEqual(body["allowedArchitectures"],"x64")
+
+    def test_schema_error_is_diagnosable_without_leaking_urls(self):
+        class MockResponse:
+            ok = False
+            status_code = 400
+            content = b"x"
+            def json(self):
+                return {"error": {"code": "BadRequest",
+                    "message": "Invalid field fileName. Consult https://graph.microsoft.com/secret?sig=do-not-print"}}
+        with patch.object(pub.SESSION, "request", return_value=MockResponse()):
+            with self.assertRaises(RuntimeError) as caught:
+                pub.call("POST", "/deviceAppManagement/mobileApps", "FAKE_TOKEN", {})
+        error = str(caught.exception)
+        self.assertIn("Invalid field fileName", error)
+        self.assertNotIn("graph.microsoft.com", error)
+        self.assertNotIn("do-not-print", error)
 
     def test_existing_group_with_unrelated_member_refused(self):
         def fake_call(method, path, token, payload=None, params=None):

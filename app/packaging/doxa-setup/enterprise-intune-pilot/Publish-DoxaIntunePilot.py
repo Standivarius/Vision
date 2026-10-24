@@ -132,10 +132,16 @@ def call(method, path, token, payload=None, params=None):
         # Print only Graph's schema/validation complaint, never URLs, credentials or tokens.
         details = ""
         try:
-            message = m.get("message", "") if isinstance(m, dict) else ""
             import re
-            if message and len(message) < 1000 and not re.search(r"https?://|@|[?&]sig=|Bearer |eyJ[A-Za-z0-9_-]{20}", message, re.I):
-                details = ", detail=" + re.sub(r"[^A-Za-z0-9 .:_/()'-]", "?", message)[:360]
+            message = m.get("message", "") if isinstance(m, dict) else ""
+            # Redact instead of suppressing the full useful API validation message.
+            message = re.sub(r"(?i)https?://[^\\s<>\\\"']+", "[URL]", message)
+            message = re.sub(r"(?i)[\\w.+-]+@[\\w.-]+", "[EMAIL]", message)
+            message = re.sub(r"(?i)bearer\\s+[^\\s]+", "[TOKEN]", message)
+            message = re.sub(r"(?i)eyJ[A-Za-z0-9_-]{20,}\\.[A-Za-z0-9._-]+", "[TOKEN]", message)
+            message = re.sub(r"(?i)[?&](sig|se|sp|sv)=[^\\s&]+", "[SAS]", message)
+            if message:
+                details = ", detail=" + re.sub(r"[^A-Za-z0-9 .:_/()'\\[\\]-]", "?", message)[:440]
         except Exception:
             pass
         raise RuntimeError(f"Microsoft Graph {method} {path.split('?')[0]}: HTTP {response.status_code}, error={err}{details}")
@@ -216,14 +222,16 @@ def create_app(token, file, encrypted, clear_size):
             "installCommandLine": "powershell.exe -NoProfile -NonInteractive -File .\\DoxaPilot.ps1 -Action Install",
             "uninstallCommandLine": "powershell.exe -NoProfile -NonInteractive -File .\\DoxaPilot.ps1 -Action Uninstall",
             "setupFilePath": "DoxaPilot.ps1",
+            # Required LOB package identity from Detection.xml (not the setup script name).
+            "fileName": "IntunePackage.intunewin",
             "allowedArchitectures": "x64",
-            # v1.0 uses minimumSupportedWindowsRelease, not the beta-only
-            # minimumSupportedOperatingSystem complex object.
+            # Use v1.0 minimumSupportedWindowsRelease as documented in the create API.
             "minimumSupportedWindowsRelease": "Windows11_23H2",
             "rules": [rule],
             "installExperience": {"@odata.type": "microsoft.graph.win32LobAppInstallExperience",
                                   "runAsAccount": "system", "deviceRestartBehavior": "suppress"},
-            "returnCodes": [{"returnCode":0,"type":"success"}]}
+            "returnCodes": [{"@odata.type":"microsoft.graph.win32LobAppReturnCode",
+                             "returnCode":0,"type":"success"}]}
     app = call("POST", "/deviceAppManagement/mobileApps", token, body)
     print("CREATED_PILOT_APP="+app["id"],flush=True)
     return app["id"]
@@ -231,7 +239,8 @@ def create_app(token, file, encrypted, clear_size):
 
 def upload_app(token, app_id, encrypted, clear_size, crypto):
     url = f"/deviceAppManagement/mobileApps/{app_id}/microsoft.graph.win32LobApp"
-    cv = call("POST", url + "/contentVersions", token, {})
+    cv = call("POST", url + "/contentVersions", token,
+              {"@odata.type":"#microsoft.graph.mobileAppContent"})
     version = str(cv["id"])
     file = call("POST", url + f"/contentVersions/{version}/files", token,
                 {"@odata.type":"#microsoft.graph.mobileAppContentFile",
