@@ -228,8 +228,8 @@ def create_app(token, file, encrypted, clear_size):
             "description": "Doxa installer APP ONLY pilot on MARIUS-DELL; no Silicon Motion driver, AI disabled by default, unsigned; NOT FOR PRODUCTION",
             "publisher": "DMR Ergonomics SRL (Standivarius)",
             "notes": "Restricted temporary test; assign exclusively to private Dell group",
-            "installCommandLine": "powershell.exe -NoProfile -NonInteractive -File .\\DoxaPilot.ps1 -Action Install",
-            "uninstallCommandLine": "powershell.exe -NoProfile -NonInteractive -File .\\DoxaPilot.ps1 -Action Uninstall",
+            "installCommandLine": "powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File .\\DoxaPilot.ps1 -Action Install",
+            "uninstallCommandLine": "powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File .\\DoxaPilot.ps1 -Action Uninstall",
             "setupFilePath": "DoxaPilot.ps1",
             # Required LOB package identity from Detection.xml (not the setup script name).
             "fileName": "IntunePackage.intunewin",
