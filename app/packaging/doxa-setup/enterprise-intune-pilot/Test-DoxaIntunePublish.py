@@ -75,6 +75,25 @@ class TestDoxaIntunePilot(unittest.TestCase):
         self.assertEqual(target[0]["target"]["groupId"], "group")
         self.assertEqual(target[0]["intent"], "required")
 
+    def test_create_payload_uses_v1_graph_fields_not_beta_only_fields(self):
+        payloads = []
+        def fake_call(method, path, token, payload=None, params=None):
+            if method == "GET":
+                return {"value": []}
+            self.assertEqual((method,path),("POST","/deviceAppManagement/mobileApps"))
+            payloads.append(payload)
+            return {"id":"mock-app"}
+        with patch.object(pub,"call",fake_call):
+            self.assertEqual(pub.create_app("FAKE_TOKEN",None,None,0),"mock-app")
+        body=payloads[0]
+        self.assertNotIn("minimumSupportedOperatingSystem",body)
+        self.assertEqual(body["minimumSupportedWindowsRelease"],"Windows11_23H2")
+        self.assertEqual(body["@odata.type"],"#microsoft.graph.win32LobApp")
+        self.assertEqual(body["installExperience"]["@odata.type"],"microsoft.graph.win32LobAppInstallExperience")
+        self.assertEqual(body["installExperience"]["runAsAccount"],"system")
+        self.assertEqual(body["rules"][0]["ruleType"],"detection")
+        self.assertEqual(body["allowedArchitectures"],"x64")
+
     def test_existing_group_with_unrelated_member_refused(self):
         def fake_call(method, path, token, payload=None, params=None):
             return {"value": [{"id": "g", "displayName": pub.GROUP_NAME,

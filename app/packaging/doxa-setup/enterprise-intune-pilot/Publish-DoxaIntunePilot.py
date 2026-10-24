@@ -129,7 +129,16 @@ def call(method, path, token, payload=None, params=None):
             err = m.get("code", "unknown") if isinstance(m, dict) else "unknown"
         except ValueError:
             err = "unknown"
-        raise RuntimeError(f"Microsoft Graph {method} {path.split('?')[0]}: HTTP {response.status_code}, error={err}")
+        # Print only Graph's schema/validation complaint, never URLs, credentials or tokens.
+        details = ""
+        try:
+            message = m.get("message", "") if isinstance(m, dict) else ""
+            import re
+            if message and len(message) < 1000 and not re.search(r"https?://|@|[?&]sig=|Bearer |eyJ[A-Za-z0-9_-]{20}", message, re.I):
+                details = ", detail=" + re.sub(r"[^A-Za-z0-9 .:_/()'-]", "?", message)[:360]
+        except Exception:
+            pass
+        raise RuntimeError(f"Microsoft Graph {method} {path.split('?')[0]}: HTTP {response.status_code}, error={err}{details}")
     return response.json() if response.content else {}
 
 
@@ -208,10 +217,12 @@ def create_app(token, file, encrypted, clear_size):
             "uninstallCommandLine": "powershell.exe -NoProfile -NonInteractive -File .\\DoxaPilot.ps1 -Action Uninstall",
             "setupFilePath": "DoxaPilot.ps1",
             "allowedArchitectures": "x64",
-            "minimumSupportedOperatingSystem": {"@odata.type": "microsoft.graph.windowsMinimumOperatingSystem",
-                                                 "v10_1607": True},
+            # v1.0 uses minimumSupportedWindowsRelease, not the beta-only
+            # minimumSupportedOperatingSystem complex object.
+            "minimumSupportedWindowsRelease": "Windows11_23H2",
             "rules": [rule],
-            "installExperience": {"runAsAccount": "system", "deviceRestartBehavior": "suppress"},
+            "installExperience": {"@odata.type": "microsoft.graph.win32LobAppInstallExperience",
+                                  "runAsAccount": "system", "deviceRestartBehavior": "suppress"},
             "returnCodes": [{"returnCode":0,"type":"success"}]}
     app = call("POST", "/deviceAppManagement/mobileApps", token, body)
     print("CREATED_PILOT_APP="+app["id"],flush=True)
@@ -241,7 +252,8 @@ def upload_app(token, app_id, encrypted, clear_size, crypto):
                                     "x-ms-version":"2020-10-02",
                                     "Content-Type":"application/octet-stream"}, timeout=100)
     ensure(response.status_code in (201,202), "Azure encrypted upload HTTP " + str(response.status_code))
-    call("POST", key + "/commit", token, {"fileEncryptionInfo": crypto})
+    call("POST", key + "/commit", token, {"fileEncryptionInfo": {
+        "@odata.type": "microsoft.graph.fileEncryptionInfo", **crypto}})
     for _ in range(35):
         state = call("GET", key, token)
         s = str(state.get("uploadState", ""))
