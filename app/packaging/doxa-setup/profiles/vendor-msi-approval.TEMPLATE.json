@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "approval_status": "NOT_APPROVED",
+  "profile_id": "doxa-smi770-observed-dell-2026-10-16",
+  "hardware_id_prefix": "USB\\VID_090C&PID_770A",
+  "vendor": "Silicon Motion",
+  "source_url": "https://www.siliconmotion.com/downloads/SM770-drivers.html",
+  "target_driver_version": "4.7.6.0",
+  "sha256": "REPLACE_WITH_64_HEX_AFTER_VENDOR_MSI_QUALIFICATION",
+  "signer_thumbprint": "REPLACE_WITH_CERT_THUMBPRINT_AFTER_REVIEW",
+  "allow_prestage_without_device": false,
+  "approval_note": "Never mark approved until OEM redistribution rights, MSI signature, hash, supported Windows, silent install/uninstall behavior and rollback are tested."
+}

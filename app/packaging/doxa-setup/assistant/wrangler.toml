@@ -1,0 +1,17 @@
+name = "doxa-installer-assistant"
+main = "worker.mjs"
+compatibility_date = "2026-10-16"
+
+# Standivarius Doxa Setup alpha; independent of Standivarius Vision.
+# Cloudflare AI binding requires no model API keys.
+[ai]
+binding = "AI"
+
+# Native Cloudflare per-location rate limiter for the authorised Dell development device.
+[[ratelimits]]
+name = "DOXA_RATE"
+namespace_id = "739103"
+
+[ratelimits.simple]
+limit = 4
+period = 60
