@@ -172,6 +172,81 @@ class TestDoxaIntunePilot(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError,"Azure blob size mismatch"):
                 pub.upload_azure_blocks("https://example.invalid/content?sig=FAKE",b"A"*200)
 
+    def test_recovers_one_failed_file_inside_original_initial_version(self):
+        old_id = "failed-content-id"
+        base = ("/deviceAppManagement/mobileApps/" + pub.KNOWN_PILOT_APP_ID
+                + "/microsoft.graph.win32LobApp")
+        actions = []
+        def mock_call(method, path, token, payload=None, params=None):
+            actions.append((method, path))
+            if path == base + "/contentVersions":
+                return {"value": [{"id": "1"}]}
+            if path == base + "/contentVersions/1/files" and method == "GET":
+                reads = sum(1 for m,p in actions if m == "GET" and p == path)
+                if reads == 1:
+                    return {"value": [{"id":old_id,"name":"IntunePackage.intunewin",
+                                      "isCommitted":False,"uploadState":"commitFileFailed",
+                                      "size":42910, "sizeEncrypted":42960}]}
+                return {"value":[]}
+            if method == "DELETE" and path == base + "/contentVersions/1/files/" + old_id:
+                return {}
+            raise AssertionError((method,path))
+        with patch.object(pub, "call", side_effect=mock_call):
+            self.assertEqual(pub.choose_initial_content_version(
+                "FAKE_TOKEN",pub.KNOWN_PILOT_APP_ID,42910,42960),"1")
+        self.assertEqual(sum(m=="DELETE" for m,p in actions),1)
+        self.assertFalse(any(m == "POST" for m,p in actions))
+
+    def test_reuses_initial_content_version_if_failed_file_already_removed(self):
+        base = ("/deviceAppManagement/mobileApps/" + pub.KNOWN_PILOT_APP_ID
+                + "/microsoft.graph.win32LobApp")
+        calls = []
+        def fake(method, path, token, payload=None, params=None):
+            calls.append((method,path))
+            if path.endswith("/contentVersions"):
+                return {"value":[{"id":"1"}]}
+            if path.endswith("/contentVersions/1/files"):
+                return {"value":[]}
+            raise AssertionError("Unexpected API call")
+        with patch.object(pub,"call",side_effect=fake):
+            self.assertEqual(pub.choose_initial_content_version(
+                "FAKE_TOKEN",pub.KNOWN_PILOT_APP_ID,42910,42960),"1")
+        self.assertEqual([method for method,path in calls],["GET","GET"])
+
+    def test_never_deletes_committed_or_unexpected_content_file(self):
+        base = ("/deviceAppManagement/mobileApps/" + pub.KNOWN_PILOT_APP_ID
+                + "/microsoft.graph.win32LobApp")
+        for state in ("commitFileSuccess","uploadAzureStorage",
+                      "commitFileFailed"):
+            def fake(method,path,token,payload=None,params=None):
+                if path == base + "/contentVersions":
+                    return {"value":[{"id":"1"}]}
+                if path.endswith("/files") and method == "GET":
+                    return {"value":[{"id":"f","name":"IntunePackage.intunewin",
+                        "isCommitted":state=="commitFileSuccess",
+                        "uploadState":state,
+                        "size":42910 if state!="commitFileFailed" else 999,
+                        "sizeEncrypted":42960}]}
+                raise AssertionError("Must not mutate unexpected file")
+            with patch.object(pub,"call",side_effect=fake):
+                with self.assertRaises(RuntimeError):
+                    pub.choose_initial_content_version(
+                        "FAKE_TOKEN",pub.KNOWN_PILOT_APP_ID,42910,42960)
+
+    def test_new_uncommitted_app_uses_initial_content_version(self):
+        base = ("/deviceAppManagement/mobileApps/" + pub.KNOWN_PILOT_APP_ID
+                + "/microsoft.graph.win32LobApp")
+        calls=[]
+        def fake(method,path,token,payload=None,params=None):
+            calls.append(method)
+            if method == "GET": return {"value":[]}
+            if method == "POST": return {"id":"1"}
+            raise AssertionError("Unexpected request")
+        with patch.object(pub,"call",side_effect=fake):
+            self.assertEqual(pub.choose_initial_content_version(
+                "FAKE_TOKEN",pub.KNOWN_PILOT_APP_ID,42910,42960),"1")
+        self.assertEqual(calls,["GET","POST"])
+
     def test_existing_group_with_unrelated_member_refused(self):
         def fake_call(method, path, token, payload=None, params=None):
             return {"value": [{"id": pub.KNOWN_PILOT_GROUP_ID, "displayName": pub.GROUP_NAME,

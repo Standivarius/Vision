@@ -295,11 +295,56 @@ def upload_azure_blocks(sas, encrypted):
     print("AZURE_BLOCK_UPLOAD_VERIFIED_BYTES=" + str(actual), flush=True)
 
 
+def choose_initial_content_version(token, app_id, clear_size, encrypted_size):
+    """Retry a failed *first* file inside its original content version.
+
+    Microsoft disallows POSTing a second content version until the first one is
+    committed. Never delete the app, remove committed content or change an app
+    already assigned to a device.
+    """
+    ensure(app_id == KNOWN_PILOT_APP_ID, "Only the recorded unpublished Doxa app can be recovered")
+    base = f"/deviceAppManagement/mobileApps/{app_id}/microsoft.graph.win32LobApp"
+    versions = call("GET", base + "/contentVersions", token)
+    ensure("@odata.nextLink" not in versions, "Unexpected content version pagination; stop")
+    existing = versions.get("value", [])
+    if not existing:
+        cv = call("POST", base + "/contentVersions", token,
+                  {"@odata.type": "#microsoft.graph.mobileAppContent"})
+        print("CREATED_FIRST_CONTENT_VERSION=" + str(cv["id"]), flush=True)
+        return str(cv["id"])
+    ensure(len(existing) == 1, "Unexpected multiple Intune content versions; stop")
+    version = str(existing[0]["id"])
+    ensure(version.isdigit(), "Unexpected version ID: refuse recovery")
+    file_path = base + f"/contentVersions/{version}/files"
+    files = call("GET", file_path, token)
+    ensure("@odata.nextLink" not in files, "Unexpected content file pagination; stop")
+    current = files.get("value", [])
+    if not current:
+        # Recover from interruption after deleting the failed file, before the
+        # replacement file was created; no new app/version needed.
+        print("REUSING_EMPTY_FIRST_CONTENT_VERSION=" + version, flush=True)
+        return version
+    ensure(len(current) == 1, "Expected exactly one failed first-version file")
+    old = current[0]
+    ensure(
+        old.get("name") == "IntunePackage.intunewin"
+        and not old.get("isCommitted")
+        and old.get("uploadState") == "commitFileFailed"
+        and int(old.get("size", -1)) == clear_size
+        and int(old.get("sizeEncrypted", -1)) == encrypted_size,
+        "Unrecognized first-version file: do not delete or modify it")
+    ensure(str(old.get("id", "")).strip(), "Intune failed file has no ID")
+    # Only delete the single *uncommitted, failed* encrypted content file.
+    call("DELETE", file_path + "/" + str(old["id"]), token)
+    remaining = call("GET", file_path, token)
+    ensure(not remaining.get("value"), "Failed file deletion not confirmed")
+    print("RECOVERED_FAILED_FIRST_CONTENT_VERSION=" + version, flush=True)
+    return version
+
+
 def upload_app(token, app_id, encrypted, clear_size, crypto):
     url = f"/deviceAppManagement/mobileApps/{app_id}/microsoft.graph.win32LobApp"
-    cv = call("POST", url + "/contentVersions", token,
-              {"@odata.type":"#microsoft.graph.mobileAppContent"})
-    version = str(cv["id"])
+    version = choose_initial_content_version(token, app_id, clear_size, len(encrypted))
     file = call("POST", url + f"/contentVersions/{version}/files", token,
                 {"@odata.type":"#microsoft.graph.mobileAppContentFile",
                  "name":"IntunePackage.intunewin", "size":clear_size,
