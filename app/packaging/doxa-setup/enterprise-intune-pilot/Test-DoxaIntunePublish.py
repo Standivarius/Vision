@@ -11,6 +11,15 @@ spec.loader.exec_module(pub)
 
 
 class TestDoxaIntunePilot(unittest.TestCase):
+    def setUp(self):
+        import tempfile
+        self.testdir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.testdir.cleanup)
+        self.record_patch = patch.object(
+            pub, "PILOT_ID_FILE", Path(self.testdir.name) / "active-app-id.json")
+        self.record_patch.start()
+        self.addCleanup(self.record_patch.stop)
+
     def test_package_is_app_only_and_hash_is_expected(self):
         f, content, plain, crypt = pub.read_package()
         self.assertEqual(pub.sha256_bytes(f.read_bytes()),
@@ -312,6 +321,61 @@ class TestDoxaIntunePilot(unittest.TestCase):
                 pub.record_active_pilot_app_id(new_id)
                 self.assertEqual(pub.active_pilot_app_id(),new_id)
                 self.assertNotIn("token",target.read_text().lower())
+
+    def test_committed_file_resume_never_reuploads(self):
+        app_id=pub.KNOWN_PILOT_APP_ID
+        base="/deviceAppManagement/mobileApps/"+app_id+"/microsoft.graph.win32LobApp"
+        calls=[]
+        def fake(method,path,token,payload=None,params=None):
+            calls.append((method,path))
+            if path==base+"/contentVersions":
+                return {"value":[{"id":"1"}]}
+            if path==base+"/contentVersions/1/files":
+                return {"value":[{"id":"file-1","name":"IntunePackage.intunewin",
+                                  "uploadState":"commitFileSuccess","isCommitted":True,
+                                  "size":42910,"sizeEncrypted":42960}]}
+            raise AssertionError("Unexpected request")
+        with patch.object(pub,"call",side_effect=fake):
+            self.assertEqual(pub.existing_committed_file_version("FAKE_TOKEN",app_id,42910,42960),"1")
+        self.assertEqual([method for method,path in calls],["GET","GET"])
+
+    def test_committed_file_cannot_be_resumed_if_sizes_differ(self):
+        app_id=pub.KNOWN_PILOT_APP_ID
+        base="/deviceAppManagement/mobileApps/"+app_id+"/microsoft.graph.win32LobApp"
+        def fake(method,path,token,payload=None,params=None):
+            if path==base+"/contentVersions":
+                return {"value":[{"id":"1"}]}
+            if path==base+"/contentVersions/1/files":
+                return {"value":[{"id":"file-1","name":"IntunePackage.intunewin",
+                                  "uploadState":"commitFileSuccess","isCommitted":True,
+                                  "size":42911,"sizeEncrypted":42960}]}
+            raise AssertionError("Unexpected request")
+        with patch.object(pub,"call",side_effect=fake):
+            self.assertIsNone(pub.existing_committed_file_version("FAKE_TOKEN",app_id,42910,42960))
+
+    def test_final_patch_has_required_win32_type_and_exact_version(self):
+        app_id=pub.KNOWN_PILOT_APP_ID
+        path="/deviceAppManagement/mobileApps/"+app_id
+        calls=[]
+        def fake(method,url,token,payload=None,params=None):
+            calls.append((method,url,payload))
+            if method=="GET" and url==path:
+                if len([x for x in calls if x[0]=="PATCH"])>0:
+                    return {"publishingState":"published","committedContentVersion":"1"}
+                return {"displayName":pub.APP_NAME,
+                        "publisher":"DMR Ergonomics SRL (Standivarius)",
+                        "@odata.type":"#microsoft.graph.win32LobApp",
+                        "publishingState":"notPublished","committedContentVersion":""}
+            if method=="GET" and url==path+"/assignments":
+                return {"value":[]}
+            if method=="PATCH" and url==path:
+                return {"id":app_id}
+            raise AssertionError((method,url))
+        with patch.object(pub,"call",side_effect=fake), patch.object(pub,"active_pilot_app_id",return_value=app_id):
+            pub.finalize_committed_content("FAKE_TOKEN",app_id,"1")
+        patches=[payload for method,url,payload in calls if method=="PATCH"]
+        self.assertEqual(patches,[{"@odata.type":"#microsoft.graph.win32LobApp",
+                                    "committedContentVersion":"1"}])
 
     def test_existing_group_with_unrelated_member_refused(self):
         def fake_call(method, path, token, payload=None, params=None):

@@ -393,8 +393,68 @@ def choose_initial_content_version(token, app_id, clear_size, encrypted_size):
     return version
 
 
+def finalize_committed_content(token, app_id, version):
+    """Publish a previously verified committed file without re-upload."""
+    ensure(app_id == active_pilot_app_id(), "App ID does not match recorded Doxa pilot")
+    app_url = f"/deviceAppManagement/mobileApps/{app_id}"
+    app = call("GET", app_url, token)
+    ensure(app.get("displayName") == APP_NAME and
+           app.get("publisher") == "DMR Ergonomics SRL (Standivarius)" and
+           app.get("@odata.type","").endswith("win32LobApp") and
+           app.get("publishingState") in ("notPublished", "processing") and
+           not app.get("committedContentVersion"),
+           "App changed before content publication; stop")
+    assignments = call("GET", app_url + "/assignments", token)
+    ensure(not assignments.get("value"), "App already assigned; refuse unexpected update")
+    body = {"@odata.type":"#microsoft.graph.win32LobApp",
+            "committedContentVersion":str(version)}
+    call("PATCH", app_url, token, body)
+    for _ in range(24):
+        result = call("GET", app_url, token)
+        if result.get("publishingState") == "published":
+            ensure(str(result.get("committedContentVersion")) == str(version),
+                   "Published app references a different content version")
+            print("PILOT_APP_PUBLISHED=true", flush=True)
+            return
+        time.sleep(5)
+    raise RuntimeError("Intune app content patch accepted but publication not confirmed")
+
+
+def existing_committed_file_version(token, app_id, clear_size, encrypted_size):
+    """Detect only an entirely committed original package; refuse unknown states."""
+    root = f"/deviceAppManagement/mobileApps/{app_id}/microsoft.graph.win32LobApp/contentVersions"
+    versions = call("GET", root, token)
+    ensure("@odata.nextLink" not in versions, "Unexpected content versions pagination")
+    v = versions.get("value",[])
+    if not v:
+        return None
+    ensure(len(v)==1, "Unexpected multiple content versions")
+    version = str(v[0].get("id"))
+    ensure(version.isdigit(), "Invalid content version ID")
+    files = call("GET", root + "/" + version + "/files", token)
+    ensure("@odata.nextLink" not in files, "Unexpected content file pagination")
+    items = files.get("value",[])
+    if not items:
+        return None
+    ensure(len(items)==1, "Unexpected multiple content files")
+    file = items[0]
+    if (file.get("uploadState") == "commitFileSuccess" and file.get("isCommitted") is True and
+        file.get("name") == "IntunePackage.intunewin" and
+        int(file.get("size",-1)) == clear_size and
+        int(file.get("sizeEncrypted",-1)) == encrypted_size):
+        return version
+    # If this is a fresh unpublished app with a failed or uploading file,
+    # the normal version/file controls decide whether to stop; no overwrite.
+    return None
+
+
 def upload_app(token, app_id, encrypted, clear_size, crypto):
     url = f"/deviceAppManagement/mobileApps/{app_id}/microsoft.graph.win32LobApp"
+    committed = existing_committed_file_version(token, app_id, clear_size, len(encrypted))
+    if committed:
+        print("REUSING_ALREADY_COMMITTED_FILE_VERSION="+committed, flush=True)
+        finalize_committed_content(token, app_id, committed)
+        return
     version = choose_initial_content_version(token, app_id, clear_size, len(encrypted))
     file = call("POST", url + f"/contentVersions/{version}/files", token,
                 {"@odata.type":"#microsoft.graph.mobileAppContentFile",
@@ -424,14 +484,7 @@ def upload_app(token, app_id, encrypted, clear_size, crypto):
         time.sleep(5)
     else:
         raise RuntimeError("Intune content-file commitment confirmation timed out")
-    call("PATCH", f"/deviceAppManagement/mobileApps/{app_id}", token, {"committedContentVersion":version})
-    for _ in range(20):
-        app = call("GET", f"/deviceAppManagement/mobileApps/{app_id}", token)
-        if app.get("publishingState") == "published":
-            print("PILOT_APP_PUBLISHED=true", flush=True)
-            return
-        time.sleep(5)
-    raise RuntimeError("Intune app not published in time: do not assign")
+    finalize_committed_content(token, app_id, version)
 
 
 def assign_only_dell(token, app_id, group_id, device_id):
