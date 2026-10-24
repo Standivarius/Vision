@@ -12,6 +12,8 @@ Set-StrictMode -Version Latest
 $appRoot=Split-Path -Parent $PSScriptRoot
 $repoRoot=Split-Path -Parent $appRoot
 $versionFile=Join-Path $appRoot 'version.cmake'
+$compatibilityGuard=Join-Path $PSScriptRoot 'verify-vision-brand-compatibility.ps1'
+& $compatibilityGuard
 
 if(-not $Version){
     $versionText=Get-Content -Raw $versionFile
@@ -20,7 +22,7 @@ if(-not $Version){
     $Version=$match.Groups[1].Value
 }
 if($Version -notmatch '^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$'){
-    throw "Version is not valid SemVer for Visual packaging: $Version"
+    throw "Version is not valid SemVer for Vision packaging: $Version"
 }
 if(-not $OutputDir){$OutputDir=Join-Path $PSScriptRoot 'out'}
 $OutputDir=[IO.Path]::GetFullPath($OutputDir)
@@ -37,7 +39,7 @@ $nativeSdk=@($lock.dependencies|Where-Object id -eq 'velopack-native-sdk')[0]
 
 if(-not $SkipBuild){
     & (Join-Path $appRoot 'build.ps1') -Configuration $Configuration -Version $Version -OfflineDependencies:$OfflineDependencies
-    if($LASTEXITCODE-ne0){throw "Visual build failed: $LASTEXITCODE"}
+    if($LASTEXITCODE-ne0){throw "Vision build failed: $LASTEXITCODE"}
 }
 
 $buildDir=Join-Path $appRoot "build\$Configuration"
@@ -55,7 +57,7 @@ $buildInputReport=Join-Path $OutputDir ("Standivarius.Visual-$Version.build-inpu
 Copy-Item $visualExe,$diagnosticsExe,$velopackRuntime -Destination $stage
 
 @"
-Visual Alpha $Version
+Vision Alpha $Version
 Package: Standivarius.Visual
 Channel: alpha
 
@@ -65,10 +67,10 @@ Global hotkeys:
   Ctrl+Alt+4  4x
   Ctrl+Alt+0  normal view / return
   Ctrl+Alt+T  tracking on/off
-  Ctrl+Alt+Q  exit Visual
+  Ctrl+Alt+Q  exit Vision
 
 This is an unsigned development alpha. Windows may show SmartScreen or publisher warnings.
-On the first installed launch, Visual automatically checks the two-monitor graphics path and connects to Doxa cloud setup support.
+On the first installed launch, Vision automatically checks the two-monitor graphics path and connects to Doxa cloud setup support.
 Use visual_diagnostics.exe, or the support-bundle script from the source repository, when reporting a problem.
 "@ | Set-Content -Encoding UTF8 (Join-Path $stage 'README.txt')
 
@@ -110,7 +112,7 @@ try{
         '--packDir',$stage,
         '--mainExe','visual_app.exe',
         '--packAuthors','Standivarius',
-        '--packTitle','Standivarius - Visual',
+        '--packTitle','Standivarius - Vision',
         '--channel','alpha',
         '--framework','vcredist143-x64',
         '--releaseNotes',(Join-Path $PSScriptRoot 'RELEASE_NOTES.md'),
@@ -128,5 +130,5 @@ try{
 $evidenceScript=Join-Path $PSScriptRoot 'generate-release-evidence.ps1'
 & $evidenceScript -Version $Version -OutputDir $OutputDir -Configuration $Configuration | Out-Host
 
-Write-Host "Visual $Version package created in $OutputDir"
+Write-Host "Vision $Version package created in $OutputDir"
 Get-ChildItem $OutputDir -File | Select-Object Name,Length,LastWriteTime

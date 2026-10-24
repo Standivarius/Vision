@@ -41,7 +41,7 @@ bool HintWindow::create(HINSTANCE instance, const RECT& preferred_monitor_rect) 
     hwnd_ = CreateWindowExW(
         WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE,
         kHintClass,
-        L"Visual hint",
+        L"Vision hint",
         WS_POPUP | WS_BORDER,
         x, y, width, height,
         nullptr, nullptr, instance, this);

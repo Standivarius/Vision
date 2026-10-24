@@ -30,6 +30,22 @@ struct ScreenRect {
     [[nodiscard]] bool valid() const noexcept { return right > left && bottom > top; }
 };
 
+// Degenerate UIA TextPattern ranges are sometimes reported with the bounding
+// rectangle of the entire focused edit control rather than a real insertion
+// point. Treat such control-sized geometry as imprecise so focus remains the
+// safe fallback instead of promoting a false high-confidence caret.
+[[nodiscard]] inline bool plausible_semantic_caret_rect(
+    const ScreenRect& caret,
+    const ScreenRect& focused_control,
+    double control_size_fraction = 0.90) noexcept {
+    if (!caret.valid()) return false;
+    if (!focused_control.valid()) return true;
+    const double clamped = std::clamp(control_size_fraction, 0.5, 1.0);
+    const bool control_sized = caret.width() >= focused_control.width() * clamped
+        && caret.height() >= focused_control.height() * clamped;
+    return !control_sized;
+}
+
 struct PoiCandidate {
     PoiKind kind{PoiKind::Focus};
     PoiSource source{PoiSource::UiaFocus};
@@ -49,6 +65,24 @@ struct PoiCandidate {
         && within_tolerance(a.screen_rect.right, b.screen_rect.right)
         && within_tolerance(a.screen_rect.bottom, b.screen_rect.bottom);
 }
+
+// A caret visibly owned by the foreground thread remains current evidence
+// while GetGUIThreadInfo continues to expose its HWND and geometry. Unlike
+// a cached UIA range, this is independently re-observed on each frame.
+//
+// A deliberate pointer movement is an intent barrier. If the caret has not
+// actually moved since that pointer event, retain the old timestamp so a
+// stationary insertion point cannot steal the view back from the pointer.
+[[nodiscard]] inline std::uint64_t live_win32_caret_timestamp(
+    const PoiCandidate& observation,
+    const std::optional<PoiCandidate>& previous,
+    std::uint64_t pointer_movement_qpc) noexcept {
+    if (!previous || !same_poi_target(observation, *previous)) return observation.timestamp_qpc;
+    if (pointer_movement_qpc != 0 && pointer_movement_qpc >= previous->timestamp_qpc)
+        return previous->timestamp_qpc;
+    return observation.timestamp_qpc;
+}
+
 struct PoiSelectionPolicy {
     double max_caret_age_ms{250.0};
     double max_focus_age_ms{500.0};
@@ -95,12 +129,13 @@ struct PoiSelectionPolicy {
     const std::vector<PoiCandidate>& candidates,
     std::uint64_t now_qpc,
     std::uint64_t qpc_frequency,
-    const PoiSelectionPolicy& policy = {}) noexcept {
+    const PoiSelectionPolicy& policy = {},
+    std::uint64_t pointer_intent_barrier_qpc = 0) noexcept {
     // A pointer movement is an intent barrier: caret/focus evidence that predates the
     // most recent pointer movement must not reclaim the viewport after the pointer's
     // short freshness window expires. Only semantic activity observed after that
     // pointer movement may take control back.
-    std::uint64_t latest_pointer_qpc = 0;
+    std::uint64_t latest_pointer_qpc = pointer_intent_barrier_qpc;
     for (const auto& c : candidates) {
         if (c.kind == PoiKind::Pointer && c.usable()) latest_pointer_qpc = std::max(latest_pointer_qpc, c.timestamp_qpc);
     }

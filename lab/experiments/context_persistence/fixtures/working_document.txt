@@ -1,0 +1,11 @@
+VISUAL CONTEXT-PERSISTENCE TASK 1 — WORKING DOCUMENT
+
+The team currently prepares a quarterly accessibility review for each active customer workspace.
+
+During the last evaluation cycle, 18 participants completed the comparison exercise without assistance.
+
+The north reference screen is normally checked on Tuesday before the data-entry session begins.
+
+The report should be circulated to the project team.
+
+The current internal project code is VX-314 and should remain visible in the final review record.

@@ -1,4 +1,4 @@
-# Visual / Doxa tracker-neutral work breakdown
+﻿# Vision / Doxa tracker-neutral work breakdown
 
 This file is the canonical work-item index. Stable IDs should be copied into whichever task tracker is selected so repository history and tracker history remain linkable.
 
@@ -10,6 +10,17 @@ This file is the canonical work-item index. Stable IDs should be copied into whi
 
 `None` | `SM768` | `SM770` | `User/assessor validation`
 
+## Current simplified execution model - authoritative from 2026-09-29
+
+The detailed work items below remain useful as an evidence/history index, but the active programme is intentionally smaller:
+
+- **Doxa Installer**: independent and hardware-gated; wait for real SM770 before hardware-specific implementation.
+- **Vision**: active. Research ZoomText/SuperNova technically and commercially, derive feature/value scope, draft generic 2-4 monitor architecture/development plan, obtain independent Opus review, then implement.
+- **Broader Doxa opportunities**: deferred/parked.
+
+Do not resume the old SM768-first or Doxa-specific four-screen implementation sequence unless the owner explicitly reactivates it.
+
+Current pre-Opus work is represented by `RES-001`..`RES-007`, `VIS-008` and the new evidence package in `artifacts/`. Pricing strategy and final channel design remain after the Opus/product-scope checkpoint and dealer/assessor evidence.
 ## Programme / governance
 
 | ID | Work item | Initial status | Gate | Done when |
@@ -17,19 +28,20 @@ This file is the canonical work-item index. Stable IDs should be copied into whi
 | GOV-001 | Reconcile stale high-level foundation/status docs with current alpha.11 | Ready | None | Current-status claims no longer contradict current implementation/release evidence. |
 | GOV-002 | Configure GitHub Projects execution tracker | Ready | None | One GitHub Project is accessible from both desktops/agents, mirrors stable work IDs and links back to programme docs. |
 | GOV-003 | Define release/feature evidence register | Backlog | None | Each product claim can point to code/test/hardware/user evidence and date. |
+| GOV-004 | Settle Visual -> Vision compatibility boundary | Done | None | Vision is user-facing/canonical while published-alpha package, executable, state and schema compatibility identifiers remain stable and guarded by tests. |
 
-## Visual two-screen product
+## Vision two-screen product
 
 | ID | Work item | Initial status | Gate | Done when |
 |---|---|---|---|---|
-| VIS-001 | Close/bound Chromium/Edge editing-caret support | Ready | None | Supported scenarios pass deterministic tests or limitation/fallback is explicit and accepted. |
+| VIS-001 | Close/bound Chromium/Edge editing-caret support | Done | None | Deterministic Edge textarea fixture reacquires UIA editor focus, requires sustained caret evidence/selection and passes repeated runs; broader custom web-editor support remains explicitly outside the validation boundary. |
 | VIS-002 | Decide source-to-Detail pointer-boundary UX | Ready | User/assessor validation | Policy is documented, implemented and tested; Detail does not jump unexpectedly across monitors. |
 | VIS-003 | Tune viewport comfort/jump policy | Ready | User/assessor validation | Parameters are supported by task-use evidence and regression tests. |
 | VIS-004 | Run Context+Detail productivity comparison | Ready | User/assessor validation | Comparison evidence exists for representative tasks and informs product decisions. |
-| VIS-005 | Two-screen acceptance suite | Ready | None | Repeatable acceptance script covers install/start, roles, zoom, tracking, 1x/return, locator, colour, restart, duplicate launch, exit and help. |
+| VIS-005 | Two-screen acceptance suite | Done | None | `app\run-two-screen-acceptance.ps1` covers install/start, roles, zoom, tracking, 1x/return, locator, colour, restart, duplicate launch, exit and help; canonical 2026-09-29 run passed 8/8 steps and restored settings exactly. |
 | VIS-006 | Review Reference/freeze requirement | Backlog | Research/User validation | Decision recorded on whether to implement a true fixed/frozen reference view and its minimum behaviour. |
 | VIS-007 | Accessibility/usability pass on Settings + Help | Backlog | User/assessor validation | Keyboard/navigation/readability issues from first-use testing are addressed or documented. |
-| VIS-008 | Define incremental low-vision capability expansion path | Backlog | RES-002/RES-005 | Prioritised roadmap identifies which incumbent/adjacent capabilities should be added to current Visual and why, without assuming parity. |
+| VIS-008 | Define incremental low-vision capability expansion path | Backlog | RES-002/RES-005 | Prioritised roadmap identifies which incumbent/adjacent capabilities should be added to current Vision and why, without assuming parity. |
 | VIS-009 | Implement first post-alpha capability tranche | Blocked | VIS-008 | Selected high-value capability group is implemented, tested and integrated without destabilising the two-screen baseline. |
 
 ## Installer / lifecycle / hardware enablement
@@ -51,21 +63,21 @@ This file is the canonical work-item index. Stable IDs should be copied into whi
 
 | ID | Work item | Initial status | Gate | Done when |
 |---|---|---|---|---|
-| D4-001 | Formalise four-screen logical role/state model | Ready | None | Left Workspace, Detail, Right Workspace and Organiser semantics are independent of monitor numbers. |
-| D4-002 | Define shared-Detail ownership arbitration | Ready | None | Explicit state machine covers focus/caret/pointer intent, hysteresis, lock and manual switching. |
-| D4-003 | Create topology/state simulator + unit tests | Backlog | None | Switching/role behaviour is testable without physical four-screen hardware. |
-| D4-004 | Prototype organiser/window assignment model | Backlog | None | Prototype represents windows/work items and can assign/recall Left/Right roles without becoming a window manager replacement. |
+| D4-001 | Formalise four-screen logical role/state model | Deferred | None | Left Workspace, Detail, Right Workspace and Organiser semantics are independent of monitor numbers. |
+| D4-002 | Define shared-Detail ownership arbitration | Deferred | None | Explicit state machine covers focus/caret/pointer intent, hysteresis, lock and manual switching. |
+| D4-003 | Create topology/state simulator + unit tests | Deferred | None | Switching/role behaviour is testable without physical four-screen hardware. |
+| D4-004 | Prototype organiser/window assignment model | Deferred | None | Prototype represents windows/work items and can assign/recall Left/Right roles without becoming a window manager replacement. |
 | D4-005 | Experimental four-screen rendering integration | Blocked | SM768 or suitable physical topology | Shared Detail follows selected source workspace and source View Locator matches exactly. |
 | D4-006 | BCS/assessor/low-vision validation | Blocked | User/assessor validation | Evidence answers whether the concept improves task cost and which users benefit. |
 | D4-007 | Decide product/default status | Blocked | D4-006 | Keep/change/drop decision is explicit; unvalidated behaviour is not made default. |
 
-## Ask Visual / cloud assistance
+## Ask Vision / cloud assistance
 
 | ID | Work item | Initial status | Gate | Done when |
 |---|---|---|---|---|
 | ASK-001 | Replace shared alpha client credential with per-device/client production auth | Backlog | None | Revocable/scoped production authentication exists without provider credentials on clients. |
 | ASK-002 | Decide whether conversational history is useful | Deferred | User validation | Product decision based on actual support use; privacy/context limits are defined first. |
-| ASK-003 | Maintain grounded provider regression suite | Backlog | None | Key Visual/incumbent questions are automatically checked for capability hallucinations and role reversals. |
+| ASK-003 | Maintain grounded provider regression suite | Backlog | None | Key Vision/incumbent questions are automatically checked for capability hallucinations and role reversals. |
 
 ## Quality / release / support
 
@@ -82,26 +94,26 @@ These items are deliberately research, not implementation commitments.
 
 | ID | Work item | Initial status | Gate | Done when |
 |---|---|---|---|---|
-| RES-001 | ZoomText/SuperNova market and segment research | Backlog | None | Credible UK/global market/customer/channel picture exists with sources and uncertainty. |
-| RES-002 | Competitor feature/edition/workflow matrix incl. Windows Magnifier baseline | Backlog | None | Documented + legitimately observed functionality is mapped by user value, not just feature names. |
-| RES-003 | Pricing, reseller and margin-stack research | Backlog | None | Licences/subscriptions/channel economics/support obligations and likely margins are documented. |
+| RES-001 | ZoomText/SuperNova market and segment research | In progress | None | Credible UK/global market/customer/channel picture exists with sources and uncertainty. |
+| RES-002 | Competitor feature/edition/workflow matrix incl. Windows Magnifier baseline | In progress | None | Documented + legitimately observed functionality is mapped by user value, not just feature names. |
+| RES-003 | Pricing, reseller and margin-stack research | In progress | None | Licences/subscriptions/channel economics/support obligations and likely margins are documented. |
 | RES-004 | Standivarius UK launch/channel assessment | Backlog | None | Existing relationships/presence are mapped to realistic routes to market and pilot customers. |
-| RES-005 | Independent technical feasibility/cost assessment | Backlog | None | High-value feature families are sized for implementation/maintenance/test/support without proprietary copying. |
-| RES-006 | Product positioning/options paper | Blocked | RES-001..005 | Decision compares Doxa-only, standalone magnifier, and broader low-vision product options with economics and scope. |
+| RES-005 | Independent technical feasibility/cost assessment | In progress | None | High-value feature families are sized for implementation/maintenance/test/support without proprietary copying. |
+| RES-006 | Product positioning/options paper | In progress | RES-001..005 | Decision compares Doxa-only, standalone magnifier, and broader low-vision product options with economics and scope. |
 | RES-007 | Go/no-go and product boundary decision | Blocked | RES-006 | Owner decision defines target customer, feature boundary, pricing hypothesis and next build phase. |
-| RES-008 | Doxa multi-monitor use-case landscape | Backlog | None | Credible map of non-low-vision multi-monitor workflows, industries, user roles and pain points exists with sources. |
-| RES-009 | Existing software/workflow benchmark beyond accessibility | Backlog | None | Relevant multi-monitor software categories/products are mapped by workflow and user value, with clear distinction between generic tools and Doxa-specific opportunity. |
+| RES-008 | Doxa multi-monitor use-case landscape | Deferred | None | Credible map of non-low-vision multi-monitor workflows, industries, user roles and pain points exists with sources. |
+| RES-009 | Existing software/workflow benchmark beyond accessibility | Deferred | None | Relevant multi-monitor software categories/products are mapped by workflow and user value, with clear distinction between generic tools and Doxa-specific opportunity. |
 | RES-010 | Doxa buyer/value-proposition assessment | Backlog | RES-008..009 | Candidate buyers, deployment settings, willingness-to-pay/value drivers and support implications are documented. |
 | RES-011 | Doxa software concept shortlist | Blocked | RES-008..010 | 3-5 software-led Doxa concepts are ranked by user value, differentiation, feasibility and commercial attractiveness. |
 | RES-012 | Prototype/research plan for top Doxa opportunities | Blocked | RES-011 | Smallest experiments needed to validate the top concepts are defined before implementation starts. |
 
-## Suggested initial execution order
+## Suggested current execution order
 
-1. `GOV-001`, `GOV-002`.
-2. In parallel: `VIS-001`, `VIS-002`, `VIS-005`, `INS-001`, `INS-002`, `INS-003`, `INS-006`.
-3. Architecture-only Doxa work: `D4-001`, `D4-002`, then `D4-003` if useful before hardware.
-4. When SM768 arrives: `INS-008` -> `INS-009` -> `INS-010` plus `QLT-003`.
-5. Only after SM768 baseline is stable: physical `D4-005` and `D4-006`.
-6. SM770 production qualification: `INS-011`, `QLT-004`.
-7. Low-vision competitive/commercial research (`RES-001`..`RES-007`) can start independently whenever owner priority permits and should feed `VIS-008`; do not block core engineering on it.
-8. Broader Doxa opportunity research (`RES-008`..`RES-012`) is a separate stream and can also start independently; do not assume its outcome is another accessibility product.
+1. Complete the incumbent research evidence layer, including hands-on ZoomText/SuperNova comparison when installation elevation is available.
+2. Use the combined research to finalise `VIS-008` and the proposed generic 2-4 monitor development/architecture plan.
+3. Run the independent Opus review checkpoint; do not implement the multi-monitor refactor before this review.
+4. Reconcile the review into a detailed implementation sequence, preserving the passing two-screen baseline.
+5. Build the generic 2-4 monitor core and localisation-ready UI foundation.
+6. Validate later capability tranches and dealer/assessor requirements before pricing/route-to-market decisions.
+7. Resume Doxa Installer hardware-specific work only when the real SM770 unit is available.
+8. Keep broader Doxa opportunity research parked.

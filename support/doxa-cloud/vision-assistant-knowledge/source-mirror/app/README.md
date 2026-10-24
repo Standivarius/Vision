@@ -1,0 +1,230 @@
+# Vision - low-vision workspace alpha
+
+This folder contains the integrated Vision Windows application runtime used for the Doxa low-vision workstation project.
+
+## Current purpose
+
+Vision is currently a functional low-vision workspace alpha:
+
+- a Context display remains the source/work surface and shows the current View Locator region;
+- a Detail display shows the magnified working view;
+- Detail follows deliberate pointer movement, Text Cursor activity or Keyboard Focus;
+- the viewport uses comfort margins rather than constant recentering;
+- pointer, caret and focus tracking/markers can be controlled independently;
+- Detail is non-activating so the source application keeps keyboard focus; settings and display roles persist across launches.
+
+It is an experimental magnification/productivity platform, not a finished general-purpose magnifier replacement.
+
+## Build
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\app\build.ps1 -Configuration Release
+```
+
+Release outputs:
+
+- `app\build\Release\visual_app.exe`
+- `app\build\Release\visual_diagnostics.exe`
+- `app\build\Release\velopack_libc.dll`
+
+The canonical default version is `0.1.0-alpha.11` in `app\version.cmake`. A build can override it with `-Version <semver>`.
+
+The native build acquires the pinned Velopack 1.2.0 C/C++ SDK into the ignored `app\third_party\velopack\` cache, builds Vision, and runs nine CTest tests. Ordinary native builds do not require a .NET SDK.
+
+## Two-screen acceptance
+
+The repeatable current-alpha acceptance entry point is:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\app\run-two-screen-acceptance.ps1
+```
+
+It covers installed-product start, persisted screen-role/colour state, the guarded Release build and 9 CTests, Settings/Help surfaces, duplicate launch, restart/exit, zoom/tracking hotkeys, exact 1x/return, pointer/render behaviour and View Locator visibility. The runner backs up the existing `%LOCALAPPDATA%\Standivarius\Visual\settings.ini` and restores it in `finally`. Use `-SkipInstalledProductCheck` only when the installed public-alpha leg is deliberately out of scope.
+
+Canonical 2026-09-29 evidence: `artifacts\2026-09-29__gpt-5.6-sol__vis005_two_screen_acceptance_v1.0.md`.
+## Runtime architecture
+
+```text
+Windows Graphics Capture
+  -> latest source texture cache
+
+steady interaction/render loop (~60 Hz)
+  -> Win32 pointer/caret/focus evidence
+  -> UIA caret/focus evidence
+  -> freshness + intent arbitration
+  -> viewport controller
+  -> locator model
+  -> D3D11 crop / scale / locator
+  -> second-screen Detail
+```
+
+WGC frame arrival is deliberately not the interaction clock. Cursor capture is disabled; Vision samples POI evidence independently and renders the latest cached source texture on a steady cadence.
+
+## Display behavior
+
+With two or more displays:
+
+- Context defaults to the Windows primary monitor;
+- Detail defaults to the first different active monitor;
+- Context and Detail roles persist in `%LOCALAPPDATA%\Standivarius\Visual\settings.ini`;
+- an optional Reference role can be assigned to another display and remains available for normal Windows content;
+- screen-role changes are saved and take effect on the next Vision start;
+- Detail uses the assigned destination monitor full-screen.
+
+Engineering command-line options include:
+
+- `--source N`
+- `--dest N`
+- `--zoom 1|1.5|2|3|4`
+- `--log PATH`
+- `--single-monitor`
+
+Command-line monitor indices remain engineering overrides. Normal runs use the persisted screen roles.
+
+## Global alpha hotkeys
+
+- `Ctrl+Alt+1` - 1x
+- `Ctrl+Alt+2` - 2x
+- `Ctrl+Alt+3` - 3x
+- `Ctrl+Alt+4` - 4x
+- `Ctrl+Alt+0` - temporary normal view / exact return
+- `Ctrl+Alt+T` - tracking on/off
+- `Ctrl+Alt+S` - open Vision Settings
+- `Ctrl+Alt+H` - open Vision Help / Ask Vision
+- `Ctrl+Alt+Q` - exit Vision
+
+Vision is single-instance for normal interactive use. Launching it again while an instance is already running does not create another Detail renderer or Context overlay; the second launch exits immediately. The graphics health-check is exempt from the product-instance guard and does not register global product hotkeys.
+
+The settings UI also provides 1.5x magnification. Right-click the Detail window for the compact Vision menu.
+
+## Vision Settings and Context view
+
+`Vision Settings` is a native keyboard-accessible Win32 settings window. It persists under `%LOCALAPPDATA%\Standivarius\Visual\settings.ini` and exposes a deliberately small user-facing set rather than engineering timing parameters:
+
+- **Zoom Level**: 1x, 1.5x, 2x, 3x or 4x;
+- **Tracking** with independent Pointer, Text Cursor and Keyboard Focus following;
+- independent Pointer Locator, Text Cursor Highlight and Focus Highlight controls;
+- a Context-screen **View Locator** showing the exact source region currently enlarged on Detail, with optional translucent shading;
+- **Colour & Contrast** modes: Normal, Increase Contrast, Inverted Colours and Grayscale;
+- persisted Context, Detail and optional Reference screen roles.
+
+The View Locator is a separate layered window marked `WDA_EXCLUDEFROMCAPTURE`, so it stays visible on Context without being recursively captured into Detail. If Windows cannot apply capture exclusion, Vision does not show the indicator.
+
+Tracking, highlights, Zoom Level, Colour & Contrast and View Locator settings apply live. Physical Context/Detail/Reference role changes are restart-bound by design so the active Windows Graphics Capture session is not rebuilt from the settings dialog.
+
+## Contextual help and Ask Vision
+
+Vision now uses small, suppressible contextual hints for the genuinely new parts of the product rather than a mandatory onboarding flow. The first two-screen run explains Context, Detail and the View Locator once, and the first `1x View / Return` use explains that the same command restores the previous zoom and exact viewport. The acknowledgement state is stored locally in the existing `settings.ini` under `[Assistance]`.
+
+`Vision Help / Ask Vision` opens with `Ctrl+Alt+H`, from Vision Settings, or from the Detail right-click menu. Known questions are answered locally from a small terminology/help catalog, including ZoomText/SuperNova migration vocabulary such as Freeze View / Hooked Areas. Vision explicitly states when no equivalent feature exists rather than pretending a Reference screen is the same thing.
+
+Installed Vision now has a provider-neutral Doxa cloud fallback by default. Release builds call the Doxa-owned `doxa-visual-assistant` Worker over HTTPS using the same build-time Doxa client credential already used by the installed setup path; provider credentials remain server-side. `VISUAL_ASSISTANT_ENDPOINT` is retained only as a developer/test override. Vision sends only the user question plus a minimal structured state object (zoom, tracking/highlight flags, colour mode, monitor count and role-assignment booleans). It does not send monitor device IDs, screenshots, document contents or typed text. The endpoint returns JSON containing an `answer` string and optional `title`.
+
+The online path is intentionally non-critical: if the Doxa cloud service is unavailable, local Vision help continues to work.
+
+Each Ask Vision submission is currently independent: previous questions and answers are not retained or sent as conversation history. Every request uses the current Vision state plus freshly retrieved product/implementation evidence.
+
+The online fallback is grounded before the model call. The Doxa gateway retrieves only relevant excerpts from a curated set of official ZoomText, SuperNova and Windows Magnifier material plus a generated read-only mirror of selected current Vision source/docs. The cloud model has no repository or filesystem access and cannot modify the mirror. Current Vision source/docs take precedence for claims about Vision; incumbent documentation is used to interpret incumbent terminology and behavior, not to manufacture feature parity.
+
+**Current hosted backend (2026-09-27):** `doxa-visual-assistant` Cloudflare Worker -> NVIDIA NIM `nvidia/nemotron-3-super-120b-a12b`, with the dedicated Dify `Vision Assistant` / `Muse Spark 1.3 Contributor` path retained as a temporary server-side fallback. The Vision client remains provider-neutral. The packaged alpha uses the Doxa client credential on an authenticated `/v1/ask` route. A high-entropy route-token endpoint remains available only for development testing. The shared client credential is still an alpha mechanism rather than the final per-device production authentication design. Hosted responses can take materially longer than local help, so the asynchronous online request allows up to 45 seconds for a response while the Vision UI remains responsive.
+## Tracking and viewport evidence
+
+Candidate POI sources include recent pointer movement, UIA TextPattern caret, Win32 caret, UIA keyboard focus and Win32 keyboard focus. Recent pointer movement is treated as short-lived direct intent; when it stops, semantic evidence can resume. Cached semantic evidence keeps its original timestamp.
+
+Current viewport defaults use 20% horizontal and vertical comfort margins, minimum required panning when a target leaves that region, jump classification for large moves and source-bound clamping. These are experimental defaults, not final low-vision product settings.
+
+## Pointer regression status
+
+The PMv2-correct physical regressions on 2026-09-24 closed the prior generic pointer-loss investigation for the current build:
+
+- two real 1920x1080 displays;
+- independent `GetCursorPos` ground truth;
+- Vision telemetry with flushed lifecycle markers;
+- full-desktop video/contact-sheet review;
+- zero Present failures;
+- zero locator-missing frames during slow horizontal, fast horizontal, fast zig-zag and edge-teleport phases;
+- no genuine rendered-locator disappearance reproduced.
+
+The source-to-Detail monitor boundary is a separate, understood policy issue. When the native cursor leaves the source monitor, `Win32EvidenceProvider` stops emitting it as a source POI, arbitration falls back to semantic focus, and Detail can jump. Pointer POI resumes immediately when the cursor returns to the source. This is not a capture/render failure; it needs a deliberate UX policy decision.
+
+## Telemetry
+
+Runtime CSV telemetry records render state, POI source, locator visibility, viewport geometry and freshness information. Startup/capture markers are flushed immediately:
+
+- `telemetry_started`
+- `capture_started`
+- `first_source_frame`
+- `first_render_frame`
+- `capture_failure`
+
+The first numeric telemetry frame is also flushed immediately, preventing force-terminated regression runs from producing misleading zero-byte evidence.
+
+## Velopack lifecycle
+
+Vision pins Velopack 1.2.0. `app\src\velopack_entry.cpp` owns the real `wWinMain` and executes:
+
+```cpp
+Velopack::VelopackApp::Build().Run();
+```
+
+before normal Vision DPI/WinRT/display/capture initialization. The existing implementation in `main.cpp` is compiled with its `wWinMain` symbol renamed to `VisualProductMain` and is called only after Velopack lifecycle handling returns.
+
+The SDK archive contains `velopack_libc_win_x64_msvc.dll`, but its import library encodes the runtime dependency name `velopack_libc.dll`. The build therefore copies/renames the SDK DLL to `velopack_libc.dll` beside `visual_app.exe`, and packaging ships that imported name.
+
+Local `0.1.0-alpha.2` lifecycle verification is complete:
+
+- Release build linked successfully;
+- CTest 5/5 passed;
+- normal `vpk 1.2.0` packaging succeeded with no `--skipVeloAppCheck`;
+- the full package contains `lib/app/velopack_libc.dll`;
+- clean Setup exited `0`;
+- the Velopack install hook reported `Hook executed successfully`;
+- installed ProductVersion is `0.1.0-alpha.2`;
+- installed `Update.exe` and `velopack_libc.dll` are present;
+- installed `visual_app.exe --update-check` exited `0` and reported `result=no_update` against the current public alpha feed;
+- the hardened consolidated verifier reports `LIFECYCLE_RESULT=PASS`.
+
+## Update maintenance
+
+The installed executable exposes engineering-only maintenance commands that do not enter Vision's normal capture/UI path:
+
+```powershell
+visual_app.exe --update-check
+visual_app.exe --update-now
+```
+
+`--update-check` uses Velopack's native GitHub update source for `Standivarius/Visual` with prereleases enabled. Exit `0` means no newer release; exit `10` means an update is available.
+
+`--update-now` checks, downloads and schedules an available update for application after the process exits, without an automatic restart. This path is now proven end to end: installed public alpha.2 detected public alpha.3, downloaded it, scheduled apply, and the installed ProductVersion changed to `0.1.0-alpha.3`. The updated alpha.3 then reported `result=no_update` and launched/exited normally through `Ctrl+Alt+Q`.
+
+Maintenance diagnostics are appended to `%LOCALAPPDATA%\Standivarius\Visual\logs\visual_update.log`.
+
+## Packaging and releases
+
+See `app\packaging\README.md` for the pinned packaging toolchain and release procedure. The package script uses normal Velopack application validation and does not bypass the lifecycle check.
+
+Early alpha packages are unsigned, so Windows may show unknown-publisher/SmartScreen warnings until trusted code signing is added.
+
+## Structured diagnostics
+
+`visual_diagnostics.exe` reports Vision version/package/channel, Windows build, process architecture, monitor geometry/mode/DPI, GPU adapter names and adjacent Vision binary presence/size. It intentionally does not collect screenshots, application contents, usernames, environment-variable dumps, passwords or tokens.
+
+## Browser status
+
+Chromium/Edge editing-caret tracking is validated for the deterministic Microsoft Edge 153 HTML textarea fixture. The harness now reacquires the editor through UI Automation, verifies TextPattern, and requires sustained caret evidence rather than a single semantic frame. Three consecutive 2026-09-29 runs held UIA caret evidence for 100% of the measured phase and selected the caret for 88.3-89.4% of frames with zero Present failures. This is a bounded compatibility claim: custom contenteditable/rich editors, embedded Chromium frameworks and other browser/version combinations are not certified by this fixture.
+
+## Recovery policy
+
+WGC size changes recreate the frame pool; capture-item closure and display-topology invalidation are detected; topology invalidation causes a clean shutdown; relaunch after topology restoration rebuilds capture/render state. HDMI disconnect/reconnect recovery has been physically validated.
+
+## Known alpha limitations
+
+- Chromium/Edge caret validation is currently bounded to the deterministic Edge textarea scenario; rich/custom web editors remain unqualified;
+- display sleep/wake is not separately validated from HDMI disconnect/reconnect;
+- viewport margins and locator appearance need low-vision usability tuning;
+- source-to-Detail pointer-boundary UX policy needs a product decision;
+- trusted code signing is not configured;
+- a basic accessible Vision Settings UI now exists; installer/onboarding/update-prompt UI remains intentionally separate and minimal;
+- user-facing update prompts/background update policy are still not implemented;
+- Context, Detail and optional Reference roles persist by Windows display device name; Doxa-specific hardware identity and validated user presets still require the real Doxa and user research;
+- broader Doxa multi-display validation remains future work.

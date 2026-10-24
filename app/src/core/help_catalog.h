@@ -57,11 +57,11 @@ struct HelpAnswer {
     case HelpTopic::ScreenRoles:
         return {true, L"Screen Roles",
             L"Context keeps the full 1x workspace visible. Detail shows the area you are working in enlarged. "
-            L"Reference is an optional normal Windows screen that Visual leaves unchanged. Screen-role changes are saved and apply the next time Visual starts."};
+            L"Reference is an optional normal Windows screen that Vision leaves unchanged. Screen-role changes are saved and apply the next time Vision starts."};
     case HelpTopic::ViewLocator:
         return {true, L"View Locator",
             L"The View Locator is the frame on the Context screen. It shows exactly which area is currently enlarged on Detail. "
-            L"You can show or hide it in Visual Settings."};
+            L"You can show or hide it in Vision Settings."};
     case HelpTopic::Tracking:
         return {true, L"Tracking",
             L"Tracking keeps Detail with the part of the workspace you are using. Follow Pointer responds to deliberate mouse movement. "
@@ -71,26 +71,26 @@ struct HelpAnswer {
             L"Use Ctrl+Alt+0 to switch temporarily to a full 1x view. Use the same command again to return to your previous zoom level and exact magnified position."};
     case HelpTopic::FreezeView:
         return {true, L"Freeze View / Hooked Areas",
-            L"Visual does not currently implement ZoomText Freeze View or SuperNova Hooked Areas. If your goal is simply to keep separate information visible, "
+            L"Vision does not currently implement ZoomText Freeze View or SuperNova Hooked Areas. If your goal is simply to keep separate information visible, "
             L"an optional Reference screen may help, but it is not the same as a frozen magnified region."};
     case HelpTopic::ColourContrast:
         return {true, L"Colour & Contrast",
-            L"Visual can leave colours unchanged, increase contrast in the Detail image, invert colours, or show Detail in grayscale. "
-            L"Increase Contrast changes only Visual's Detail image; it does not switch the Windows High Contrast theme."};
+            L"Vision can leave colours unchanged, increase contrast in the Detail image, invert colours, or show Detail in grayscale. "
+            L"Increase Contrast changes only Vision's Detail image; it does not switch the Windows High Contrast theme."};
     case HelpTopic::Shortcuts:
         return {true, L"Keyboard Shortcuts",
             L"Ctrl+Alt+1, 2, 3 or 4 selects that zoom level. Ctrl+Alt+0 toggles 1x View / Return. Ctrl+Alt+T toggles tracking. "
-            L"Ctrl+Alt+S opens Visual Settings. Ctrl+Alt+H opens Help / Ask Visual. Ctrl+Alt+Q exits Visual."};
+            L"Ctrl+Alt+S opens Vision Settings. Ctrl+Alt+H opens Help / Ask Vision. Ctrl+Alt+Q exits Vision."};
     case HelpTopic::SettingsPersistence:
         return {true, L"Settings",
-            L"Visual saves your zoom, tracking, highlights, View Locator, colour/contrast mode and screen-role choices in your local Visual settings. "
-            L"Most settings apply immediately; screen-role changes apply the next time Visual starts."};
+            L"Vision saves your zoom, tracking, highlights, View Locator, colour/contrast mode and screen-role choices in your local Vision settings. "
+            L"Most settings apply immediately; screen-role changes apply the next time Vision starts."};
     case HelpTopic::Reference:
         return {true, L"Reference Screen",
-            L"Reference is an optional screen that Visual leaves available for normal Windows content. Visual remembers the assignment but does not currently move or pin windows there for you."};
+            L"Reference is an optional screen that Vision leaves available for normal Windows content. Vision remembers the assignment but does not currently move or pin windows there for you."};
     case HelpTopic::ZoomLevel:
         return {true, L"Zoom Level",
-            L"Visual supports 1x, 1.5x, 2x, 3x and 4x zoom. Choose a level in Visual Settings, or use Ctrl+Alt+1 through Ctrl+Alt+4 for the whole-number levels."};
+            L"Vision supports 1x, 1.5x, 2x, 3x and 4x zoom. Choose a level in Vision Settings, or use Ctrl+Alt+1 through Ctrl+Alt+4 for the whole-number levels."};
     default:
         return {};
     }

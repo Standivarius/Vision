@@ -1,0 +1,40 @@
+{
+  "schema_version": "0.1",
+  "id": "future_four_display_gated",
+  "version": "1.0",
+  "title": "Future 4-Display Doxa Scaling (Gated)",
+  "category": "future_gated",
+  "tags": ["future", "gated", "four_display", "doxa"],
+  "description": "Tests cross-monitor magnification across 4 active physical displays (1 Context + 3 Detail).",
+  "flags": {
+    "deterministic": true,
+    "interactive_desktop": true,
+    "visual_review": true,
+    "physical_only": true,
+    "privileged": false,
+    "destructive": false,
+    "not_yet_automatable": false
+  },
+  "capabilities_required": {
+    "min_displays": 4,
+    "exact_displays": 4,
+    "requires_physical_console": true
+  },
+  "fixture": {
+    "type": "powershell",
+    "entrypoint": "app/run-integrated-smoke.ps1",
+    "args": ["-Zoom", "2"]
+  },
+  "timeout_sec": 30.0,
+  "assertions": [
+    {
+      "id": "exit_code_zero",
+      "name": "Process Exit Clean",
+      "type": "exit_code",
+      "op": "eq",
+      "expected": 0,
+      "critical": true
+    }
+  ],
+  "requested_evidence": ["stdout", "stderr", "summary"]
+}

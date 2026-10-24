@@ -1,0 +1,70 @@
+{
+  "schema_version": "0.1",
+  "id": "mouse_viewport_smoke",
+  "version": "1.0",
+  "title": "Vision Mouse Viewport & View Locator Smoke",
+  "category": "pointer",
+  "tags": ["safe_smoke", "pointer", "locator", "viewport"],
+  "description": "Validates live pointer movement, viewport tracking, locator visibility, and zero Present failures across corners and edges.",
+  "flags": {
+    "deterministic": true,
+    "interactive_desktop": true,
+    "visual_review": false,
+    "physical_only": true,
+    "privileged": false,
+    "destructive": false,
+    "not_yet_automatable": false
+  },
+  "capabilities_required": {
+    "min_displays": 2,
+    "requires_physical_console": true,
+    "requires_dev_binary": true
+  },
+  "fixture": {
+    "type": "powershell",
+    "entrypoint": "app/run-integrated-smoke.ps1",
+    "args": ["-Zoom", "2"]
+  },
+  "timeout_sec": 30.0,
+  "variants": [
+    {
+      "id": "zoom2",
+      "title": "2x Magnification",
+      "args": ["-Zoom", "2"]
+    },
+    {
+      "id": "zoom4",
+      "title": "4x Magnification",
+      "args": ["-Zoom", "4"]
+    }
+  ],
+  "assertions": [
+    {
+      "id": "exit_code_zero",
+      "name": "Process Exit Clean",
+      "type": "exit_code",
+      "op": "eq",
+      "expected": 0,
+      "critical": true
+    },
+    {
+      "id": "pass_in_summary",
+      "name": "Smoke Reported Pass",
+      "type": "regex_match",
+      "target": "stdout",
+      "op": "regex",
+      "expected": "Pass: True",
+      "critical": true
+    },
+    {
+      "id": "locator_frames_positive",
+      "name": "Locator Visible Frames Observed",
+      "type": "regex_match",
+      "target": "stdout",
+      "op": "regex",
+      "expected": "Locator-visible frames: [1-9]\\d*",
+      "critical": true
+    }
+  ],
+  "requested_evidence": ["stdout", "stderr", "telemetry", "summary"]
+}

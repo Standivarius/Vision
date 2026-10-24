@@ -1,0 +1,38 @@
+{
+  "schema_version": "0.1",
+  "id": "future_multi_view_gated",
+  "version": "1.0",
+  "title": "Future Independent Multi-View Coordination (Gated)",
+  "category": "future_gated",
+  "tags": ["future", "gated", "multi_view"],
+  "description": "Tests multi-view independent zoom and frozen reference states across multiple views.",
+  "flags": {
+    "deterministic": true,
+    "interactive_desktop": true,
+    "visual_review": true,
+    "physical_only": false,
+    "privileged": false,
+    "destructive": false,
+    "not_yet_automatable": true
+  },
+  "capabilities_required": {
+    "min_displays": 2
+  },
+  "fixture": {
+    "type": "powershell",
+    "entrypoint": "app/run-integrated-smoke.ps1",
+    "args": []
+  },
+  "timeout_sec": 30.0,
+  "assertions": [
+    {
+      "id": "exit_code_zero",
+      "name": "Process Exit Clean",
+      "type": "exit_code",
+      "op": "eq",
+      "expected": 0,
+      "critical": true
+    }
+  ],
+  "requested_evidence": ["stdout", "stderr", "summary"]
+}

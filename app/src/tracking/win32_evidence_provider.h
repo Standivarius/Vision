@@ -85,7 +85,8 @@ private:
                 caret.timestamp_qpc = now_qpc;
                 caret.process_id = foreground_pid;
                 caret.identity = static_cast<std::uint64_t>(reinterpret_cast<std::uintptr_t>(gui.hwndCaret));
-                if (last_caret_ && core::same_poi_target(caret, *last_caret_)) caret.timestamp_qpc = last_caret_->timestamp_qpc;
+                caret.timestamp_qpc = core::live_win32_caret_timestamp(
+                    caret, last_caret_, last_pointer_movement_qpc_);
                 last_caret_ = caret;
                 if (intersects(caret.screen_rect, source)) out.push_back(caret);
             }

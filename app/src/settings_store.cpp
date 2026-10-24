@@ -55,7 +55,7 @@ bool write_double(const std::filesystem::path& path, const wchar_t* section, con
 std::filesystem::path default_settings_path() {
     PWSTR raw = nullptr;
     if (FAILED(SHGetKnownFolderPath(FOLDERID_LocalAppData, KF_FLAG_CREATE, nullptr, &raw)) || !raw) {
-        throw std::runtime_error("Unable to resolve LocalAppData for Visual settings");
+        throw std::runtime_error("Unable to resolve LocalAppData for Vision settings");
     }
     std::filesystem::path root(raw);
     CoTaskMemFree(raw);

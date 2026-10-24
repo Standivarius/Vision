@@ -1,0 +1,47 @@
+{
+  "schema_version": "0.1",
+  "id": "unit_ctest",
+  "version": "1.0",
+  "title": "Release Build CTest & Unit Replay Suite",
+  "category": "unit_replay",
+  "tags": ["safe_smoke", "unit", "replay", "deterministic"],
+  "description": "Runs all compiled CTests for Vision core pipeline, replay oracle, geometry contract, and settings models.",
+  "flags": {
+    "deterministic": true,
+    "interactive_desktop": false,
+    "visual_review": false,
+    "physical_only": false,
+    "privileged": false,
+    "destructive": false,
+    "not_yet_automatable": false
+  },
+  "capabilities_required": {
+    "min_displays": 1
+  },
+  "fixture": {
+    "type": "ctest",
+    "entrypoint": "ctest.exe",
+    "args": ["--output-on-failure"]
+  },
+  "timeout_sec": 30.0,
+  "assertions": [
+    {
+      "id": "exit_code_zero",
+      "name": "CTest Suite Success",
+      "type": "exit_code",
+      "op": "eq",
+      "expected": 0,
+      "critical": true
+    },
+    {
+      "id": "tests_passed_text",
+      "name": "CTest 100% Passed Output",
+      "type": "regex_match",
+      "target": "stdout",
+      "op": "regex",
+      "expected": "100% tests passed",
+      "critical": true
+    }
+  ],
+  "requested_evidence": ["stdout", "stderr"]
+}

@@ -1,0 +1,9 @@
+{
+  "os_build": 26300,
+  "drivers": [],
+  "monitors": [
+    {
+      "name": "Integrated Monitor"
+    }
+  ]
+}

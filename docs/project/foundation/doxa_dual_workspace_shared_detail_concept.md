@@ -192,7 +192,7 @@ The current ZoomText / SuperNova alignment and contextual-assistance research be
 
 The Doxa workspace should inherit the resulting terminology and assistance model when implementation begins rather than creating a second vocabulary.
 
-The repaired `artifacts/2026-09-27__low_vision_research_addendum_v0.1.md` supports doing terminology/workflow alignment and contextual help as one coherent pass. The consolidated main-line product decisions are captured in `visual_adoption_and_contextual_assistance_spec.md`.
+The repaired `artifacts/2026-09-27__low_vision_research_addendum_v0.1.md` supports doing terminology/workflow alignment and contextual help as one coherent pass. The consolidated main-line product decisions are captured in `vision_adoption_and_contextual_assistance_spec.md`.
 
 For Doxa specifically, future contextual assistance may help explain genuinely new workspace behavior, but the concept should first be made understandable through familiar terminology and direct interaction. AI is not a prerequisite for the workspace to function.
 

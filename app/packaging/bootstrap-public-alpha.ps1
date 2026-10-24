@@ -1,5 +1,5 @@
-param(
-    [string]$RemoteUrl = 'https://github.com/Standivarius/Visual.git',
+﻿param(
+    [string]$RemoteUrl = 'https://github.com/Standivarius/Vision.git',
     [string]$Branch = 'master',
     [string]$Version = '0.1.0-alpha.1',
     [switch]$NoTag
@@ -27,7 +27,7 @@ try {
         throw "Current branch is '$currentBranch', expected '$Branch'. Refusing to switch branches automatically."
     }
 
-    # Only these paths are part of the first public Visual alpha surface.
+    # Only these paths are part of the first public Vision alpha surface.
     # app/src and app/tests contain source/test code only; packaging/support
     # documents/scripts are explicitly enumerated to avoid sweeping in later local output.
     $publicPaths=@(
@@ -52,12 +52,12 @@ try {
         'support/dify/SETUP.md',
         'support/dify/system-prompt.md',
         'support/knowledge/README.md',
-        'support/knowledge/visual/diagnostics.md',
-        'support/knowledge/visual/installation.md',
-        'support/knowledge/visual/known-issues.md',
-        'support/knowledge/visual/product-overview.md',
-        'support/knowledge/visual/troubleshooting/display-topology-change.md',
-        'support/knowledge/visual/troubleshooting/tracking-problem.md'
+        'support/knowledge/vision/diagnostics.md',
+        'support/knowledge/vision/installation.md',
+        'support/knowledge/vision/known-issues.md',
+        'support/knowledge/vision/product-overview.md',
+        'support/knowledge/vision/troubleshooting/display-topology-change.md',
+        'support/knowledge/vision/troubleshooting/tracking-problem.md'
     )
 
     & git add -- $publicPaths
@@ -65,7 +65,7 @@ try {
 
     $staged=@(& git diff --cached --name-only)
     if($LASTEXITCODE-ne0){throw 'Unable to inspect staged files'}
-    if($staged.Count-eq0){throw 'Nothing staged for the Visual alpha bootstrap commit'}
+    if($staged.Count-eq0){throw 'Nothing staged for the Vision alpha bootstrap commit'}
 
     # Git normalizes paths to forward slashes. Permit the two intentional source trees
     # plus exact files above; reject anything else already staged.
@@ -81,10 +81,10 @@ try {
         if(-not $allowed){throw "Unexpected staged path '$file'. Refusing to commit."}
     }
 
-    Write-Host 'Staged public Visual files:'
+    Write-Host 'Staged public Vision files:'
     $staged | ForEach-Object { Write-Host "  $_" }
 
-    & git commit -m 'chore: bootstrap Visual alpha distribution'
+    & git commit -m 'chore: bootstrap Vision alpha distribution'
     if($LASTEXITCODE-ne0){throw 'git commit failed'}
 
     & git push -u origin $Branch
@@ -96,15 +96,15 @@ try {
         if($existingTag){
             throw "Tag $tag already exists locally. Inspect it before retrying; the commit has already been pushed."
         }
-        & git tag -a $tag -m "Visual $Version"
+        & git tag -a $tag -m "Vision $Version"
         if($LASTEXITCODE-ne0){throw "Unable to create $tag"}
         & git push origin $tag
         if($LASTEXITCODE-ne0){throw "Unable to push $tag"}
-        Write-Host "Pushed $tag. GitHub Actions should now build and publish the Visual alpha prerelease."
+        Write-Host "Pushed $tag. GitHub Actions should now build and publish the Vision alpha prerelease."
     }
 
-    Write-Host "Repository: https://github.com/Standivarius/Visual"
-    Write-Host "Releases:   https://github.com/Standivarius/Visual/releases"
+    Write-Host "Repository: https://github.com/Standivarius/Vision"
+    Write-Host "Releases:   https://github.com/Standivarius/Vision/releases"
 }
 finally {
     Pop-Location

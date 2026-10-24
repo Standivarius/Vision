@@ -25,12 +25,14 @@ public:
         bool tracking_enabled,
         const std::vector<PoiCandidate>& candidates,
         std::uint64_t now_qpc,
-        std::uint64_t qpc_frequency) noexcept {
+        std::uint64_t qpc_frequency,
+        std::uint64_t pointer_intent_barrier_qpc = 0) noexcept {
 
         ViewUpdate result{};
         if (!source.valid() || !std::isfinite(zoom) || zoom <= 0.0) return result;
 
-        const auto selected = select_best_poi(candidates, now_qpc, qpc_frequency, poi_policy_);
+        const auto selected = select_best_poi(
+            candidates, now_qpc, qpc_frequency, poi_policy_, pointer_intent_barrier_qpc);
         result.selected_poi = selected;
 
         const double target_width = source.width() / static_cast<double>(zoom);

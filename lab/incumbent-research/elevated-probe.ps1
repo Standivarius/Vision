@@ -1,0 +1,1 @@
+﻿$id=[Security.Principal.WindowsIdentity]::GetCurrent();$p=New-Object Security.Principal.WindowsPrincipal($id);[pscustomobject]@{user=$id.Name;elevated=$p.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator);time=(Get-Date).ToString('o')}|ConvertTo-Json|Set-Content -Encoding UTF8 'C:\dev\Vision\lab\incumbent-research\elevated-probe-result.json'

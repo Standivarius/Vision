@@ -26,7 +26,7 @@ The Economical knowledge base is intentional. The original High Quality knowledg
 
 ## Knowledge upload
 
-Dify Sandbox allowed only one document in the initial upload flow, so `visual-support-knowledge.md` is a generated deployment bundle made from the reviewed Markdown files under `support/knowledge/visual/`.
+Dify Sandbox allowed only one document in the initial upload flow, so `vision-support-knowledge.md` is a generated deployment bundle made from the reviewed Markdown files under `support/knowledge/vision/`.
 
 Regenerate it with:
 

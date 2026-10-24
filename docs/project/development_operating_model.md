@@ -1,4 +1,4 @@
-# Visual Development Operating Model
+# Vision Development Operating Model
 
 ## Ownership
 
@@ -9,7 +9,7 @@
 ## Canonical workspace
 
 - Machine: `MARIUS-DELL`
-- Canonical repository: `C:\dev\Visual`
+- Canonical repository: `C:\dev\Vision`
 - The canonical repository is authoritative.
 - Do not modify unrelated repositories or user files.
 
@@ -42,7 +42,7 @@ Avoid delegating:
 - Verified authenticated headless execution on 2026-09-19.
 - Verified Gemini models include `gemini-3.8-flash-high`, `gemini-3.8-flash-medium`, `gemini-3.8-flash-low`, `gemini-3.1-pro-high`, and `gemini-3.1-pro-low`.
 - Default delegated Gemini model: `gemini-3.8-flash-high`.
-- Read-only Gemini tasks run inside an isolated disposable snapshot of `C:\dev\Visual`; `.env`, `.git`, capture artifacts and `node_modules` are excluded from the snapshot.
+- Read-only Gemini tasks run inside an isolated disposable snapshot of `C:\dev\Vision`; `.env`, `.git`, capture artifacts and `node_modules` are excluded from the snapshot.
 - The bridge captures substantive stdout/stderr, task status, exit code and supports cancellation.
 - A smoke test successfully read `AGENTS.md` from the isolated snapshot and returned the expected repository identity with exit code `0`; canonical repo task delta was empty.
 - Writable Antigravity delegation remains intentionally disabled until explicit path-scoped write enforcement is implemented.

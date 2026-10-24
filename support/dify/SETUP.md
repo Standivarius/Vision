@@ -16,7 +16,7 @@ Store the Meta provider credential in Dify Cloud model-provider settings only. N
 
 ## Build the knowledge upload bundle
 
-The reviewed source documents live under `support/knowledge/visual/`.
+The reviewed source documents live under `support/knowledge/vision/`.
 
 Generate the one-file Dify upload bundle with:
 
@@ -24,7 +24,7 @@ Generate the one-file Dify upload bundle with:
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\support\dify\build-knowledge.ps1
 ```
 
-Upload `support/dify/visual-support-knowledge.md` to the knowledge base.
+Upload `support/dify/vision-support-knowledge.md` to the knowledge base.
 
 Use **Economical** indexing. This creates an inverted/full-text index and avoids a dependency on Dify-hosted embedding credits.
 

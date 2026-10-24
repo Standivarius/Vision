@@ -1,0 +1,13 @@
+VISUAL CONTEXT-PERSISTENCE TASK 1 — REFERENCE INSTRUCTIONS
+
+Use these instructions to edit working_document.txt.
+
+1. In the first paragraph, replace "quarterly" with "monthly".
+2. In the second paragraph, change the figure 18 to 24.
+3. In the third paragraph, replace "north" with "west" and "Tuesday" with "Thursday".
+4. In the fourth paragraph, insert the phrase "after final review" immediately before the final period.
+5. In the fifth paragraph, change project code VX-314 to VX-341.
+6. At the very end of the document add a new line:
+   Review status: ready for comparison.
+
+Accuracy matters more than speed. Do not memorize all instructions before starting; consult this reference as needed.

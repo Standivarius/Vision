@@ -167,10 +167,24 @@ static void test_view_controller_tracking_disabled_holds(std::vector<Failure>& f
     require(near(first.viewport.left, second.viewport.left) && near(first.viewport.top, second.viewport.top), name, "disabled tracking changed viewport", failures);
 }
 
+static void test_semantic_caret_geometry_sanity(std::vector<Failure>& failures) {
+    const std::string name = "semantic_caret_geometry_sanity";
+    const ScreenRect focus{1510, 195, 1814, 242};
+    require(!plausible_semantic_caret_rect(focus, focus), name,
+            "control-sized degenerate range must not be promoted as a caret", failures);
+    require(plausible_semantic_caret_rect({1516, 202, 1518, 224}, focus), name,
+            "narrow insertion geometry should remain eligible", failures);
+    require(plausible_semantic_caret_rect({1516, 195, 1534, 242}, focus), name,
+            "character-context geometry may legitimately span control height", failures);
+    require(plausible_semantic_caret_rect({10, 10, 12, 30}, {}), name,
+            "valid caret should remain eligible when focus geometry is unavailable", failures);
+}
+
 int main() {
     std::vector<Failure> failures;
     test_coordinate_roundtrip(failures);
     test_poi_fallback_selection(failures);
+    test_semantic_caret_geometry_sanity(failures);
     test_poi_to_viewport_pipeline(failures);
     test_safe_caret_holds(failures);
     test_stale_evidence_does_not_move(failures);

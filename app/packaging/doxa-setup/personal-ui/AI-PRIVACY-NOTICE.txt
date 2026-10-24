@@ -1,0 +1,32 @@
+DOXA SETUP: OPTIONAL REMOTE AI — DEVELOPMENT DISCLOSURE v0.1
+23 October 2026 update: 24 October 2026. This is a DEVELOPMENT PREVIEW, not a final customer privacy notice.
+
+WHAT HAPPENS WITHOUT CLOUD AI
+Doxa Setup can check Windows/USB/display-driver information locally, verify the Doxa screens and show curated offline troubleshooting instructions. These functions do not require a remote AI model. The cloud assistant is optional and OFF by default. Driver installation always follows separate deterministic verification and Windows approval.
+
+IF YOU ENABLE CLOUD AI
+You interact with an AI assistant, not a human technician. It suggests explanations; answers may be wrong. It cannot install software, change Windows settings, read files, operate your mouse or run commands. Do not include names, passwords, serial numbers, sensitive information, screenshots or confidential company information in your question.
+
+For each cloud AI question the Doxa Windows client sends, through encrypted HTTPS to the Standivarius Doxa Cloudflare Worker: your question; selected language; Windows build; driver version; whether the driver is signed and in the Windows Driver Store; whether Doxa hardware is detected; number of recognized Doxa panels; number of active Windows desktops when applicable; whether topology is verified; session kind (local/remote); and fixed diagnostic indicators (hardware readiness, application control not checked, package signature not verified). The remote service retrieves reviewed Doxa troubleshooting knowledge, sends the question and limited diagnostic facts to Cloudflare Workers AI, and returns a generated answer. The remote network service necessarily receives connection metadata (for example IP address and request timing).
+
+The client does not intentionally transmit complete USB identifiers, Windows account names, system logs, installed-app lists, arbitrary files or screenshots. Questions you type MAY nonetheless contain personal data; check what you send.
+
+YOUR CHOICE
+Enable optional cloud AI only if you wish to ask it questions. Keep the box unchecked for local-only help. During setup, use 'Switch to offline help' to stop future AI questions. Switching off does not retract questions already transmitted. The AI check box is never required for local hardware checks or software installation. Organizations can forbid cloud AI with the machine policy below.
+
+FOR ENTERPRISE IT
+Cloud AI must not be invoked by unattended deployment. IT may disable it with DWORD 1 at HKLM\SOFTWARE\Policies\Standivarius\DoxaSetup\DisableCloudAI. A machine policy takes priority over employee choice. Even where policy allows cloud AI, the user must opt in at first use in this development preview. No AI use is implied by deploying the application.
+
+RELEASE REQUIREMENTS NOT YET SATISFIED
+Before public/customer deployment, publish the exact contracting legal entity and controller/contact address, applicable GDPR lawful basis, processors/subprocessors and data-processing agreements, processing region and international transfer safeguards, purpose-specific retention and deletion timetable, data subject rights/contact and AI feedback/incident reporting mechanism. Confirm whether enterprise customers are controllers, processors or joint controllers under the actual data flows. Do not assume consent is the GDPR legal basis just because optional usage is gated by an opt-in choice. Present approved final notice and record its version with the user's explicit choice.
+
+Legal references: EU AI Act Article 50 https://ai-act-service-desk.ec.europa.eu/en/ai-act/article-50
+GDPR Article 13 https://eur-lex.europa.eu/eli/reg/2016/679/oj
+Windows Store generative AI policy applies only if we publish through Microsoft Store: https://learn.microsoft.com/en-us/windows/apps/publish/store-policies-and-code-of-conduct
+
+DOXA SETUP: AI LA DISTANTA — INFORMARE DE DEZVOLTARE v0.1
+Doxa functioneaza fara AI in cloud: verifica local Windows, USB, driverul si ecranele si ofera instructiuni offline. AI-ul este optional, dezactivat implicit. Este un asistent automat, nu un tehnician uman, si poate gresi; nu poate executa comenzi sau instala programe.
+
+Daca activezi AI, la fiecare intrebare trimitem prin HTTPS catre serviciul Cloudflare Doxa textul intrebarii, limba si informatii tehnice limitate: versiunea Windows, versiunea/semnatura driverului si prezenta sa in Windows, detectarea Doxa, numarul panourilor, numarul ecranelor Windows, tipul sesiunii si cativa indicatori de diagnostic. Serviciul utilizeaza Cloudflare Workers AI si materiale tehnice verificate. Serviciul de retea vede si metadate precum IP si momentul cererii. Nu trimitem intentionat fisiere, capturi de ecran, parole, nume de cont Windows sau identificatori USB completi. Nu introduce informatii personale sau confidentiale in intrebare.
+
+Poti continua numai cu instructiuni locale, fara AI. Daca ai activat AI, butonul 'Switch to offline help' impiedica noi cereri online; cererile deja trimise nu sunt retrase. IT poate bloca AI prin politica Windows. Acest text este doar pentru versiunea de dezvoltare: identitatea operatorului, baza legala GDPR, perioada de pastrare, transferurile si contactul pentru reclamatii trebuie publicate si validate inainte de distribuirea comerciala.

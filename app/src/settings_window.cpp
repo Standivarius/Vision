@@ -1,5 +1,8 @@
 #include "settings_window.h"
 
+#include "ui_dpi.h"
+#include "core/ui_strings.h"
+
 #include <windowsx.h>
 
 #include <algorithm>
@@ -31,6 +34,12 @@ constexpr int kIdApply = 1020;
 constexpr int kIdDefaults = 1021;
 constexpr int kIdClose = 1022;
 constexpr int kIdHelp = 1023;
+
+using visual::core::UiStringId;
+
+const wchar_t* text(UiStringId id) noexcept {
+    return visual::core::ui_string(id).data();
+}
 
 HWND make_control(HWND parent, const wchar_t* klass, const wchar_t* text, DWORD style, int id) {
     return CreateWindowExW(0, klass, text, WS_CHILD | WS_VISIBLE | style,
@@ -85,16 +94,18 @@ bool SettingsWindow::create(HINSTANCE instance,
     wc.hIcon = LoadIconW(nullptr, IDI_APPLICATION);
     if (!RegisterClassExW(&wc) && GetLastError() != ERROR_CLASS_ALREADY_EXISTS) return false;
 
+    current_dpi_ = dpi_support::for_rect(preferred_monitor_rect);
+    const auto px = [this](int value) { return dpi_support::scale(value, current_dpi_); };
     const int available_width = preferred_monitor_rect.right - preferred_monitor_rect.left;
     const int available_height = preferred_monitor_rect.bottom - preferred_monitor_rect.top;
-    const int width = std::min(kWindowWidth, std::max(520, available_width - 80));
-    const int height = std::min(kWindowHeight, std::max(620, available_height - 80));
-    const int x = preferred_monitor_rect.left + std::max(20, (available_width - width) / 2);
-    const int y = preferred_monitor_rect.top + std::max(20, (available_height - height) / 2);
+    const int width = std::min(px(kWindowWidth), std::max(px(520), available_width - px(80)));
+    const int height = std::min(px(kWindowHeight), std::max(px(620), available_height - px(80)));
+    const int x = preferred_monitor_rect.left + std::max(px(20), (available_width - width) / 2);
+    const int y = preferred_monitor_rect.top + std::max(px(20), (available_height - height) / 2);
 
     hwnd_ = CreateWindowExW(WS_EX_APPWINDOW | WS_EX_CONTROLPARENT,
                             kSettingsClass,
-                            L"Visual Settings",
+                            text(UiStringId::SettingsTitle),
                             WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_CLIPCHILDREN,
                             x, y, width, height, owner, nullptr, instance, this);
     return hwnd_ != nullptr;
@@ -146,6 +157,30 @@ LRESULT SettingsWindow::handle_message(UINT message, WPARAM w_param, LPARAM l_pa
     case WM_SIZE:
         layout_controls(LOWORD(l_param), HIWORD(l_param));
         return 0;
+    case WM_DPICHANGED: {
+        current_dpi_ = HIWORD(w_param) ? HIWORD(w_param) : dpi_support::kDefaultDpi;
+        const auto* suggested = reinterpret_cast<const RECT*>(l_param);
+        if (suggested) {
+            SetWindowPos(hwnd_, nullptr, suggested->left, suggested->top,
+                         suggested->right - suggested->left, suggested->bottom - suggested->top,
+                         SWP_NOZORDER | SWP_NOACTIVATE);
+        }
+        refresh_fonts(current_dpi_);
+        RECT client{};
+        if (GetClientRect(hwnd_, &client)) {
+            layout_controls(client.right - client.left, client.bottom - client.top);
+        }
+        return 0;
+    }
+    case WM_SETTINGCHANGE: {
+        current_dpi_ = GetDpiForWindow(hwnd_);
+        refresh_fonts(current_dpi_);
+        RECT client{};
+        if (GetClientRect(hwnd_, &client)) {
+            layout_controls(client.right - client.left, client.bottom - client.top);
+        }
+        return 0;
+    }
     case WM_COMMAND:
         switch (LOWORD(w_param)) {
         case kIdApply:
@@ -180,134 +215,128 @@ LRESULT SettingsWindow::handle_message(UINT message, WPARAM w_param, LPARAM l_pa
 }
 
 void SettingsWindow::create_controls() {
-    font_ = CreateFontW(-19, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET,
-                        OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY,
-                        DEFAULT_PITCH | FF_DONTCARE, L"Segoe UI");
-
-    make_control(hwnd_, L"STATIC", L"Zoom Level", SS_LEFT, -1);
+    zoom_label_ = make_control(hwnd_, L"STATIC", text(UiStringId::SettingsZoomLevel), SS_LEFT, -1);
     zoom_combo_ = make_control(hwnd_, L"COMBOBOX", L"", CBS_DROPDOWNLIST | WS_TABSTOP | WS_VSCROLL, kIdZoom);
-    SendMessageW(zoom_combo_, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(L"1x - normal view"));
-    SendMessageW(zoom_combo_, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(L"1.5x"));
-    SendMessageW(zoom_combo_, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(L"2x"));
-    SendMessageW(zoom_combo_, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(L"3x"));
-    SendMessageW(zoom_combo_, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(L"4x"));
+    SendMessageW(zoom_combo_, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(text(UiStringId::SettingsZoom1x)));
+    SendMessageW(zoom_combo_, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(text(UiStringId::SettingsZoom1_5x)));
+    SendMessageW(zoom_combo_, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(text(UiStringId::SettingsZoom2x)));
+    SendMessageW(zoom_combo_, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(text(UiStringId::SettingsZoom3x)));
+    SendMessageW(zoom_combo_, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(text(UiStringId::SettingsZoom4x)));
 
-    make_control(hwnd_, L"BUTTON", L"Tracking", BS_GROUPBOX, -1);
-    tracking_enabled_ = make_control(hwnd_, L"BUTTON", L"&Enable tracking", BS_AUTOCHECKBOX | WS_TABSTOP, kIdTrackingEnabled);
-    follow_pointer_ = make_control(hwnd_, L"BUTTON", L"Follow &Pointer", BS_AUTOCHECKBOX | WS_TABSTOP, kIdFollowPointer);
-    follow_caret_ = make_control(hwnd_, L"BUTTON", L"Follow &Text Cursor", BS_AUTOCHECKBOX | WS_TABSTOP, kIdFollowCaret);
-    follow_focus_ = make_control(hwnd_, L"BUTTON", L"Follow Keyboard &Focus", BS_AUTOCHECKBOX | WS_TABSTOP, kIdFollowFocus);
-    tracking_note_ = make_control(hwnd_, L"STATIC", L"Pointer follows deliberate mouse movement. Text Cursor follows typing. Keyboard Focus follows controls.", SS_LEFT, -1);
+    tracking_group_ = make_control(hwnd_, L"BUTTON", text(UiStringId::SettingsTrackingGroup), BS_GROUPBOX, -1);
+    tracking_enabled_ = make_control(hwnd_, L"BUTTON", text(UiStringId::SettingsEnableTracking), BS_AUTOCHECKBOX | WS_TABSTOP, kIdTrackingEnabled);
+    follow_pointer_ = make_control(hwnd_, L"BUTTON", text(UiStringId::SettingsFollowPointer), BS_AUTOCHECKBOX | WS_TABSTOP, kIdFollowPointer);
+    follow_caret_ = make_control(hwnd_, L"BUTTON", text(UiStringId::SettingsFollowTextCursor), BS_AUTOCHECKBOX | WS_TABSTOP, kIdFollowCaret);
+    follow_focus_ = make_control(hwnd_, L"BUTTON", text(UiStringId::SettingsFollowKeyboardFocus), BS_AUTOCHECKBOX | WS_TABSTOP, kIdFollowFocus);
+    tracking_note_ = make_control(hwnd_, L"STATIC", text(UiStringId::SettingsTrackingNote), SS_LEFT, -1);
 
-    make_control(hwnd_, L"BUTTON", L"Highlights", BS_GROUPBOX, -1);
-    marker_pointer_ = make_control(hwnd_, L"BUTTON", L"Pointer Locator", BS_AUTOCHECKBOX | WS_TABSTOP, kIdMarkerPointer);
-    marker_caret_ = make_control(hwnd_, L"BUTTON", L"Text Cursor Highlight", BS_AUTOCHECKBOX | WS_TABSTOP, kIdMarkerCaret);
-    marker_focus_ = make_control(hwnd_, L"BUTTON", L"Focus Highlight", BS_AUTOCHECKBOX | WS_TABSTOP, kIdMarkerFocus);
+    highlights_group_ = make_control(hwnd_, L"BUTTON", text(UiStringId::SettingsHighlightsGroup), BS_GROUPBOX, -1);
+    marker_pointer_ = make_control(hwnd_, L"BUTTON", text(UiStringId::SettingsPointerLocator), BS_AUTOCHECKBOX | WS_TABSTOP, kIdMarkerPointer);
+    marker_caret_ = make_control(hwnd_, L"BUTTON", text(UiStringId::SettingsTextCursorHighlight), BS_AUTOCHECKBOX | WS_TABSTOP, kIdMarkerCaret);
+    marker_focus_ = make_control(hwnd_, L"BUTTON", text(UiStringId::SettingsFocusHighlight), BS_AUTOCHECKBOX | WS_TABSTOP, kIdMarkerFocus);
 
-    make_control(hwnd_, L"BUTTON", L"Context - 1x overview", BS_GROUPBOX, -1);
-    context_indicator_ = make_control(hwnd_, L"BUTTON", L"Show &View Locator", BS_AUTOCHECKBOX | WS_TABSTOP, kIdContextIndicator);
-    context_shade_ = make_control(hwnd_, L"BUTTON", L"Lightly shade the View Locator area", BS_AUTOCHECKBOX | WS_TABSTOP, kIdContextShade);
-    locator_note_ = make_control(hwnd_, L"STATIC", L"The View Locator shows which area of Context is currently enlarged on Detail.", SS_LEFT, -1);
+    context_group_ = make_control(hwnd_, L"BUTTON", text(UiStringId::SettingsContextGroup), BS_GROUPBOX, -1);
+    context_indicator_ = make_control(hwnd_, L"BUTTON", text(UiStringId::SettingsShowViewLocator), BS_AUTOCHECKBOX | WS_TABSTOP, kIdContextIndicator);
+    context_shade_ = make_control(hwnd_, L"BUTTON", text(UiStringId::SettingsShadeViewLocator), BS_AUTOCHECKBOX | WS_TABSTOP, kIdContextShade);
+    locator_note_ = make_control(hwnd_, L"STATIC", text(UiStringId::SettingsLocatorNote), SS_LEFT, -1);
 
-    make_control(hwnd_, L"STATIC", L"Colour & Contrast", SS_LEFT, -1);
+    appearance_label_ = make_control(hwnd_, L"STATIC", text(UiStringId::SettingsColourContrast), SS_LEFT, -1);
     appearance_combo_ = make_control(hwnd_, L"COMBOBOX", L"", CBS_DROPDOWNLIST | WS_TABSTOP | WS_VSCROLL, kIdAppearance);
-    SendMessageW(appearance_combo_, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(L"Normal"));
-    SendMessageW(appearance_combo_, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(L"Increase Contrast"));
-    SendMessageW(appearance_combo_, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(L"Inverted colours"));
-    SendMessageW(appearance_combo_, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(L"Grayscale"));
+    SendMessageW(appearance_combo_, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(text(UiStringId::SettingsAppearanceNormal)));
+    SendMessageW(appearance_combo_, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(text(UiStringId::SettingsAppearanceContrast)));
+    SendMessageW(appearance_combo_, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(text(UiStringId::SettingsAppearanceInverted)));
+    SendMessageW(appearance_combo_, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(text(UiStringId::SettingsAppearanceGrayscale)));
 
-    make_control(hwnd_, L"BUTTON", L"Screen roles", BS_GROUPBOX, -1);
-    make_control(hwnd_, L"STATIC", L"Context - 1x overview", SS_LEFT, -1);
+    screen_roles_group_ = make_control(hwnd_, L"BUTTON", text(UiStringId::SettingsScreenRolesGroup), BS_GROUPBOX, -1);
+    context_label_ = make_control(hwnd_, L"STATIC", text(UiStringId::SettingsContextLabel), SS_LEFT, -1);
     context_monitor_combo_ = make_control(hwnd_, L"COMBOBOX", L"", CBS_DROPDOWNLIST | WS_TABSTOP | WS_VSCROLL, kIdContextMonitor);
-    make_control(hwnd_, L"STATIC", L"Detail - magnified view", SS_LEFT, -1);
+    detail_label_ = make_control(hwnd_, L"STATIC", text(UiStringId::SettingsDetailLabel), SS_LEFT, -1);
     detail_monitor_combo_ = make_control(hwnd_, L"COMBOBOX", L"", CBS_DROPDOWNLIST | WS_TABSTOP | WS_VSCROLL, kIdDetailMonitor);
-    make_control(hwnd_, L"STATIC", L"Reference - optional", SS_LEFT, -1);
+    reference_label_ = make_control(hwnd_, L"STATIC", text(UiStringId::SettingsReferenceLabel), SS_LEFT, -1);
     reference_monitor_combo_ = make_control(hwnd_, L"COMBOBOX", L"", CBS_DROPDOWNLIST | WS_TABSTOP | WS_VSCROLL, kIdReferenceMonitor);
-    display_note_ = make_control(hwnd_, L"STATIC", L"Screen-role changes are saved and take effect the next time Visual starts. The Reference screen is left unchanged for normal Windows use.", SS_LEFT, -1);
+    display_note_ = make_control(hwnd_, L"STATIC", text(UiStringId::SettingsDisplayNote), SS_LEFT, -1);
 
-    make_control(hwnd_, L"BUTTON", L"&Apply", BS_DEFPUSHBUTTON | WS_TABSTOP, kIdApply);
-    make_control(hwnd_, L"BUTTON", L"Restore &defaults", BS_PUSHBUTTON | WS_TABSTOP, kIdDefaults);
-    make_control(hwnd_, L"BUTTON", L"&Help / Ask Visual", BS_PUSHBUTTON | WS_TABSTOP, kIdHelp);
-    make_control(hwnd_, L"BUTTON", L"&Close", BS_PUSHBUTTON | WS_TABSTOP, kIdClose);
+    apply_button_ = make_control(hwnd_, L"BUTTON", text(UiStringId::SettingsApply), BS_DEFPUSHBUTTON | WS_TABSTOP, kIdApply);
+    defaults_button_ = make_control(hwnd_, L"BUTTON", text(UiStringId::SettingsDefaults), BS_PUSHBUTTON | WS_TABSTOP, kIdDefaults);
+    help_button_ = make_control(hwnd_, L"BUTTON", text(UiStringId::SettingsHelp), BS_PUSHBUTTON | WS_TABSTOP, kIdHelp);
+    close_button_ = make_control(hwnd_, L"BUTTON", text(UiStringId::SettingsClose), BS_PUSHBUTTON | WS_TABSTOP, kIdClose);
 
-    set_font_recursive(hwnd_);
+    refresh_fonts(current_dpi_);
     sync_controls();
+}
+
+void SettingsWindow::refresh_fonts(UINT dpi) {
+    HFONT next = dpi_support::create_message_font(dpi);
+    if (!next) return;
+    HFONT old = font_;
+    font_ = next;
+    set_font_recursive(hwnd_);
+    if (old) DeleteObject(old);
 }
 
 void SettingsWindow::layout_controls(int client_width, int client_height) {
     if (!zoom_combo_) return;
-    const int margin = 24;
-    const int content_width = std::max(440, client_width - margin * 2);
-    const int label_width = 135;
+    const auto px = [this](int value) { return dpi_support::scale(value, current_dpi_); };
+    const int margin = px(24);
+    const int content_width = std::max(px(440), client_width - margin * 2);
+    const int label_width = px(135);
     const int combo_x = margin + label_width;
     const int combo_width = content_width - label_width;
-    int y = 22;
+    int y = px(22);
 
-    auto next_static = [&](const wchar_t* text) -> HWND {
-        HWND child = FindWindowExW(hwnd_, nullptr, L"STATIC", text);
-        return child;
-    };
-    auto next_group = [&](const wchar_t* text) -> HWND {
-        HWND child = FindWindowExW(hwnd_, nullptr, L"BUTTON", text);
-        return child;
-    };
+    SetWindowPos(zoom_label_, nullptr, margin, y + px(4), label_width - px(12), px(30), SWP_NOZORDER);
+    SetWindowPos(zoom_combo_, nullptr, combo_x, y, combo_width, px(220), SWP_NOZORDER);
+    y += px(54);
 
-    SetWindowPos(next_static(L"Zoom Level"), nullptr, margin, y + 4, label_width - 12, 30, SWP_NOZORDER);
-    SetWindowPos(zoom_combo_, nullptr, combo_x, y, combo_width, 220, SWP_NOZORDER);
-    y += 54;
+    SetWindowPos(tracking_group_, nullptr, margin, y, content_width, px(132), SWP_NOZORDER);
+    SetWindowPos(tracking_enabled_, nullptr, margin + px(18), y + px(28), content_width - px(36), px(26), SWP_NOZORDER);
+    SetWindowPos(follow_pointer_, nullptr, margin + px(38), y + px(58), px(170), px(26), SWP_NOZORDER);
+    SetWindowPos(follow_caret_, nullptr, margin + px(220), y + px(58), px(185), px(26), SWP_NOZORDER);
+    SetWindowPos(follow_focus_, nullptr, margin + px(410), y + px(58), std::max(px(170), content_width - px(430)), px(26), SWP_NOZORDER);
+    SetWindowPos(tracking_note_, nullptr, margin + px(38), y + px(88), content_width - px(56), px(34), SWP_NOZORDER);
+    y += px(144);
 
-    SetWindowPos(next_group(L"Tracking"), nullptr, margin, y, content_width, 132, SWP_NOZORDER);
-    SetWindowPos(tracking_enabled_, nullptr, margin + 18, y + 28, content_width - 36, 26, SWP_NOZORDER);
-    SetWindowPos(follow_pointer_, nullptr, margin + 38, y + 58, 170, 26, SWP_NOZORDER);
-    SetWindowPos(follow_caret_, nullptr, margin + 220, y + 58, 185, 26, SWP_NOZORDER);
-    SetWindowPos(follow_focus_, nullptr, margin + 410, y + 58, std::max(170, content_width - 430), 26, SWP_NOZORDER);
-    SetWindowPos(tracking_note_, nullptr, margin + 38, y + 88, content_width - 56, 34, SWP_NOZORDER);
-    y += 144;
+    SetWindowPos(highlights_group_, nullptr, margin, y, content_width, px(86), SWP_NOZORDER);
+    SetWindowPos(marker_pointer_, nullptr, margin + px(18), y + px(32), px(185), px(26), SWP_NOZORDER);
+    SetWindowPos(marker_caret_, nullptr, margin + px(215), y + px(32), px(175), px(26), SWP_NOZORDER);
+    SetWindowPos(marker_focus_, nullptr, margin + px(400), y + px(32), std::max(px(175), content_width - px(420)), px(26), SWP_NOZORDER);
+    y += px(98);
 
-    SetWindowPos(next_group(L"Highlights"), nullptr, margin, y, content_width, 86, SWP_NOZORDER);
-    SetWindowPos(marker_pointer_, nullptr, margin + 18, y + 32, 185, 26, SWP_NOZORDER);
-    SetWindowPos(marker_caret_, nullptr, margin + 215, y + 32, 175, 26, SWP_NOZORDER);
-    SetWindowPos(marker_focus_, nullptr, margin + 400, y + 32, std::max(175, content_width - 420), 26, SWP_NOZORDER);
-    y += 98;
+    SetWindowPos(context_group_, nullptr, margin, y, content_width, px(118), SWP_NOZORDER);
+    SetWindowPos(context_indicator_, nullptr, margin + px(18), y + px(28), content_width - px(36), px(26), SWP_NOZORDER);
+    SetWindowPos(context_shade_, nullptr, margin + px(38), y + px(56), content_width - px(56), px(26), SWP_NOZORDER);
+    SetWindowPos(locator_note_, nullptr, margin + px(38), y + px(84), content_width - px(56), px(28), SWP_NOZORDER);
+    y += px(130);
 
-    SetWindowPos(next_group(L"Context - 1x overview"), nullptr, margin, y, content_width, 118, SWP_NOZORDER);
-    SetWindowPos(context_indicator_, nullptr, margin + 18, y + 28, content_width - 36, 26, SWP_NOZORDER);
-    SetWindowPos(context_shade_, nullptr, margin + 38, y + 56, content_width - 56, 26, SWP_NOZORDER);
-    SetWindowPos(locator_note_, nullptr, margin + 38, y + 84, content_width - 56, 28, SWP_NOZORDER);
-    y += 130;
+    SetWindowPos(appearance_label_, nullptr, margin, y + px(4), label_width - px(12), px(30), SWP_NOZORDER);
+    SetWindowPos(appearance_combo_, nullptr, combo_x, y, combo_width, px(220), SWP_NOZORDER);
+    y += px(54);
 
-    SetWindowPos(next_static(L"Colour & Contrast"), nullptr, margin, y + 4, label_width - 12, 30, SWP_NOZORDER);
-    SetWindowPos(appearance_combo_, nullptr, combo_x, y, combo_width, 220, SWP_NOZORDER);
-    y += 54;
-
-    const int screen_group_height = std::max(190, client_height - y - 96);
-    SetWindowPos(next_group(L"Screen roles"), nullptr, margin, y, content_width, screen_group_height, SWP_NOZORDER);
-    const int row_x = margin + 18;
-    const int row_label = 210;
+    const int screen_group_height = std::max(px(190), client_height - y - px(96));
+    SetWindowPos(screen_roles_group_, nullptr, margin, y, content_width, screen_group_height, SWP_NOZORDER);
+    const int row_x = margin + px(18);
+    const int row_label = px(210);
     const int screen_combo_x = row_x + row_label;
-    const int screen_combo_width = content_width - 36 - row_label;
-    HWND context_label = FindWindowExW(hwnd_, nullptr, L"STATIC", L"Context - 1x overview");
-    HWND detail_label = FindWindowExW(hwnd_, nullptr, L"STATIC", L"Detail - magnified view");
-    HWND reference_label = FindWindowExW(hwnd_, nullptr, L"STATIC", L"Reference - optional");
-    SetWindowPos(context_label, nullptr, row_x, y + 32, row_label - 8, 26, SWP_NOZORDER);
-    SetWindowPos(context_monitor_combo_, nullptr, screen_combo_x, y + 28, screen_combo_width, 220, SWP_NOZORDER);
-    SetWindowPos(detail_label, nullptr, row_x, y + 70, row_label - 8, 26, SWP_NOZORDER);
-    SetWindowPos(detail_monitor_combo_, nullptr, screen_combo_x, y + 66, screen_combo_width, 220, SWP_NOZORDER);
-    SetWindowPos(reference_label, nullptr, row_x, y + 108, row_label - 8, 26, SWP_NOZORDER);
-    SetWindowPos(reference_monitor_combo_, nullptr, screen_combo_x, y + 104, screen_combo_width, 220, SWP_NOZORDER);
-    SetWindowPos(display_note_, nullptr, row_x, y + 142, content_width - 36, std::max(42, screen_group_height - 150), SWP_NOZORDER);
+    const int screen_combo_width = content_width - px(36) - row_label;
+    SetWindowPos(context_label_, nullptr, row_x, y + px(32), row_label - px(8), px(26), SWP_NOZORDER);
+    SetWindowPos(context_monitor_combo_, nullptr, screen_combo_x, y + px(28), screen_combo_width, px(220), SWP_NOZORDER);
+    SetWindowPos(detail_label_, nullptr, row_x, y + px(70), row_label - px(8), px(26), SWP_NOZORDER);
+    SetWindowPos(detail_monitor_combo_, nullptr, screen_combo_x, y + px(66), screen_combo_width, px(220), SWP_NOZORDER);
+    SetWindowPos(reference_label_, nullptr, row_x, y + px(108), row_label - px(8), px(26), SWP_NOZORDER);
+    SetWindowPos(reference_monitor_combo_, nullptr, screen_combo_x, y + px(104), screen_combo_width, px(220), SWP_NOZORDER);
+    SetWindowPos(display_note_, nullptr, row_x, y + px(142), content_width - px(36), std::max(px(42), screen_group_height - px(150)), SWP_NOZORDER);
 
-    const int button_y = client_height - 54;
-    const int button_gap = 12;
-    const int button_width = std::min(145, (content_width - button_gap * 3) / 4);
+    const int button_y = client_height - px(54);
+    const int button_gap = px(12);
+    const int button_width = std::min(px(145), (content_width - button_gap * 3) / 4);
     int button_x = margin;
-    SetWindowPos(GetDlgItem(hwnd_, kIdDefaults), nullptr, button_x, button_y, button_width, 36, SWP_NOZORDER);
+    SetWindowPos(defaults_button_, nullptr, button_x, button_y, button_width, px(36), SWP_NOZORDER);
     button_x += button_width + button_gap;
-    SetWindowPos(GetDlgItem(hwnd_, kIdHelp), nullptr, button_x, button_y, button_width, 36, SWP_NOZORDER);
+    SetWindowPos(help_button_, nullptr, button_x, button_y, button_width, px(36), SWP_NOZORDER);
     button_x += button_width + button_gap;
-    SetWindowPos(GetDlgItem(hwnd_, kIdClose), nullptr, button_x, button_y, button_width, 36, SWP_NOZORDER);
+    SetWindowPos(close_button_, nullptr, button_x, button_y, button_width, px(36), SWP_NOZORDER);
     button_x += button_width + button_gap;
-    SetWindowPos(GetDlgItem(hwnd_, kIdApply), nullptr, button_x, button_y, button_width, 36, SWP_NOZORDER);
+    SetWindowPos(apply_button_, nullptr, button_x, button_y, button_width, px(36), SWP_NOZORDER);
 }
 
 void SettingsWindow::sync_controls() {
@@ -336,9 +365,9 @@ void SettingsWindow::sync_controls() {
     EnableWindow(detail_monitor_combo_, multi_monitor_roles);
     EnableWindow(reference_monitor_combo_, multi_monitor_roles);
     if (!multi_monitor_roles) {
-        SetWindowTextW(display_note_, L"Screen roles require at least two active screens. Visual is currently using its single-screen fallback.");
+        SetWindowTextW(display_note_, text(UiStringId::SettingsDisplayNoteSingle));
     } else {
-        SetWindowTextW(display_note_, L"Screen-role changes are saved and take effect the next time Visual starts. The Reference screen is left unchanged for normal Windows use.");
+        SetWindowTextW(display_note_, text(UiStringId::SettingsDisplayNote));
     }
 }
 
@@ -347,7 +376,7 @@ void SettingsWindow::populate_monitor_combo(HWND combo, bool allow_none, const s
     int selected_index = -1;
     int index = 0;
     if (allow_none) {
-        SendMessageW(combo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(L"None / leave unassigned"));
+        SendMessageW(combo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(text(UiStringId::SettingsReferenceNone)));
         if (selected.empty()) selected_index = 0;
         ++index;
     }
@@ -395,7 +424,7 @@ bool SettingsWindow::collect_settings(visual::core::VisualSettings& output) {
     output.reference_monitor_device = monitor_from_combo(reference_monitor_combo_, true);
 
     if (!visual::core::monitor_roles_valid(output)) {
-        MessageBoxW(hwnd_, L"Context, Detail and Reference must use different screens.", L"Visual Settings", MB_OK | MB_ICONWARNING);
+        MessageBoxW(hwnd_, L"Context, Detail and Reference must use different screens.", text(UiStringId::SettingsTitle), MB_OK | MB_ICONWARNING);
         return false;
     }
     return true;

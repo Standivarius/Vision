@@ -130,6 +130,56 @@ target_link_libraries(visual_view_return_tests PRIVATE visual_core)
 target_compile_options(visual_view_return_tests PRIVATE /W4 /permissive- /EHsc)
 add_test(NAME view_return_tests COMMAND visual_view_return_tests)
 
+add_executable(visual_replay_oracle_tests tests/replay_oracle_tests.cpp)
+target_link_libraries(visual_replay_oracle_tests PRIVATE visual_core)
+target_compile_options(visual_replay_oracle_tests PRIVATE /W4 /permissive- /EHsc)
+add_test(NAME replay_oracle_tests COMMAND visual_replay_oracle_tests)
+
+add_executable(visual_view_state_tests tests/view_state_tests.cpp)
+target_link_libraries(visual_view_state_tests PRIVATE visual_core)
+target_compile_options(visual_view_state_tests PRIVATE /W4 /permissive- /EHsc)
+add_test(NAME view_state_tests COMMAND visual_view_state_tests)
+
+add_executable(visual_evidence_hub_tests tests/evidence_hub_tests.cpp)
+target_link_libraries(visual_evidence_hub_tests PRIVATE visual_core)
+target_compile_options(visual_evidence_hub_tests PRIVATE /W4 /permissive- /EHsc)
+add_test(NAME evidence_hub_tests COMMAND visual_evidence_hub_tests)
+
+add_executable(visual_evidence_snapshot_tests tests/evidence_snapshot_tests.cpp)
+target_link_libraries(visual_evidence_snapshot_tests PRIVATE visual_core ole32 oleaut32 uiautomationcore)
+target_compile_options(visual_evidence_snapshot_tests PRIVATE /W4 /permissive- /EHsc)
+add_test(NAME evidence_snapshot_tests COMMAND visual_evidence_snapshot_tests)
+
+add_executable(visual_topology_reconciler_tests tests/topology_reconciler_tests.cpp)
+target_link_libraries(visual_topology_reconciler_tests PRIVATE visual_core)
+target_compile_options(visual_topology_reconciler_tests PRIVATE /W4 /permissive- /EHsc)
+add_test(NAME topology_reconciler_tests COMMAND visual_topology_reconciler_tests)
+
+add_executable(visual_monitor_registry_tests tests/monitor_registry_tests.cpp)
+target_link_libraries(visual_monitor_registry_tests PRIVATE visual_core)
+target_compile_options(visual_monitor_registry_tests PRIVATE /W4 /permissive- /EHsc)
+add_test(NAME monitor_registry_tests COMMAND visual_monitor_registry_tests)
+
+add_executable(visual_workspace_runtime_graph_tests tests/workspace_runtime_graph_tests.cpp)
+target_link_libraries(visual_workspace_runtime_graph_tests PRIVATE visual_core)
+target_compile_options(visual_workspace_runtime_graph_tests PRIVATE /W4 /permissive- /EHsc)
+add_test(NAME workspace_runtime_graph_tests COMMAND visual_workspace_runtime_graph_tests)
+
+add_executable(visual_workspace_coordinator_tests tests/workspace_coordinator_tests.cpp)
+target_link_libraries(visual_workspace_coordinator_tests PRIVATE visual_core)
+target_compile_options(visual_workspace_coordinator_tests PRIVATE /W4 /permissive- /EHsc)
+add_test(NAME workspace_coordinator_tests COMMAND visual_workspace_coordinator_tests)
+
+add_executable(visual_view_update_step_tests tests/view_update_step_tests.cpp)
+target_link_libraries(visual_view_update_step_tests PRIVATE visual_core)
+target_compile_options(visual_view_update_step_tests PRIVATE /W4 /permissive- /EHsc)
+add_test(NAME view_update_step_tests COMMAND visual_view_update_step_tests)
+
+add_executable(visual_geometry_contract_tests tests/geometry_contract_tests.cpp)
+target_link_libraries(visual_geometry_contract_tests PRIVATE visual_core)
+target_compile_options(visual_geometry_contract_tests PRIVATE /W4 /permissive- /EHsc)
+add_test(NAME geometry_contract_tests COMMAND visual_geometry_contract_tests)
+
 add_executable(visual_settings_model_tests tests/settings_model_tests.cpp)
 target_link_libraries(visual_settings_model_tests PRIVATE visual_core)
 target_compile_options(visual_settings_model_tests PRIVATE /W4 /permissive- /EHsc)
@@ -145,6 +195,16 @@ add_executable(visual_help_catalog_tests tests/help_catalog_tests.cpp)
 target_link_libraries(visual_help_catalog_tests PRIVATE visual_core)
 target_compile_options(visual_help_catalog_tests PRIVATE /W4 /permissive- /EHsc)
 add_test(NAME help_catalog_tests COMMAND visual_help_catalog_tests)
+
+add_executable(visual_ui_strings_tests tests/ui_strings_tests.cpp)
+target_link_libraries(visual_ui_strings_tests PRIVATE visual_core)
+target_compile_options(visual_ui_strings_tests PRIVATE /W4 /permissive- /EHsc)
+add_test(NAME ui_strings_tests COMMAND visual_ui_strings_tests)
+
+add_executable(visual_command_bindings_tests tests/command_bindings_tests.cpp)
+target_link_libraries(visual_command_bindings_tests PRIVATE visual_core)
+target_compile_options(visual_command_bindings_tests PRIVATE /W4 /permissive- /EHsc)
+add_test(NAME command_bindings_tests COMMAND visual_command_bindings_tests)
 
 add_executable(visual_assistant_client_tests tests/assistant_client_tests.cpp src/assistant_client.cpp)
 target_link_libraries(visual_assistant_client_tests PRIVATE visual_core winhttp)

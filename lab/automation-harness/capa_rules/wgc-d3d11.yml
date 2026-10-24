@@ -1,0 +1,13 @@
+rule:
+  meta:
+    name: use Windows Graphics Capture with D3D11
+    namespace: vision-reconstruction/graphics
+    authors:
+      - OpenAI Vision calibration
+    scopes:
+      static: file
+      dynamic: unsupported
+  features:
+    - and:
+      - substring: "Windows.Graphics.Capture"
+      - import: d3d11.D3D11CreateDevice

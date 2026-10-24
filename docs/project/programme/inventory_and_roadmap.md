@@ -1,45 +1,67 @@
-# Visual / Doxa programme inventory and roadmap
+﻿# Vision / Doxa programme inventory and roadmap
 
 **Snapshot:** 2026-09-29
-**Repository:** `C:\dev\Visual`
-**Current public application line:** Visual `0.1.0-alpha.11`
+**Repository:** `C:\dev\Vision`
+**Current public application line:** Vision `0.1.0-alpha.11`
 **Repository HEAD at inventory start:** `f8e53d4` (`visual: switch Ask Visual to NVIDIA Nemotron`)
 
 ## 1. Programme definition
 
-Visual is one product/software line. “Vision” is not a separate product name; prior uses of that word were conversational confusion.
+Vision is the canonical product/software name. The former name `Visual` remains only where required by the published alpha compatibility boundary or in historical evidence.
 
 The programme has two closely related but separable concerns:
 
 1. **Installation / lifecycle / Doxa hardware enablement** - installation, update, first-run setup, health checks, hardware/driver/firmware state and supportability.
-2. **Visual low-vision software** - capture, magnification, tracking, viewport behaviour, monitor roles, visual enhancements, workspace behaviour and contextual assistance.
+2. **Vision low-vision software** - capture, magnification, tracking, viewport behaviour, monitor roles, visual enhancements, workspace behaviour and contextual assistance.
 
-The separation is intentional. Velopack/lifecycle code should remain responsible for packaging and updates; Doxa setup should own deterministic hardware checks/remediation; the Visual renderer should not become a driver installer or hardware-management framework.
+The separation is intentional. Velopack/lifecycle code should remain responsible for packaging and updates; Doxa setup should own deterministic hardware checks/remediation; the Vision renderer should not become a driver installer or hardware-management framework.
 
+## 1A. Current programme reset - authoritative from 2026-09-29
+
+The owner has simplified the programme. This section supersedes the older SM768-first/four-screen-Doxa execution sequence later in this document wherever there is a conflict.
+
+The current programme has only two active concerns and one parked concern:
+
+1. **Doxa Installer** - an independent hardware/setup workstream. Hardware-specific work waits for the real SM770 Doxa unit. Do not make SM768 a prerequisite for Vision or couple driver/firmware logic into Vision.
+2. **Vision** - one hardware-agnostic low-vision Windows application for ordinary 2, 3 and 4 monitor systems. Doxa is later a qualified hardware configuration, not a separate application or architecture.
+3. **Broader Doxa software opportunities** - parked until the Vision opportunity is clearer.
+
+The current Vision sequence is:
+
+`technical + commercial incumbent research -> feature/value scope -> proposed 2-4 monitor architecture/development plan -> independent Opus review -> implementation`
+
+Pricing strategy is intentionally later. Dealer/assessor evidence should inform pricing/channel decisions after the product scope is credible.
+
+Current pre-Opus artifacts:
+
+- `artifacts/2026-09-29__gpt-5.6-sol__vision_feature_and_commercial_research_v0.1.md`
+- `artifacts/2026-09-29__gpt-5.6-sol__vision_pre_opus_development_plan_v0.1.md`
+- `artifacts/2026-09-29__gpt-5.6-sol__vision_opus_review_prompt_v0.1.md`
+- `artifacts/2026-09-29__gpt-5.6-sol__vision_pre_opus_review_package_v0.1.md`
 ## 2. Current inventory
 
 | Area | State | What exists now | Main evidence / remaining gap |
 |---|---|---|---|
-| Application/installer separation | **Implemented** | Velopack entry/lifecycle is separate from the Visual product main path; first-run setup and graphics health are distinct concerns. | `app/src/velopack_entry.cpp`, `app/packaging/README.md`, `docs/project/hardware/installation_and_support_architecture.md`. Real Doxa hardware adapter remains separate work. |
+| Application/installer separation | **Implemented** | Velopack entry/lifecycle is separate from the Vision product main path; first-run setup and graphics health are distinct concerns. | `app/src/velopack_entry.cpp`, `app/packaging/README.md`, `docs/project/hardware/installation_and_support_architecture.md`. Real Doxa hardware adapter remains separate work. |
 | Public packaging and updates | **Implemented** | Branded public Velopack alpha, Setup/full/delta/feed, release workflow, provenance/SBOM, update-check/apply, enterprise MSI path. | Public alpha.11 line; `app/packaging/`. Automatic user-facing update UX is still limited; code signing is absent. |
 | Doxa setup / health planner | **Partial** | Deterministic surrogate setup, first-launch graphics health, topology/state checking, bounded actions and diagnostics exist. | `app/packaging/doxa-setup/`, graphics health path, hardware architecture docs. Hardware-specific controller/driver/firmware adapter is not implemented. |
 | Core capture/render | **Implemented** | WGC capture, cached source texture, D3D11 crop/scale/present, steady interaction/render cadence, safe shutdown on topology invalidation. | `app/src/`, app README, physical dual-monitor evidence. Must be re-qualified on SM768 and later SM770. |
-| Pointer / caret / keyboard-focus tracking | **Partial / strong** | Independent pointer, text-caret and keyboard-focus evidence; arbitration; UIA + Win32 fallbacks; highlight controls. | Current app and tests. Reliable Chromium/Edge editing-caret behaviour remains an explicit open compatibility area. |
+| Pointer / caret / keyboard-focus tracking | **Partial / strong** | Independent pointer, text-caret and keyboard-focus evidence; arbitration; UIA + Win32 fallbacks; highlight controls. | Current app and tests. Deterministic Edge 153 textarea editing-caret tracking is repeatedly validated; richer/custom browser editors remain outside the current compatibility claim. |
 | Viewport behaviour | **Implemented, tuning open** | Hold/comfort region, minimum pan, jump classification, bounds, negative coordinates, stale-evidence handling, exact return. | Core tests and app README. Human low-vision tuning of margins/jump behaviour still required. |
 | Two-screen Context + Detail product | **Implemented alpha** | Context at 1x, magnified Detail, View Locator/shading, 1x/return, zoom 1/1.5/2/3/4x, settings, persistence, tracking controls, colour/contrast modes, single-instance behaviour. | `app/README.md`; public alpha.11. Usability/compatibility qualification is incomplete. |
 | Screen roles | **Implemented for current model** | Persisted Context, Detail and optional Reference role assignment by display device name; changes restart-bound. | `app/README.md`. Doxa-specific identity/presets require real hardware. |
 | Reference | **Partial** | Optional Reference display role exists as an ordinary Windows display. | It is deliberately **not** ZoomText Freeze View or SuperNova Hooked Areas; no fixed/frozen captured reference capability yet. |
-| Visual enhancements | **Implemented alpha** | Normal, Increase Contrast, Inverted Colours, Grayscale; pointer/caret/focus highlights; View Locator. | Current settings/app implementation. More extensive enhancement choices remain a product/research question. |
-| Contextual help / Ask Visual | **Implemented alpha** | Local deterministic help + provider-neutral Doxa cloud fallback; current primary backend NVIDIA Nemotron; curated product/implementation grounding; minimal state allowlist; one-shot Q&A. | `app/README.md`, `support/doxa-cloud/`. Shared embedded alpha client credential is not final per-device auth. |
+| Vision enhancements | **Implemented alpha** | Normal, Increase Contrast, Inverted Colours, Grayscale; pointer/caret/focus highlights; View Locator. | Current settings/app implementation. More extensive enhancement choices remain a product/research question. |
+| Contextual help / Ask Vision | **Implemented alpha** | Local deterministic help + provider-neutral Doxa cloud fallback; current primary backend NVIDIA Nemotron; curated product/implementation grounding; minimal state allowlist; one-shot Q&A. | `app/README.md`, `support/doxa-cloud/`. Shared embedded alpha client credential is not final per-device auth. |
 | Automated tests / diagnostics | **Implemented foundation** | Current CMake defines 9 CTests; numerous deterministic/physical smoke scripts and structured diagnostics exist; release gates are established. | `app/CMakeLists.txt`, smoke scripts, `app/packaging/`. Hardware-specific regression suites still need real Doxa. |
-| Single-instance / global hotkeys | **Implemented** | Second normal Visual launch exits instead of creating duplicate overlays; global hotkey registration is checked; health-check does not compete for hotkeys. | alpha.11 release and tests. |
+| Single-instance / global hotkeys | **Implemented** | Second normal Vision launch exits instead of creating duplicate overlays; global hotkey registration is checked; health-check does not compete for hotkeys. | alpha.11 release and tests. |
 | Code signing | **Not implemented** | Current alpha artifacts are unsigned. | `app/packaging/README.md`; SmartScreen/unknown-publisher warnings remain expected. |
-| SM768 Doxa integration | **Hardware-dependent / next qualification target** | No SM768-specific product adapter is currently in the renderer. Existing architecture allows hardware observations to be injected without changing core magnification. | Physical older Doxa/SM768 required for IDs, driver/firmware baseline, topology and performance evidence. |
-| SM770 Doxa integration | **Hardware-dependent / production qualification** | Current hardware docs assumed SM770 as the future production target, but no SM770-specific adapter is implemented. | Final production unit required after SM768 work to qualify differences and lock production baseline. |
-| Four-screen Doxa workspace | **Designed / not implemented** | Leading concept: laptop organiser + Left stable workspace + Centre shared Detail + Right stable workspace, with intentional Detail ownership switching and View Locator. | `docs/project/foundation/doxa_dual_workspace_shared_detail_concept.md`. Requires product/user validation and Doxa hardware before becoming a default. |
-| Broader low-vision Visual product | **Strategic evolution + research** | The current two-screen Visual is the starting product baseline, not a dead-end MVP. It should evolve incrementally toward a broader low-vision solution, informed by ZoomText, SuperNova, Windows Magnifier and other relevant products without treating parity as the goal. | Research must identify which behaviours/features create real user value, then feed a prioritised implementation path rather than a blanket cloning programme. |
-| Low-vision commercial opportunity | **Research not started as a programme** | UK presence through Standivarius is a potential launch advantage, but no canonical market/margin/channel model exists yet. | Requires market sizing, pricing, reseller/channel economics, competitor positioning and support-cost research. |
-| Doxa use cases beyond low vision | **Research programme / not started** | Doxa is a multi-monitor hardware platform whose commercial potential may extend well beyond accessibility. | Requires use-case discovery, workflow/software landscape research, buyer/industry analysis and identification of software products that could make Doxa materially more useful in other markets. |
+| SM768 Doxa integration | **Deferred / not a current programme gate** | No SM768-specific product adapter is currently in the renderer. Existing architecture allows hardware observations to be injected without changing core magnification. | Physical older Doxa/SM768 required for IDs, driver/firmware baseline, topology and performance evidence. |
+| SM770 Doxa integration | **Hardware-dependent / next Doxa hardware gate** | Current hardware docs assumed SM770 as the future production target, but no SM770-specific adapter is implemented. | Final production unit required after SM768 work to qualify differences and lock production baseline. |
+| Four-screen Doxa workspace | **Parked as a Doxa-specific concept** | Leading concept: laptop organiser + Left stable workspace + Centre shared Detail + Right stable workspace, with intentional Detail ownership switching and View Locator. | `docs/project/foundation/doxa_dual_workspace_shared_detail_concept.md`. Requires product/user validation and Doxa hardware before becoming a default. |
+| Broader low-vision Vision product | **Strategic evolution + research** | The current two-screen Vision is the starting product baseline, not a dead-end MVP. It should evolve incrementally toward a broader low-vision solution, informed by ZoomText, SuperNova, Windows Magnifier and other relevant products without treating parity as the goal. | Research must identify which behaviours/features create real user value, then feed a prioritised implementation path rather than a blanket cloning programme. |
+| Low-vision commercial opportunity | **Research in progress / pre-Opus synthesis complete** | UK presence through Standivarius is a potential launch advantage, but no canonical market/margin/channel model exists yet. | Requires market sizing, pricing, reseller/channel economics, competitor positioning and support-cost research. |
+| Doxa use cases beyond low vision | **Parked** | Doxa is a multi-monitor hardware platform whose commercial potential may extend well beyond accessibility. | Requires use-case discovery, workflow/software landscape research, buyer/industry analysis and identification of software products that could make Doxa materially more useful in other markets. |
 ## 3. Important corrections to older documentation
 
 The repository contains valuable earlier status documents, but they must not be treated as the current inventory without reconciliation:
@@ -47,12 +69,14 @@ The repository contains valuable earlier status documents, but they must not be 
 - `foundation/two_screen_mvp_status.md` is dated 2026-09-23 and still describes 4/4 CTests and launch/distribution as unfinished. The current tree defines 9 CTests and has a proven public Velopack release/update path.
 - `foundation/feature_roadmap.md` contains several statements written before current Settings, role persistence, View Locator, contextual assistance and public release work were implemented.
 - `hardware/installation_and_support_architecture.md` says the next real adapter begins when an SM770 unit arrives. The near-term decision is now to qualify the available older **SM768 Doxa first**, while retaining SM770 as final production qualification.
-- Several older docs still mention Dify/Muse as the active cloud model. The current hosted Ask Visual primary is NVIDIA Nemotron with Dify/Muse retained as fallback.
+- Several older docs still mention Dify/Muse as the active cloud model. The current hosted Ask Vision primary is NVIDIA Nemotron with Dify/Muse retained as fallback.
 - Some older foundation files contain encoding artifacts; these are documentation hygiene issues, not product behaviour.
 
 These files should be refreshed selectively rather than deleted; their historical reasoning remains useful.
 
-## 4. Hardware strategy: SM768 first, SM770 later
+## 4. Historical hardware strategy: SM768 first, SM770 later
+
+> **Superseded execution detail.** Retained for provenance. The current programme does not require an SM768 phase; Doxa Installer hardware-specific work waits for the real SM770 unit. Vision proceeds independently as a generic 2-4 monitor product.
 
 ### SM768 role
 
@@ -87,11 +111,11 @@ The application core should not fork into SM768 and SM770 editions. Hardware dif
 
 A substantial amount of useful work is independent of the physical Doxa unit.
 
-### 5.1 Visual two-screen hardening
+### 5.1 Vision two-screen hardening
 
 Proceed now:
 
-- close or bound Chromium/Edge caret compatibility;
+- maintain the bounded Edge/Chromium caret regression and extend it only when a concrete browser/editor scenario matters;
 - decide source-to-Detail pointer-boundary behaviour;
 - run/tune viewport and locator usability tests;
 - run Context+Detail productivity comparisons;
@@ -124,11 +148,11 @@ Proceed before hardware only at architecture/simulation level:
 - create unit-testable topology/state transitions;
 - prototype behind a feature flag or simulator if useful.
 
-Do not make speculative four-screen behaviour the default Visual product before physical/user validation.
+Do not make speculative four-screen behaviour the default Vision product before physical/user validation.
 
 ### 5.4 Low-vision competitive/commercial research
 
-This is entirely independent of SM768 and can begin whenever prioritised. Its purpose is both commercial assessment and guidance for the **incremental evolution of the current two-screen Visual**:
+This is entirely independent of SM768 and can begin whenever prioritised. Its purpose is both commercial assessment and guidance for the **incremental evolution of the current two-screen Vision**:
 
 - market size and segments;
 - UK channel/reseller opportunity and Standivarius launch advantage;
@@ -137,8 +161,8 @@ This is entirely independent of SM768 and can begin whenever prioritised. Its pu
 - feature/edition matrix;
 - documented and observed workflows;
 - technical feasibility/cost of independently implementing high-value behaviours;
-- where Visual/Doxa has a differentiated multi-screen advantage;
-- whether a low-cost standalone Visual product should remain magnification-first or expand toward speech/reader functionality.
+- where Vision/Doxa has a differentiated multi-screen advantage;
+- whether a low-cost standalone Vision product should remain magnification-first or expand toward speech/reader functionality.
 
 This is a research stream, not permission to copy proprietary implementation or assets.
 
@@ -205,13 +229,13 @@ Exit criteria:
 
 ### Phase P1 - Pre-SM768 software hardening
 
-**Goal:** make the two-screen Visual baseline strong enough that SM768 testing isolates hardware issues rather than basic app defects.
+**Goal:** make the two-screen Vision baseline strong enough that SM768 testing isolates hardware issues rather than basic app defects.
 
 Exit criteria:
 
 - browser-caret position is supported or explicitly bounded/documented;
 - pointer-boundary policy decided and tested;
-- core two-screen acceptance suite defined and passing;
+- core two-screen acceptance suite defined and passing (`VIS-005`; canonical proof `artifacts\2026-09-29__gpt-5.6-sol__vis005_two_screen_acceptance_v1.0.md`);
 - major View Locator/viewport usability findings resolved or documented;
 - current installer/release path remains green;
 - code-signing implementation path decided.
@@ -230,16 +254,16 @@ Exit criteria:
 
 ### Phase P3 - SM768 qualification and first Doxa integration
 
-**Goal:** turn the older Doxa into the main physical Visual development bench.
+**Goal:** turn the older Doxa into the main physical Vision development bench.
 
 Exit criteria:
 
 - SM768 hardware/driver/display baseline documented;
 - real hardware adapter implemented for observed SM768 state;
 - installer/setup correctly identifies and validates the unit;
-- Visual two-screen behaviour qualified on relevant SM768-connected displays;
+- Vision two-screen behaviour qualified on relevant SM768-connected displays;
 - performance/support baseline captured;
-- known SM768 limitations separated from generic Visual defects.
+- known SM768 limitations separated from generic Vision defects.
 
 ### Phase P4 - Doxa four-screen prototype
 
@@ -268,9 +292,9 @@ Exit criteria:
 - update/recovery/support procedures pass;
 - no hidden SM768-only assumptions remain.
 
-### Phase P6 - Broader Visual low-vision evolution and commercial decision
+### Phase P6 - Broader Vision low-vision evolution and commercial decision
 
-**Goal:** decide how far the current Visual should evolve beyond its two-screen alpha into a broader low-vision product, and whether that product should be positioned as a lower-cost standalone alternative in the ZoomText/SuperNova market.
+**Goal:** decide how far the current Vision should evolve beyond its two-screen alpha into a broader low-vision product, and whether that product should be positioned as a lower-cost standalone alternative in the ZoomText/SuperNova market.
 
 Inputs required before a build commitment:
 
@@ -281,7 +305,7 @@ Inputs required before a build commitment:
 - evidence of underserved customer needs;
 - explicit product positioning and target price/support model.
 
-Possible outcome is a steadily expanded magnification-focused product, a broader reader/magnifier product, or a decision to keep Visual primarily Doxa-focused. The current two-screen codebase remains the starting point in every case; research determines which capabilities are worth adding. Do not assume full feature parity is desirable.
+Possible outcome is a steadily expanded magnification-focused product, a broader reader/magnifier product, or a decision to keep Vision primarily Doxa-focused. The current two-screen codebase remains the starting point in every case; research determines which capabilities are worth adding. Do not assume full feature parity is desirable.
 
 ### Phase P7 - Doxa opportunity discovery beyond low vision
 
@@ -306,8 +330,8 @@ Every stream should preserve these rules:
 - current implementation/test evidence beats stale planning text;
 - no proprietary competitor source/assets/confidential details;
 - no hardware fact is guessed when physical/vendor evidence can settle it;
-- Visual core remains hardware-agnostic where practical;
-- Doxa-specific behaviour should be a layer over shared Visual foundations, not a permanent fork;
+- Vision core remains hardware-agnostic where practical;
+- Doxa-specific behaviour should be a layer over shared Vision foundations, not a permanent fork;
 - AI/cloud assistance remains optional/noncritical and does not own deterministic installation or magnification behaviour;
 - accessibility, recovery and supportability are product features, not cleanup work.
 
@@ -320,5 +344,5 @@ These should not block the inventory itself:
 3. code-signing provider/budget;
 4. whether automatic in-app update UX should be productised or updates remain explicit/IT-managed;
 5. when to start the low-vision competitive/commercial research stream;
-6. after research, whether speech/reader functionality belongs in Visual or remains outside its product boundary;
+6. after research, whether speech/reader functionality belongs in Vision or remains outside its product boundary;
 7. when to start the broader Doxa use-case discovery stream and how much prototyping budget to allocate to its top concepts.

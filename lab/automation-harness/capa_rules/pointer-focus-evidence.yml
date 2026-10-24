@@ -1,0 +1,13 @@
+rule:
+  meta:
+    name: collect pointer and GUI focus evidence
+    namespace: vision-reconstruction/tracking
+    authors:
+      - OpenAI Vision calibration
+    scopes:
+      static: file
+      dynamic: unsupported
+  features:
+    - and:
+      - import: user32.GetCursorPos
+      - import: user32.GetGUIThreadInfo

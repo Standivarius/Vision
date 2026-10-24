@@ -1,0 +1,17 @@
+EXPECTED RESULTS — EVALUATOR ONLY
+
+Task 1 final edits:
+- quarterly -> monthly
+- 18 -> 24
+- north -> west
+- Tuesday -> Thursday
+- insert "after final review" before the final period of paragraph 4
+- VX-314 -> VX-341
+- append: Review status: ready for comparison.
+
+Task 2:
+1. Record C (Price 390, Capacity 90)
+2. Record E is not eligible because setup is 4 days. Eligible B/D/F/H: highest rating is H at 4.7.
+3. Record A (420, 24h) is not eligible on support. Record C (390, 24h) is not eligible. Record E (440, 8h) and Record G (405, 12h) qualify.
+4. Record H by 0.2 (4.7 vs 4.5).
+5. Record F (Capacity 100, Setup 1 day).

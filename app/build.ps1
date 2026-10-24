@@ -6,6 +6,8 @@ param(
 $ErrorActionPreference='Stop'
 $root=Split-Path -Parent $MyInvocation.MyCommand.Path
 $versionFile=Join-Path $root 'version.cmake'
+$compatibilityGuard=Join-Path $root 'packaging\verify-vision-brand-compatibility.ps1'
+& $compatibilityGuard
 if(-not$Version){
     $versionText=Get-Content -Raw $versionFile
     $versionMatch=[regex]::Match($versionText,'set\(VISUAL_DEFAULT_VERSION\s+"([^"]+)"\)')

@@ -1,4 +1,4 @@
-# Environment and secret files
+﻿# Environment and secret files
 .env
 .env.*
 *.env
@@ -61,3 +61,72 @@ artifacts/spike1_analyze*.log
 artifacts/ffmpeg_*.txt
 artifacts/*_launcher.json
 artifacts/*_analysis.log
+
+# Generated verification/build trees
+app/build_release_verify/
+
+# Incumbent-review disposable browser/profile capture
+lab/incumbent-research/review/
+
+# Local runtime telemetry
+visual_app_telemetry.csv
+
+# Python runtime cache
+**/__pycache__/
+*.pyc
+
+# Raw/generated historical evidence retained locally; promote durable interpretation to Markdown.
+artifacts/vendor/
+artifacts/dell-lifecycle-*/
+artifacts/doxa-pilot*/
+artifacts/doxa-surrogate*/
+artifacts/doxa-test-*/
+artifacts/release-repro-*/
+artifacts/clean-room-release-*/
+artifacts/alpha*-*/
+artifacts/_inspect_*/
+artifacts/_work_*/
+artifacts/*.csv
+!artifacts/2026-09-30__gpt-5.6-sol__repository_consolidation_manifest_v0.1.csv
+artifacts/*.mp4
+artifacts/*.png
+artifacts/*.jsonl
+artifacts/*.tmp
+
+# Generated test-farm aggregates; durable conclusions live in dated reports.
+lab/benchmarks/farm_aggregates/
+
+# Local copies of incumbent manuals are research inputs, not repository-owned content.
+lab/incumbent-research/manuals/
+lab/incumbent-research/b64test.txt
+
+# Empty failed review attempt; xhigh review is the retained evidence.
+artifacts/2026-09-30__gpt-6-astra__vision_independent_review_v0.1.md
+
+# Local/raw evidence and historical bundles intentionally kept outside Git.
+**/token.txt
+artifacts/*.zip
+artifacts/*_raw.txt
+artifacts/2026-09-25__visual_doxa_alpha6_handover_v2.0/
+artifacts/_vision_brand_compat_candidate_alpha12/
+artifacts/bridge-server-pre-full-access-20260924.mjs
+artifacts/doxa-lab/
+artifacts/static-caret-pointer-test/
+artifacts/*_probe.txt
+artifacts/*_launcher.txt
+artifacts/live_display_count.txt
+artifacts/pixel_status.txt
+artifacts/windows_session_probe.txt
+artifacts/visual-adoption-assistance-*/*.csv
+artifacts/visual-low-vision-features-*/*.csv
+artifacts/visual-low-vision-features-*/health-1_5x_csv
+bridge/openapi_chatgpt_compact_8k.json
+bridge/openapi_chatgpt_pre_full_access_20260924.json
+
+# Raw owner/user-session materials; promote durable conclusions to artifacts/.
+lab/benchmarks/human/
+
+lab/benchmarks/display_physical_qualification/
+
+lab/benchmarks/teams_shell_probe/
+lab/benchmarks/reconstruction_calibration/

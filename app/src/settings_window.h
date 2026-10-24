@@ -44,6 +44,7 @@ private:
     LRESULT handle_message(UINT message, WPARAM w_param, LPARAM l_param);
     void create_controls();
     void layout_controls(int client_width, int client_height);
+    void refresh_fonts(UINT dpi);
     void sync_controls();
     void populate_monitor_combo(HWND combo, bool allow_none, const std::wstring& selected);
     bool collect_settings(visual::core::VisualSettings& output);
@@ -55,28 +56,42 @@ private:
     HWND owner_{};
     HWND hwnd_{};
     HFONT font_{};
+    UINT current_dpi_{96};
     std::vector<MonitorOption> monitors_;
     visual::core::VisualSettings settings_{};
     ApplyCallback callback_{};
     HelpCallback help_callback_{};
 
+    HWND zoom_label_{};
     HWND zoom_combo_{};
+    HWND tracking_group_{};
     HWND tracking_enabled_{};
     HWND follow_pointer_{};
     HWND follow_caret_{};
     HWND follow_focus_{};
     HWND tracking_note_{};
+    HWND highlights_group_{};
     HWND marker_pointer_{};
     HWND marker_caret_{};
     HWND marker_focus_{};
+    HWND context_group_{};
     HWND context_indicator_{};
     HWND context_shade_{};
     HWND locator_note_{};
+    HWND appearance_label_{};
     HWND appearance_combo_{};
+    HWND screen_roles_group_{};
+    HWND context_label_{};
     HWND context_monitor_combo_{};
+    HWND detail_label_{};
     HWND detail_monitor_combo_{};
+    HWND reference_label_{};
     HWND reference_monitor_combo_{};
     HWND display_note_{};
+    HWND apply_button_{};
+    HWND defaults_button_{};
+    HWND help_button_{};
+    HWND close_button_{};
 };
 
 } // namespace visual::ui

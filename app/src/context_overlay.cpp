@@ -48,7 +48,7 @@ bool ContextOverlay::create(HINSTANCE instance, const RECT& source_monitor_rect)
     hwnd_ = CreateWindowExW(
         WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW | WS_EX_TOPMOST,
         kContextOverlayClass,
-        L"Visual Detail View indicator",
+        L"Vision Detail View indicator",
         WS_POPUP,
         source_monitor_rect.left,
         source_monitor_rect.top,

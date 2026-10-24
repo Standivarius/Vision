@@ -1,0 +1,13 @@
+rule:
+  meta:
+    name: exclude output window from screen capture
+    namespace: vision-reconstruction/windowing
+    authors:
+      - OpenAI Vision calibration
+    scopes:
+      static: file
+      dynamic: unsupported
+  features:
+    - and:
+      - import: user32.SetWindowDisplayAffinity
+      - substring: "Detail"

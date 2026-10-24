@@ -12,8 +12,8 @@ struct AnswerResult {
     bool success{};
 };
 
-// Runtime-only configuration. Visual never embeds a provider credential.
-// If VISUAL_ASSISTANT_ENDPOINT is absent, Ask Visual remains useful through the local help catalog.
+// Runtime-only configuration. Vision never embeds a provider credential.
+// If VISUAL_ASSISTANT_ENDPOINT is absent, Ask Vision remains useful through the local help catalog.
 [[nodiscard]] std::wstring configured_endpoint();
 [[nodiscard]] bool remote_configured();
 
