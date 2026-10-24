@@ -15,6 +15,7 @@ function Invoke-RestMethod{
  if($Headers.ContainsKey('Authorization')){throw 'Bearer token is forbidden in Doxa alpha'}
  $payload=[Text.Encoding]::UTF8.GetString($Body)|ConvertFrom-Json
  if($payload.intent -ne 'ask_doxa_installer'){throw 'Unexpected intent'}
+ if($payload.ai_notice_version -ne 'development-v0.1' -or $payload.user_enabled_optional_ai -ne $true){throw 'Remote request lacks current AI acknowledgement'}
  if($payload.context.PSObject.Properties.Name -contains 'raw_usb_id'){throw 'Raw identifier leaked'}
  if($payload.context.app_control_policy -ne 'not_checked'){throw 'Policy assertion not observed'}
  return [pscustomobject]@{status='answered';mode='read_only_guidance';answer='Signed Doxa driver and all three physical panels detected.'}

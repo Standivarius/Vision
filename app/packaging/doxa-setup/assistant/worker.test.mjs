@@ -15,7 +15,7 @@ const evidence={
  windows_build:26300,app_control_policy:"not_checked",secret_serial:"NEVER_SEND_DEVICE_SERIAL"
 };
 const payload=(question="Why does Remote Desktop show one screen?")=>
-  JSON.stringify({schema_version:"1",intent:"ask_doxa_installer",question,context:evidence});
+  JSON.stringify({schema_version:"1",intent:"ask_doxa_installer",ai_notice_version:"development-v0.1",user_enabled_optional_ai:true,question,context:evidence});
 function sign(raw){
  const command="& '"+signer.replace(/'/g,"''")+"' -SignBody @'\n"+raw+"\n'@";
  const encoded=Buffer.from(command,"utf16le").toString("base64");
@@ -76,6 +76,22 @@ test("rejects signature mismatch and tampered content",async()=>{
  const r=await handleRequest(req("Why does RDP show one screen?",{"x-doxa-signature":"tampered"}),modelEnv().env);
  assert.equal(r.status,401);
 });
+test("signed requests without an acknowledged current AI disclosure do not reach the model",async()=>{
+ for(const fields of [
+  {},
+  {ai_notice_version:"development-v0.1",user_enabled_optional_ai:false},
+  {ai_notice_version:"obsolete-v0",user_enabled_optional_ai:true},
+ ]){
+  const raw=JSON.stringify({schema_version:"1",intent:"ask_doxa_installer",question:"Why does RDP show one screen?",context:evidence,...fields});
+  const auth=sign(raw);
+  const m=modelEnv();
+  const response=await handleRequest(new Request(endpoint,{method:"POST",headers:{
+   "x-doxa-timestamp":String(auth.timestamp),"x-doxa-signature":auth.signature},body:raw}),m.env);
+  assert.equal(response.status,403);
+  assert.equal((await response.json()).error,"ai_disclosure_required");
+  assert.equal(m.numberOfCalls(),0);
+ }
+});
 test("valid Dell signature authorizes read-only model inference",async()=>{
  const m=modelEnv();
  const r=await handleRequest(req("Why does Remote Desktop show one screen?"),m.env);
@@ -126,7 +142,7 @@ test("scope boundaries reject unrelated topics including disguised Doxa requests
 });
 test("Romanian out-of-scope reply is from deterministic policy, not AI",async()=>{
  const m=modelEnv();
- const raw=JSON.stringify({schema_version:"1",intent:"ask_doxa_installer",language:"ro",
+ const raw=JSON.stringify({schema_version:"1",intent:"ask_doxa_installer",ai_notice_version:"development-v0.1",user_enabled_optional_ai:true,language:"ro",
    question:"Ce vreme este azi?",context:evidence});
  const sig=sign(raw);
  const r=await handleRequest(new Request(endpoint,{method:"POST",headers:{

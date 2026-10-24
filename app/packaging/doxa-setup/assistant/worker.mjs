@@ -80,6 +80,11 @@ export async function handleRequest(req,env){
  if(input?.schema_version!=="1" || input?.intent!=="ask_doxa_installer" || !input.context || typeof input.context!=="object" || Array.isArray(input.context)){
    return json({error:"invalid_request"},400);
  }
+ // UI acknowledgement is an explicit contract, not independent evidence of legal consent.
+ // The current signed Dell client remains development-only; final first-use records are pending.
+ if(input.ai_notice_version!=="development-v0.1" || input.user_enabled_optional_ai!==true){
+   return json({error:"ai_disclosure_required"},403);
+ }
  const question=typeof input.question==="string"?input.question.trim():"";
  if(!question || question.length>1800) return json({error:"invalid_question"},400);
  if(classifyDoxaQuestion(question)!=="in_scope"){
