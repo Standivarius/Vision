@@ -83,8 +83,9 @@ class TestDoxaIntunePilot(unittest.TestCase):
             self.assertEqual((method,path),("POST","/deviceAppManagement/mobileApps"))
             payloads.append(payload)
             return {"id":"mock-app"}
-        with patch.object(pub,"call",fake_call):
+        with patch.object(pub,"call",fake_call), patch.object(pub,"record_active_pilot_app_id") as saved:
             self.assertEqual(pub.create_app("FAKE_TOKEN",None,None,0),"mock-app")
+            saved.assert_called_once_with("mock-app")
         body=payloads[0]
         self.assertNotIn("minimumSupportedOperatingSystem",body)
         self.assertEqual(body["minimumSupportedWindowsRelease"],"Windows11_23H2")
@@ -248,6 +249,69 @@ class TestDoxaIntunePilot(unittest.TestCase):
             self.assertEqual(pub.choose_initial_content_version(
                 "FAKE_TOKEN",pub.KNOWN_PILOT_APP_ID,42910,42960),"1")
         self.assertEqual(calls,["GET","POST"])
+
+    def test_safe_discards_only_exact_failed_unassigned_original_app(self):
+        original = pub.KNOWN_PILOT_APP_ID
+        base = "/deviceAppManagement/mobileApps/" + original
+        calls = []
+        deleted = [False]
+        def fake(method, path, token, payload=None, params=None):
+            calls.append((method,path))
+            if path == "/deviceAppManagement/mobileApps":
+                return {"value":[] if deleted[0] else [{"id":original,"displayName":pub.APP_NAME}]}
+            if path == base and method == "GET":
+                return {"id":original,"displayName":pub.APP_NAME,
+                        "publisher":"DMR Ergonomics SRL (Standivarius)",
+                        "@odata.type":"#microsoft.graph.win32LobApp",
+                        "installCommandLine":"powershell.exe -File DoxaPilot.ps1 -Action Install",
+                        "publishingState":"notPublished","committedContentVersion":""}
+            if path == base+"/assignments":
+                return {"value":[]}
+            if path.endswith("/contentVersions"):
+                return {"value":[{"id":"1"}]}
+            if path.endswith("/contentVersions/1/files"):
+                return {"value":[{"id":"failed-file","name":"IntunePackage.intunewin",
+                                  "uploadState":"commitFileFailed","isCommitted":False,
+                                  "size":42910,"sizeEncrypted":42960}]}
+            if path == base and method == "DELETE":
+                deleted[0] = True
+                return {}
+            raise AssertionError((method,path))
+        with patch.object(pub,"call",side_effect=fake):
+            pub.remove_only_known_stuck_unassigned_pilot("FAKE_TOKEN",42910,42960)
+        self.assertEqual([(method,path) for method,path in calls if method == "DELETE"],
+                         [("DELETE",base)])
+
+    def test_safe_refuses_deletion_when_original_app_has_assignment(self):
+        base = "/deviceAppManagement/mobileApps/" + pub.KNOWN_PILOT_APP_ID
+        def fake(method,path,token,payload=None,params=None):
+            if method == "DELETE": raise AssertionError("Must not delete")
+            if path == "/deviceAppManagement/mobileApps":
+                return {"value":[{"id":pub.KNOWN_PILOT_APP_ID}]}
+            if path == base:
+                return {"id":pub.KNOWN_PILOT_APP_ID,"displayName":pub.APP_NAME,
+                        "publisher":"DMR Ergonomics SRL (Standivarius)",
+                        "@odata.type":"#microsoft.graph.win32LobApp",
+                        "installCommandLine":"DoxaPilot.ps1",
+                        "publishingState":"notPublished","committedContentVersion":""}
+            if path == base+"/assignments":
+                return {"value":[{"id":"some-assignment"}]}
+            raise AssertionError((method,path))
+        with patch.object(pub,"call",side_effect=fake):
+            with self.assertRaisesRegex(RuntimeError,"has assignments"):
+                pub.remove_only_known_stuck_unassigned_pilot("FAKE_TOKEN",42910,42960)
+
+    def test_saved_pilot_app_id_is_outside_repo(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            from pathlib import Path
+            target=Path(tmp)/"doxa-active.json"
+            with patch.object(pub,"PILOT_ID_FILE",target):
+                self.assertEqual(pub.active_pilot_app_id(),pub.KNOWN_PILOT_APP_ID)
+                new_id="11111111-2222-4333-8444-555555555555"
+                pub.record_active_pilot_app_id(new_id)
+                self.assertEqual(pub.active_pilot_app_id(),new_id)
+                self.assertNotIn("token",target.read_text().lower())
 
     def test_existing_group_with_unrelated_member_refused(self):
         def fake_call(method, path, token, payload=None, params=None):

@@ -34,6 +34,31 @@ ROOT = Path(__file__).resolve().parents[1]
 # The worktree's artifacts live at its root; no files are copied out of approved directory.
 BRANCH_ROOT = ROOT.parents[2]
 SESSION = requests.Session()
+PILOT_ID_FILE = BRANCH_ROOT / "artifacts" / "releases" / "intune" / "doxa-active-pilot-app.json"
+
+
+def active_pilot_app_id():
+    import uuid
+    if not PILOT_ID_FILE.exists():
+        return KNOWN_PILOT_APP_ID
+    state = json.loads(PILOT_ID_FILE.read_text(encoding="utf-8"))
+    ensure(state.get("scope") == "DMR_Doxa_Intune_MARIUS-DELL" and
+           state.get("original_app_id") == KNOWN_PILOT_APP_ID,
+           "Unrecognized pilot app ID record; refuse")
+    return str(uuid.UUID(state["active_app_id"]))
+
+
+def record_active_pilot_app_id(new_id):
+    import uuid
+    new_id = str(uuid.UUID(new_id))
+    PILOT_ID_FILE.parent.mkdir(parents=True, exist_ok=True)
+    state = {"scope":"DMR_Doxa_Intune_MARIUS-DELL",
+             "original_app_id":KNOWN_PILOT_APP_ID,
+             "active_app_id":new_id}
+    temporary = PILOT_ID_FILE.with_suffix(".tmp")
+    temporary.write_text(json.dumps(state, indent=2), encoding="utf-8")
+    os.replace(temporary, PILOT_ID_FILE)
+    print("PILOT_APP_ID_RECORDED_OUTSIDE_REPO="+new_id, flush=True)
 
 
 def ensure(condition, message):
@@ -178,9 +203,9 @@ def create_app(token, file, encrypted, clear_size):
     found = existing.get("value", [])
     ensure(len(found) <= 1, "More than one named pilot app; refuse to proceed")
     if found:
-        ensure(found[0].get("id", "").lower() == KNOWN_PILOT_APP_ID,
+        ensure(found[0].get("id", "").lower() == active_pilot_app_id(),
                "Existing app is not the exact original Microsoft-created Doxa pilot")
-        current = call("GET", f"/deviceAppManagement/mobileApps/{KNOWN_PILOT_APP_ID}", token)
+        current = call("GET", f"/deviceAppManagement/mobileApps/{active_pilot_app_id()}", token)
         ensure(current.get("displayName") == APP_NAME and
                current.get("publisher") == "DMR Ergonomics SRL (Standivarius)" and
                current.get("@odata.type", "").endswith("win32LobApp") and
@@ -188,10 +213,10 @@ def create_app(token, file, encrypted, clear_size):
                current.get("publishingState") == "notPublished" and
                not current.get("committedContentVersion"),
                "Existing Intune app is changed or already published; manual reconciliation required")
-        assignments = call("GET", f"/deviceAppManagement/mobileApps/{KNOWN_PILOT_APP_ID}/assignments", token)
+        assignments = call("GET", f"/deviceAppManagement/mobileApps/{active_pilot_app_id()}/assignments", token)
         ensure(not assignments.get("value"), "Existing Doxa pilot has assignments; refusing mutation")
-        print("REUSING_UNPUBLISHED_PILOT_APP=" + KNOWN_PILOT_APP_ID, flush=True)
-        return KNOWN_PILOT_APP_ID
+        print("REUSING_UNPUBLISHED_PILOT_APP=" + active_pilot_app_id(), flush=True)
+        return active_pilot_app_id()
     script = (ROOT / "enterprise-intune-pilot" / "DoxaPilot.ps1").read_bytes()
     ensure(b"Get-FileHash" in script and b"'Detect'" in script,
            "Expected content-hash detection script missing")
@@ -218,6 +243,7 @@ def create_app(token, file, encrypted, clear_size):
                              "returnCode":0,"type":"success"}]}
     app = call("POST", "/deviceAppManagement/mobileApps", token, body)
     print("CREATED_PILOT_APP="+app["id"],flush=True)
+    record_active_pilot_app_id(app["id"])
     return app["id"]
 
 
@@ -257,6 +283,64 @@ def upload_azure_blocks(sas, encrypted):
     print("AZURE_BLOCK_UPLOAD_VERIFIED_BYTES=" + str(actual), flush=True)
 
 
+def remove_only_known_stuck_unassigned_pilot(token, clear_size, encrypted_size):
+    """Discard *only our own* unpublished, unassigned, uncommitted failed app.
+
+    Intune's Win32 backend rejected both the documented casted and uncasted
+    file DELETE URLs. The app-level DELETE route is supported. We do not delete
+    published, assigned, or unrelated applications, and we refuse mismatches.
+    """
+    ensure(active_pilot_app_id() == KNOWN_PILOT_APP_ID,
+           "Refusing to remove a replacement app; only original stuck pilot is disposable")
+    listing = call("GET", "/deviceAppManagement/mobileApps", token,
+                   params={"$filter": f"displayName eq '{APP_NAME}'"})
+    entries = listing.get("value", [])
+    ensure("@odata.nextLink" not in listing, "Unexpected app pagination")
+    if not entries:
+        print("ORIGINAL_FAILED_APP_ALREADY_ABSENT=true", flush=True)
+        return
+    ensure(len(entries) == 1 and entries[0].get("id", "").lower() == KNOWN_PILOT_APP_ID,
+           "Unrecognised app with pilot name; refuse removal")
+    url = "/deviceAppManagement/mobileApps/" + KNOWN_PILOT_APP_ID
+    app = call("GET", url, token)
+    ensure(app.get("id", "").lower() == KNOWN_PILOT_APP_ID and
+           app.get("displayName") == APP_NAME and
+           app.get("publisher") == "DMR Ergonomics SRL (Standivarius)" and
+           app.get("@odata.type","").endswith("win32LobApp") and
+           "DoxaPilot.ps1" in app.get("installCommandLine","") and
+           app.get("publishingState") == "notPublished" and
+           not app.get("committedContentVersion"),
+           "Original pilot changed; do not delete")
+    assignments = call("GET", url + "/assignments", token)
+    ensure(not assignments.get("value") and "@odata.nextLink" not in assignments,
+           "Pilot app has assignments or unknown pagination; do not delete")
+    base = url + "/microsoft.graph.win32LobApp/contentVersions"
+    versions = call("GET", base, token)
+    ensure("@odata.nextLink" not in versions and len(versions.get("value",[])) == 1,
+           "Expected exactly one failed first content version")
+    version = str(versions["value"][0]["id"])
+    ensure(version == "1", "Unexpected initial version number; do not delete")
+    files = call("GET", base + "/1/files", token)
+    ensure("@odata.nextLink" not in files and len(files.get("value",[])) == 1,
+           "Expected exactly one failed uncommitted file")
+    f = files["value"][0]
+    ensure(f.get("name") == "IntunePackage.intunewin" and
+           f.get("uploadState") == "commitFileFailed" and not f.get("isCommitted") and
+           int(f.get("size",-1)) == clear_size and
+           int(f.get("sizeEncrypted",-1)) == encrypted_size,
+           "Failed content does not match the original package; do not delete")
+    print("DISCARDING_ONLY_STUCK_UNASSIGNED_APP=" + KNOWN_PILOT_APP_ID, flush=True)
+    call("DELETE", url, token)
+    for _ in range(8):
+        after = call("GET", "/deviceAppManagement/mobileApps", token,
+                     params={"$filter": f"displayName eq '{APP_NAME}'"})
+        if not after.get("value"):
+            print("STUCK_APP_REMOVAL_CONFIRMED=true", flush=True)
+            return
+        time.sleep(5)
+    raise RuntimeError("Intune did not confirm removal; do not create another pilot app")
+
+
 def choose_initial_content_version(token, app_id, clear_size, encrypted_size):
     """Retry a failed *first* file inside its original content version.
 
@@ -264,7 +348,7 @@ def choose_initial_content_version(token, app_id, clear_size, encrypted_size):
     committed. Never delete the app, remove committed content or change an app
     already assigned to a device.
     """
-    ensure(app_id == KNOWN_PILOT_APP_ID, "Only the recorded unpublished Doxa app can be recovered")
+    ensure(app_id == active_pilot_app_id(), "Only the recorded unpublished Doxa app can be recovered")
     base = f"/deviceAppManagement/mobileApps/{app_id}/microsoft.graph.win32LobApp"
     versions = call("GET", base + "/contentVersions", token)
     ensure("@odata.nextLink" not in versions, "Unexpected content version pagination; stop")
@@ -366,7 +450,10 @@ def assign_only_dell(token, app_id, group_id, device_id):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--execute", action="store_true", help="Mutates only dedicated Doxa pilot app and Dell-only security group")
+    parser.add_argument("--recreate-stuck-pilot", action="store_true", help="Only with --execute: replace original unpublished, unassigned failed pilot app after exact state checks")
     args = parser.parse_args()
+    ensure(not args.recreate_stuck_pilot or args.execute,
+           "--recreate-stuck-pilot requires --execute")
     file, encrypted, clear_size, crypto = read_package()
     ensure(file.stat().st_size < 1024*1024, "Unexpected large pilot content")
     print("DOXA_APP_ONLY_PACKAGE=" + str(file), flush=True)
@@ -385,6 +472,8 @@ def main():
         device_id=get_one_device(token)
         print("DELL_UNIQUELY_MANAGED_COMPLIANT=true",flush=True)
         group_id=ensure_private_group(token,device_id)
+        if args.recreate_stuck_pilot:
+            remove_only_known_stuck_unassigned_pilot(token,clear_size,len(encrypted))
         app_id=create_app(token,file,encrypted,clear_size)
         upload_app(token,app_id,encrypted,clear_size,crypto)
         assign_only_dell(token,app_id,group_id,device_id)
