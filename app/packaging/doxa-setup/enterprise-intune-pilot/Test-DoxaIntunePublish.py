@@ -1,0 +1,88 @@
+"""Offline preflight tests; no Azure, Microsoft identity or actual tenant changes."""
+import importlib.util
+from pathlib import Path
+import unittest
+from unittest.mock import patch
+
+path = Path(__file__).with_name("Publish-DoxaIntunePilot.py")
+spec = importlib.util.spec_from_file_location("doxa_publish", path)
+pub = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(pub)
+
+
+class TestDoxaIntunePilot(unittest.TestCase):
+    def test_package_is_app_only_and_hash_is_expected(self):
+        f, content, plain, crypt = pub.read_package()
+        self.assertEqual(pub.sha256_bytes(f.read_bytes()),
+                         "FFCA7CA75A5EB27083E1D3099B202929073EA97094CC8565610AE28824A44E36")
+        self.assertLess(len(content), 100_000)
+        self.assertGreater(plain, 0)
+        self.assertEqual(crypt["fileDigestAlgorithm"], "SHA256")
+
+    def test_device_must_be_compliant_unique_managed_and_directory_known(self):
+        def good_call(method, path, token, payload=None, params=None):
+            if path == "/deviceManagement/managedDevices":
+                return {"value": [{"deviceName": pub.DEVICE_NAME, "managementAgent": "mdm",
+                                   "complianceState": "compliant", "azureADDeviceId": "77777777-7777-7777-7777-777777777777"}]}
+            if path == "/devices":
+                return {"value": [{"id": "dell-object-id", "deviceId": "77777777-7777-7777-7777-777777777777"}]}
+            raise AssertionError(path)
+        with patch.object(pub, "call", good_call):
+            self.assertEqual(pub.get_one_device("FAKE_TOKEN"), "dell-object-id")
+        for bad in ["unknown", "noncompliant", "duplicate"]:
+            def fake(method, path, token, payload=None, params=None):
+                if bad == "duplicate":
+                    return {"value": [{"deviceName": pub.DEVICE_NAME}, {"deviceName": pub.DEVICE_NAME}]}
+                return {"value": [{"deviceName": pub.DEVICE_NAME, "managementAgent": "mdm",
+                                   "complianceState": bad, "azureADDeviceId": "1"}]}
+            with patch.object(pub, "call", fake):
+                with self.assertRaises(RuntimeError):
+                    pub.get_one_device("FAKE_TOKEN")
+
+    def test_other_members_prevent_assignment(self):
+        def fake_members(token, group):
+            return {"dell", "another-computer"}
+        with patch.object(pub, "members", fake_members), patch.object(pub, "call") as graph:
+            with self.assertRaisesRegex(RuntimeError, "Pilot membership changed"):
+                pub.assign_only_dell("FAKE_TOKEN", "app", "group", "dell")
+            graph.assert_not_called()
+
+    def test_unpublished_app_prevents_assignment(self):
+        def fake_members(token, group):
+            return {"dell"}
+        with patch.object(pub, "members", fake_members), patch.object(pub, "call",
+                return_value={"publishingState": "processing"}) as graph:
+            with self.assertRaisesRegex(RuntimeError, "App not published"):
+                pub.assign_only_dell("FAKE_TOKEN", "app", "group", "dell")
+            self.assertEqual(graph.call_count, 1)
+
+    def test_assign_is_restricted_to_only_one_group(self):
+        requests = []
+        def fake_call(method, path, token, payload=None, params=None):
+            requests.append((method, path, payload))
+            if path.endswith("/assignments"):
+                return {"value": []}
+            if path.endswith("/assign") and method == "POST":
+                return {}
+            return {"publishingState": "published"}
+        with patch.object(pub, "members", return_value={"dell"}), patch.object(pub, "call", fake_call):
+            pub.assign_only_dell("FAKE_TOKEN", "app", "group", "dell")
+        posts = [x for x in requests if x[0] == "POST"]
+        self.assertEqual(len(posts), 1)
+        target = posts[0][2]["mobileAppAssignments"]
+        self.assertEqual(len(target), 1)
+        self.assertEqual(target[0]["target"]["@odata.type"], "#microsoft.graph.groupAssignmentTarget")
+        self.assertEqual(target[0]["target"]["groupId"], "group")
+        self.assertEqual(target[0]["intent"], "required")
+
+    def test_existing_group_with_unrelated_member_refused(self):
+        def fake_call(method, path, token, payload=None, params=None):
+            return {"value": [{"id": "g", "displayName": pub.GROUP_NAME,
+                               "securityEnabled": True, "mailEnabled": False}]}
+        with patch.object(pub, "call", fake_call), patch.object(pub, "members", return_value={"other-device"}):
+            with self.assertRaisesRegex(RuntimeError, "other members"):
+                pub.ensure_private_group("FAKE_TOKEN", "dell")
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)
