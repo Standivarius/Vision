@@ -20,29 +20,19 @@ import xml.etree.ElementTree as ET
 import zipfile
 
 import requests
+from DoxaIntuneAuth import get_token, TENANT_ID
 
-CLIENT_ID = "14d82eec-204b-4c2f-b7e8-296a70dab67e"  # Microsoft Graph Command Line Tools
 DEVICE_NAME = "MARIUS-DELL"
 GROUP_NAME = "Doxa Intune pilot - MARIUS-DELL (24 October 2026)"
 GROUP_ALIAS = "doxa-intune-marius-dell-pilot-20261024"
 APP_NAME = "Standivarius Doxa Setup - MARIUS-DELL app-only pilot"
-# IDs observed in the first genuine Microsoft tenant mutation; prevent duplicate
-# objects or accidental re-use of a different app/group. Not credentials.
 KNOWN_PILOT_GROUP_ID = "3f74c6a3-d470-4d78-8c17-756381465095"
 KNOWN_PILOT_APP_ID = "5ebf4ee9-0e28-4a2d-913c-82c4ac5495a4"
+
 GRAPH = "https://graph.microsoft.com/v1.0"
-SCOPES = [
-    "DeviceManagementApps.ReadWrite.All",
-    "DeviceManagementManagedDevices.Read.All",
-    "Device.Read.All",
-    "Group.ReadWrite.All",
-    "GroupMember.ReadWrite.All",
-]
 ROOT = Path(__file__).resolve().parents[1]
-BASE = ROOT / "artifacts" / "releases" / "intune"
 # The worktree's artifacts live at its root; no files are copied out of approved directory.
 BRANCH_ROOT = ROOT.parents[2]
-AUTH_TIMEOUT = 600
 SESSION = requests.Session()
 
 
@@ -91,34 +81,6 @@ def tenant_id():
             uuid.UUID(guid)
             return guid
     raise RuntimeError("Dell has no discoverable DMR workplace tenant. Refusing arbitrary tenant")
-
-
-def auth(tenant):
-    base = "https://login.microsoftonline.com/" + tenant + "/oauth2/v2.0"
-    scope = " ".join("https://graph.microsoft.com/" + s for s in SCOPES)
-    resp = SESSION.post(base + "/devicecode", data={"client_id": CLIENT_ID, "scope": scope}, timeout=20)
-    ensure(resp.ok, f"Microsoft device-code request failed HTTP {resp.status_code}")
-    payload = resp.json()
-    print("AUTHORIZE_URL=" + payload["verification_uri"], flush=True)
-    print("AUTHORIZE_CODE=" + payload["user_code"], flush=True)
-    print("PERMISSIONS=" + ", ".join(SCOPES), flush=True)
-    deadline = time.monotonic() + min(AUTH_TIMEOUT, int(payload["expires_in"]))
-    interval = max(5, int(payload.get("interval", 5)))
-    while time.monotonic() < deadline:
-        time.sleep(interval)
-        r = SESSION.post(base + "/token", data={"client_id": CLIENT_ID,
-            "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
-            "device_code": payload["device_code"]}, timeout=20)
-        if r.ok:
-            return r.json()["access_token"]
-        code = r.json().get("error", "unknown") if r.headers.get("content-type","").startswith("application/json") else "unknown"
-        if code == "authorization_pending":
-            continue
-        if code == "slow_down":
-            interval += 5
-            continue
-        raise RuntimeError("Microsoft login stopped: " + code)
-    raise RuntimeError("Microsoft authorization expired; no tenant changes attempted")
 
 
 def call(method, path, token, payload=None, params=None):
@@ -335,7 +297,12 @@ def choose_initial_content_version(token, app_id, clear_size, encrypted_size):
         "Unrecognized first-version file: do not delete or modify it")
     ensure(str(old.get("id", "")).strip(), "Intune failed file has no ID")
     # Only delete the single *uncommitted, failed* encrypted content file.
-    call("DELETE", file_path + "/" + str(old["id"]), token)
+    # The Intune backend rejects DELETE through the casted win32LobApp
+    # navigation (No OData route). Microsoft's v1.0 DELETE contract uses
+    # the uncasted /mobileApps/{appId}/contentVersions/{v}/files/{fileId}.
+    delete_path = (f"/deviceAppManagement/mobileApps/{app_id}/contentVersions/"
+                   f"{version}/files/{old['id']}")
+    call("DELETE", delete_path, token)
     remaining = call("GET", file_path, token)
     ensure(not remaining.get("value"), "Failed file deletion not confirmed")
     print("RECOVERED_FAILED_FIRST_CONTENT_VERSION=" + version, flush=True)
@@ -410,8 +377,10 @@ def main():
     if not args.execute:
         print("DRY_RUN_SUCCESS_NO_MICROSOFT_AUTH_OR_WRITES", flush=True)
         return
-    tenant=tenant_id()
-    token=auth(tenant)
+    # Secure MSAL Extensions persists a DPAPI-encrypted CurrentUser cache.
+    # Later invocations reuse/refresh this token silently when policy allows.
+    ensure(tenant_id().lower() == TENANT_ID, "Dell workplace tenant mismatch: refusing Microsoft auth")
+    token=get_token()
     try:
         device_id=get_one_device(token)
         print("DELL_UNIQUELY_MANAGED_COMPLIANT=true",flush=True)

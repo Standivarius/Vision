@@ -188,7 +188,9 @@ class TestDoxaIntunePilot(unittest.TestCase):
                                       "isCommitted":False,"uploadState":"commitFileFailed",
                                       "size":42910, "sizeEncrypted":42960}]}
                 return {"value":[]}
-            if method == "DELETE" and path == base + "/contentVersions/1/files/" + old_id:
+            if method == "DELETE" and path == (
+                "/deviceAppManagement/mobileApps/" + pub.KNOWN_PILOT_APP_ID +
+                "/contentVersions/1/files/" + old_id):
                 return {}
             raise AssertionError((method,path))
         with patch.object(pub, "call", side_effect=mock_call):
