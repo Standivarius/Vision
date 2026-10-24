@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "product": "Standivarius Doxa Setup",
+  "allowed_description": "Doxa hardware installation, driver qualification, connections, initial Windows display setup, diagnosis and recovery of Doxa displays.",
+  "out_of_scope_patterns": [
+    "\\b(?:recipe|recipes|cook|cooking|pizza|pasta|food|restaurant|reteta|rețetă|gatit|gătit|mancare|mâncare)\\b",
+    "\\b(?:football|soccer|basketball|sports?|world cup|fotbal|meci|campionat)\\b",
+    "\\b(?:weather|forecast|vreme|meteo|temperatura azi)\\b",
+    "\\b(?:stocks?|share prices?|bitcoin|crypto|exchange rate|investing|bursa|actiuni|acțiuni)\\b",
+    "\\b(?:elections?|politics|president|alegeri|politic[ăa]?)\\b",
+    "\\b(?:poems?|poetry|jokes?|stories|novels?|essay|fiction|poezie|poezii|glum[ăa]|poveste)\\b",
+    "\\b(?:who won|who is|capital of|cine este|cine a castigat|cine a câștigat|capitala)\\b",
+    "\\b(?:gdpr|aigov|tax|taxes|accounting|invoice|contabilitate|factur[ăa]|tva)\\b",
+    "\\b(?:zoomtext|supernova|vision magnifier|standivarius vision|magnification app|magnifier app|lupa vision)\\b",
+    "\\b(?:printer|printing|imprimant[ăa]|python|javascript|programming|coding|programare|source code|api key|llm model|neural network)\\b"
+  ],
+  "in_scope_patterns": [
+    "\\b(?:doxa|smi770|sm770|sm77x|silicon motion|instantview)\\b",
+    "\\b(?:usb[ -]?c|usb[ -]?display|usb|hdmi|displayport|dock(?:ing)?|cabl(?:e|u|uri)|cablu|cabluri|firmware|msi|pnputil|setupapi|uac|device manager|manager dispozitive)\\b",
+    "\\b(?:screen|screens|monitor|monitors|display|displays|desktop|desktops|panel|panels|ecran(?:ul|e|ele)?|monito(?:r|are|rul|rului)|panou(?:ri|l)?)\\b",
+    "\\b(?:driver|drivers|drivere|driverul|driverului|instal(?:l|lation|ling|are|at|ez)|uninstall|reinstall|repar(?:a|are)|semnatur[ăa]|semnat|signed|signature)\\b",
+    "\\b(?:rdp|remote desktop|extend mode|extended desktop|modul extindere|extindere|resolution|rezoluti[ea]|rezoluți[ea]|black screen|blank screen|missing screen|no signal|flicker|pixelat)\\b",
+    "\\b(?:connection|connected|connect|reconnect|disconnected|unplug|plugged|power supply|alimentare|conect(?:at|are|ez)|deconect(?:at|are)|nu apare|nu merge|nu functioneaza|nu funcționează)\\b"
+  ],
+  "refusals": {
+    "en": "I can help only with Doxa hardware installation, connections, drivers and related display troubleshooting. Please ask a Doxa setup question.",
+    "ro": "Te pot ajuta doar cu instalarea hardware-ului Doxa, conexiuni, drivere și depanarea ecranelor Doxa. Te rog să întrebi despre configurarea Doxa."
+  }
+}

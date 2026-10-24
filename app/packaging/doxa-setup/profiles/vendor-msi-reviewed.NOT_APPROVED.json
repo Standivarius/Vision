@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "approval_status": "NOT_APPROVED",
+  "profile_id": "doxa-smi770-observed-dell-2026-10-16",
+  "hardware_id_prefix": "USB\\VID_090C&PID_770A",
+  "vendor": "Silicon Motion",
+  "source_url": "https://www.siliconmotion.com/downloads/SMI-USB-Display-SW-MSI-for-Windows-4.7-R06.zip",
+  "retrieved_on": "2026-10-16",
+  "archive_sha256": "DD41326F9641D6E43DC2F2A42AC515902F497F7A376E77F9FB5D22DB6DD8C383",
+  "msi_filename": "SMIUSBDisplaySW770.msi",
+  "msi_product_name": "Silicon Motion USB Display Driver 770",
+  "msi_product_version": "4.7.6",
+  "msi_product_code": "{50676769-B66A-4B79-8D38-D763F3A2C5BD}",
+  "target_driver_version": "4.7.6.0",
+  "sha256": "3379B46DA029423748E2D2E64DB2015B50136E310A492E31857CC726719192D4",
+  "signer_thumbprint": "81956F4C8904963B707B994E42FEA1EDBBFA51C6",
+  "signer_subject": "Silicon Motion, Inc.",
+  "signature_status": "Valid",
+  "allow_prestage_without_device": false,
+  "embedded_inf_name": "SMIIddX770.inf",
+  "reviewed_msi_custom_actions": "MSI database includes DriverInstall/DriverUninstall/devcon and USB VID_090C&PID_770A add/remove actions; don't run on live Dell",
+  "package_local_evidence": "artifacts/vendor/smi770-msi-20261016/unpacked/SMIUSBDisplaySW770.msi (gitignored local evidence, no redistribution)",
+  "qualification_outstanding": [
+    "Supplier/OEM distribution and redistribution rights",
+    "Embedded INF DriverVer/CAT/SYS content verification",
+    "Clean managed IT install/uninstall/rollback, policy-blocked tests",
+    "Windows build and HVCI support matrix",
+    "Four-screen WGC cross-adapter capture and UX",
+    "Explicit technical owner approval before distribution"
+  ],
+  "note": "Downloaded official package signed and inventoried, not enterprise qualified. Must remain NOT_APPROVED until gates passed."
+}
