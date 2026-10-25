@@ -42,3 +42,6 @@ Twelve automated server-side tests passed, including signing and tamper rejectio
 ## Future releases
 
 The first public installer still needs a signed Standivarius binary, OEM redistribution clearance if bundling the Silicon Motion MSI, customer-level enrollment/rotation/recovery (rather than one Dell key), spending caps/privacy review, and complete attended installer validation. A Mac-like visual pass is deferred until functionality is stable. Do not overwrite or couple the existing Vision Worker or source files.
+
+### Next-stage device enrolment (tested source, not deployed)
+The worker accepts server-approved per-device RSA public JWKs from DOXA_APPROVED_DEVICES_JSON (JSON map of 24-hex client IDs to JWKs) and validates each request signature and timestamp. Existing Dell requests remain supported. Client keys are DPAPI-protected per user and prepared using Get-DoxaDeviceSignature.ps1 -PrepareEnrollment. Server ratelimit keys use approved client identity. No private key, provider token or generated API key is bundled. Connected Cloudflare integration cannot deploy this Worker or update allowlist: HTTP 403, requires workers-scripts.admin, workers-scripts.edit or workers-scripts.write. Do not claim ASUS online AI works until deployed Worker approves device and real signed response is answered.

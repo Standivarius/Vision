@@ -1,5 +1,5 @@
 ﻿param(
- [switch]$Smoke,[switch]$JourneyTest,[switch]$DeveloperTests,
+ [switch]$Smoke,[switch]$JourneyTest,[switch]$DeveloperTests,[string]$SnapshotPath="",
  [switch]$DiagnosticsApproved,[switch]$AIApproved,
  [ValidateSet('connected','without_doxa')][string]$ConnectionPreference='without_doxa',
  [ValidateSet('en','ro')][string]$Language='en'
@@ -63,28 +63,78 @@ $form.Controls.AddRange(@($intro,$sub))
 $card=New-Object Windows.Forms.Panel
 $card.SetBounds(28,230,620,332);$card.BackColor=[Drawing.Color]::White
 $card.BorderStyle='FixedSingle';$form.Controls.Add($card)
-$cardHeading=Label 'Your equipment' 21 19 520 28 13 $true $navy
+$cardHeading=Label 'Your Doxa system' 21 15 320 30 13 $true $navy
 $card.Controls.Add($cardHeading)
+# Original vector illustration rendered locally by Windows Forms: no external image,
+# manufacturer mark, cloud request or device state is inferred from this diagram.
+$deviceArt=New-Object Windows.Forms.Panel
+$deviceArt.SetBounds(20,50,579,130)
+$deviceArt.BackColor=[Drawing.Color]::FromArgb(244,248,252)
+$deviceArt.AccessibleName='Illustration of three Doxa display panels connected to one dock'
+$deviceArt.AccessibleDescription='Illustration only; actual screen connection state is shown in the equipment details below.'
+$deviceArt.Add_Paint({
+ param($sender,$event)
+ $g=$event.Graphics
+ $g.SmoothingMode=[Drawing.Drawing2D.SmoothingMode]::AntiAlias
+ if($sender.Width -lt 579){$g.ScaleTransform(($sender.Width/579.0),1.0)}
+ $screenPen=New-Object Drawing.Pen ([Drawing.Color]::FromArgb(65,83,112)),2
+ $panelBrush=New-Object Drawing.SolidBrush ([Drawing.Color]::White)
+ $glass=New-Object Drawing.SolidBrush ([Drawing.Color]::FromArgb(222,241,246))
+ $accent=New-Object Drawing.SolidBrush ([Drawing.Color]::FromArgb(78,170,185))
+ $foot=New-Object Drawing.SolidBrush ([Drawing.Color]::FromArgb(105,126,149))
+ $wire=New-Object Drawing.Pen ([Drawing.Color]::FromArgb(159,177,192)),2
+ $dock=New-Object Drawing.SolidBrush ([Drawing.Color]::FromArgb(37,62,86))
+ $glow=New-Object Drawing.SolidBrush ([Drawing.Color]::FromArgb(225,236,241))
+ try {
+  # Central screen is larger, mirroring the typical triple-screen desktop geometry.
+  foreach($panel in @(@(111,18,123,66),@(230,7,133,78),@(359,18,123,66))){
+   $x=[int]$panel[0];$y=[int]$panel[1];$w=[int]$panel[2];$h=[int]$panel[3]
+   $g.FillRectangle($glow,$x+5,$y+6,$w,$h)
+   $g.FillRectangle($panelBrush,$x,$y,$w,$h)
+   $g.DrawRectangle($screenPen,$x,$y,$w,$h)
+   $g.FillRectangle($glass,$x+7,$y+7,$w-14,$h-17)
+   $g.FillRectangle($accent,$x+7,$y+7,($w-14),4)
+   $g.FillRectangle($foot,($x+[int]($w/2)-2),$y+$h,4,12)
+   $g.FillRectangle($foot,($x+[int]($w/2)-15),$y+$h+12,30,3)
+  }
+  # Doxa USB display controller with unbroken power/data path; diagram is not a detection result.
+  $g.DrawLine($wire,296,101,296,109)
+  $g.FillRectangle($dock,272,109,49,13)
+  $g.FillRectangle($accent,277,113,7,4)
+ }finally{
+  foreach($item in @($screenPen,$panelBrush,$glass,$accent,$foot,$wire,$dock,$glow)){$item.Dispose()}
+ }
+})
+$card.Controls.Add($deviceArt)
+$connectionBadge=Label 'STATUS NOT CHECKED' 386 20 206 23 9 $true $slate
+$connectionBadge.TextAlign='MiddleRight'
+$connectionBadge.AccessibleName='Doxa connection status'
+$card.Controls.Add($connectionBadge)
 $rows=@()
 for($i=0;$i -lt 3;$i++){
- $l=Label '' 21 (65+$i*62) 573 56 10 $false $navy
+ $l=Label '' 21 (186+$i*34) 572 31 10 $false $navy
  $card.Controls.Add($l);$rows+=,$l
 }
-$stateLabel=Label '' 21 253 575 55 9 $false $slate
+$stateLabel=Label '' 21 286 575 39 9 $false $slate
 $card.Controls.Add($stateLabel)
 $check=Button 'Check Doxa' 28 576 155 46 $teal ([Drawing.Color]::White)
+$guide=Button 'Connection steps' 215 576 148 46 $light $navy
+$guide.AccessibleName='Show safe Doxa power USB and display connection steps'
+$guide.AccessibleDescription='Read-only instructions without AI, driver changes or internet connection.'
+$guide.TabIndex=1
 $reset=Button 'Return to live check' 194 576 187 46 $light $navy
 $reinstall=Button 'Install signed driver...' 394 576 253 46 $navy ([Drawing.Color]::White)
-$form.Controls.AddRange(@($check,$reset,$reinstall))
+$form.Controls.AddRange(@($check,$guide,$reset,$reinstall))
 $check.TabIndex=0
 $check.AccessibleName='Check Windows and Doxa without modifying drivers'
-$reinstall.TabIndex=1
+$reinstall.TabIndex=2
 $reinstall.AccessibleName='Install a verified original signed vendor driver, if required'
 $reinstall.AccessibleDescription='Only after local source verification and separate administrator approval. Will not reinstall a working signed driver.'
 $reset.Visible=$script:developerMode
 if(-not $script:developerMode){
- $check.SetBounds(28,576,240,46)
- $reinstall.SetBounds(284,576,363,46)
+ $check.SetBounds(28,576,175,46)
+ $guide.SetBounds(215,576,148,46)
+ $reinstall.SetBounds(375,576,272,46)
 }
 $side=New-Object Windows.Forms.Panel
 $side.SetBounds(669,136,362,487);$side.BackColor=[Drawing.Color]::White
@@ -146,6 +196,42 @@ $official.Add_LinkClicked({
 })
 $footer=Label 'Doxa Setup personal preview -- Driver changes require your approval' 29 648 995 22 9
 $form.Controls.Add($footer)
+# In a portrait/remote Windows desktop, stack device and help instead of losing
+# half the application off-screen. On full-size desktops retain the two-column view.
+$script:compactLayout=([Windows.Forms.Screen]::PrimaryScreen.WorkingArea.Width -lt 1090)
+if($script:compactLayout){
+ $work=[Windows.Forms.Screen]::PrimaryScreen.WorkingArea
+ $width=[Math]::Max(440,[Math]::Min(522,$work.Width-16))
+ $height=[Math]::Max(530,[Math]::Min(940,$work.Height-55))
+ $form.AutoScroll=$true
+ $form.ClientSize=New-Object Drawing.Size($width,$height)
+ $head.SetBounds(0,0,$width,107)
+ $languageChoice.SetBounds(($width-174),30,157,30)
+ $intro.SetBounds(17,121,($width-34),35)
+ $sub.SetBounds(17,163,($width-34),40)
+ $cardWidth=$width-20
+ $card.SetBounds(10,213,$cardWidth,332)
+ $cardHeading.SetBounds(17,14,253,30)
+ $connectionBadge.SetBounds(($cardWidth-195),20,177,23)
+ $deviceArt.SetBounds(12,50,($cardWidth-24),130)
+ for($i=0;$i -lt 3;$i++){$rows[$i].SetBounds(17,(186+$i*34),($cardWidth-34),31)}
+ $stateLabel.SetBounds(17,286,($cardWidth-34),39)
+ $actionsTop=556
+ $check.SetBounds(10,$actionsTop,155,46)
+ $guide.SetBounds(173,$actionsTop,145,46)
+ $reinstall.SetBounds(326,$actionsTop,($width-336),46)
+ $reset.SetBounds(10,606,200,30)
+ $side.SetBounds(10,616,$cardWidth,488)
+ $helpHeading.SetBounds(17,15,($cardWidth-34),30)
+ $assistantStatus.SetBounds(17,48,($cardWidth-34),25)
+ $chat.SetBounds(17,80,($cardWidth-34),295)
+ $ask.SetBounds(17,389,($cardWidth-127),36)
+ $send.SetBounds(($cardWidth-99),388,82,38)
+ $hint.SetBounds(17,448,($cardWidth-34),25)
+ $offline.SetBounds(17,442,($cardWidth-34),31)
+ $official.SetBounds(20,1117,($width-40),23)
+ $footer.SetBounds(20,1142,($width-40),24)
+}
 $script:current=$null;$script:fault='none';$script:lang=$Language
 $script:cloudPolicyScript=Join-Path $PSScriptRoot 'Get-DoxaCloudAIPolicy.ps1'
 function T([string]$en,[string]$ro){if($script:lang -eq 'ro'){$ro}else{$en}}
@@ -167,6 +253,9 @@ function RefreshState {
   $result=& $diagnose -Fault $script:fault -Language $script:lang | Out-String | ConvertFrom-Json
   $script:current=$result
   $d=$result.observed
+  # Never conflate decorative illustration with verified physical device presence.
+  $connectionBadge.Text=if($result.test_only){'TEST DATA'}elseif($d.hardware_ready){T 'DEVICE DETECTED' 'DOXA DETECTAT'}elseif($result.code -eq 'doxa_not_detected'){T 'NOT CONNECTED' 'DECONECTAT'}else{T 'CHECK REQUIRED' 'VERIFICA'}
+  $connectionBadge.ForeColor=if($d.hardware_ready){$teal}else{[Drawing.Color]::FromArgb(151,86,40)}
   $rows[0].Text=if($d.signed_driver_present){
    "OK   Signed Silicon Motion driver, version "+$d.driver_version
   }elseif($result.code -eq 'doxa_not_detected' -and $d.driver_package_in_store){
@@ -211,7 +300,7 @@ function RefreshState {
    }else{
     $sub.Text=T 'Step 4 of 4: check the connected Doxa screens.' 'Pasul 4 din 4: verificarea ecranelor Doxa conectate.'
    }
-   $assistantStatus.Text=if($script:cloudConsent){T 'Doxa AI available on request' 'AI Doxa disponibil la cerere'}else{T 'Local help only - remote AI declined' 'Doar ajutor local - AI neaprobat'}
+   $assistantStatus.Text=if($script:cloudConsent){T 'Online AI requested; device approval may be required' 'AI online solicitat; aprobarea dispozitivului poate fi necesara'}else{T 'Offline Doxa help is ready' 'Asistenta Doxa offline este disponibila'}
   }
  }catch{
   $rows[2].Text='!    Check failed'
@@ -240,6 +329,9 @@ function Answer([string]$q){
   return (T 'I could not open the local curated Doxa help at this moment.' 'Nu pot incarca acum sursele tehnice locale pentru Doxa.')
  }
 }
+$guide.Add_Click({
+ Say 'Doxa' (T '1. Connect Doxa power and its USB data cable. 2. Wait for Windows to recognize the device. 3. Choose Extend in Windows display settings if needed. 4. Click Check Doxa. This is offline guidance and does not install a driver.' '1. Conecteaza alimentarea si cablul USB. 2. Asteapta detectarea in Windows. 3. Alege Extindere in setarile ecranului. 4. Apasa Verifica Doxa. Ghid offline; nu instaleaza driverul.')
+})
 $check.Add_Click({$script:fault='none';RefreshState})
 $reset.Add_Click({$script:fault='none';RefreshState})
 $inject.Add_Click({
@@ -351,11 +443,12 @@ $offline.Add_Click({
 $ask.Add_KeyDown({param($sender,$e);if($e.KeyCode -eq 'Enter'){$e.SuppressKeyPress=$true;$send.PerformClick()}})
 function ApplyMainLanguage {
  $script:lang=if($languageChoice.SelectedIndex -eq 1){'ro'}else{'en'}
- $intro.Text=T 'Get your screens ready' 'Pregateste ecranele Doxa'
+ $intro.Text=T 'Your Doxa, ready to connect' 'Pregateste ecranele Doxa'
  $sub.Text=T 'Doxa checks your equipment, explains problems and guides the next step.' 'Doxa verifica echipamentele si te ajuta sa rezolvi problemele.'
- $cardHeading.Text=T 'Your equipment' 'Echipamentele tale'
+ $cardHeading.Text=T 'Your Doxa system' 'Sistemul tau Doxa'
  $helpHeading.Text=T 'Doxa help' 'Asistenta Doxa'
  $check.Text=T 'Check Doxa' 'Verifica Doxa'
+ $guide.Text=T 'Connection steps' 'Pasi conectare'
  $reset.Text=T 'Return to live check' 'Verificare reala'
  $reinstall.Text=T 'Install signed driver...' 'Instaleaza driverul semnat...'
  $official.Text=T 'Official Silicon Motion driver downloads' 'Descarca driverul oficial Silicon Motion'
@@ -366,6 +459,7 @@ function ApplyMainLanguage {
  if(-not $Smoke){RefreshState}
 }
 $languageChoice.Add_SelectedIndexChanged({ApplyMainLanguage})
+if($Language -eq 'en'){$intro.Text='Your Doxa, ready to connect'}
 # The welcome wizard's selection carries into the main window without a second prompt.
 if($Language -eq 'ro'){$languageChoice.SelectedIndex=1}
 $advanced.Add_LinkClicked({
@@ -436,6 +530,8 @@ if($JourneyTest){
  $click=[Windows.Forms.Button].GetMethod('OnClick',[Reflection.BindingFlags]'Instance,NonPublic')
  RefreshState
  $initialCode=$script:current.code
+ [void]$click.Invoke($guide,@([EventArgs]::Empty))
+ if($null -ne $script:aiJob -or -not $chat.Text.Contains((T 'This is offline guidance' 'Ghid offline'))){throw 'Connection guide did not stay offline'}
  # Unrelated questions stay inside this WinForms window; no cloud request is started.
  $ask.Text='What is the weather today?'
  [void]$click.Invoke($send,@([EventArgs]::Empty))
@@ -458,13 +554,24 @@ if($JourneyTest){
   if(-not $chat.Text.Contains((T 'No installation is necessary' 'Nu este necesara instalarea'))){throw 'Already-installed path did not avoid MSI selection.'}
   $installSkip='correct_driver_noop'
  }
- $result=[ordered]@{journey='PASS';initial_code=$initialCode;fault_did_not_call_ai=$true;install_button=$installSkip;driver_changes=$false;official_source=$official.Text;language_options=$languageChoice.Items.Count;language=$script:lang;localized_intro=$intro.Text}
+ $result=[ordered]@{journey='PASS';initial_code=$initialCode;fault_did_not_call_ai=$true;install_button=$installSkip;driver_changes=$false;official_source=$official.Text;language_options=$languageChoice.Items.Count;device_illustration_present=($deviceArt.Width -gt 300);connection_steps_offline=$true;language=$script:lang;localized_intro=$intro.Text}
  $form.Dispose()
  $result|ConvertTo-Json -Compress
  return
 }
 if($Smoke) {
- @{smoke='PASS';window=$form.Text;languages=@('English','Romana');fault_count=$faults.Items.Count;initial_language=$script:lang;intro_text=$intro.Text;help_title=$helpHeading.Text;language_dropdown_count=$languageChoice.Items.Count;developer_controls_visible=[bool]$inject.Visible;reset_visible=[bool]$reset.Visible;advanced_visible=[bool]$advanced.Visible;chat_height=$chat.Height;driver_changes_without_user_action=$false;cloud_ai_connected=$false}|ConvertTo-Json -Compress
+ $snapshot=New-Object Drawing.Bitmap($form.Width,$form.Height)
+ try{
+  if($SnapshotPath){$form.Show();$form.Refresh()}
+  $form.DrawToBitmap($snapshot,[Drawing.Rectangle]::new(0,0,$form.Width,$form.Height))
+  $artworkRenderPass=$true
+  if($SnapshotPath){
+   $parent=Split-Path -Parent $SnapshotPath
+   if(-not(Test-Path $parent -PathType Container)){throw 'Snapshot output folder does not exist'}
+   $snapshot.Save($SnapshotPath,[Drawing.Imaging.ImageFormat]::Png)
+  }
+ }finally{if($SnapshotPath){$form.Hide()};$snapshot.Dispose()}
+ @{smoke='PASS';window=$form.Text;layout_mode=$(if($script:compactLayout){'compact_stacked'}else{'wide_columns'});viewport_width=$form.ClientSize.Width;side_within_horizontal_bounds=($side.Right -le $form.ClientSize.Width);languages=@('English','Romana');form_width=$form.Width;form_height=$form.Height;fault_count=$faults.Items.Count;device_illustration_present=($deviceArt.Width -gt 300 -and $deviceArt.Height -gt 100);connection_steps_wired=($guide.Parent -eq $form);device_illustration_accessible=([bool]$deviceArt.AccessibleName);artwork_render_pass=$artworkRenderPass;illustration_not_device_evidence=$true;initial_language=$script:lang;intro_text=$intro.Text;help_title=$helpHeading.Text;language_dropdown_count=$languageChoice.Items.Count;developer_controls_visible=[bool]$inject.Visible;reset_visible=[bool]$reset.Visible;advanced_visible=[bool]$advanced.Visible;chat_height=$chat.Height;driver_changes_without_user_action=$false;cloud_ai_connected=$false}|ConvertTo-Json -Compress
  $form.Dispose()
  return
 }

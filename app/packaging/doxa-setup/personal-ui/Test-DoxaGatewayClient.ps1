@@ -1,4 +1,4 @@
-$ErrorActionPreference='Stop'
+﻿$ErrorActionPreference='Stop'
 $client=Join-Path $PSScriptRoot 'Ask-DoxaInstaller.ps1'
 $localKb=Join-Path $PSScriptRoot 'Get-DoxaKnowledgeAnswer.ps1'
 $identity=Join-Path $PSScriptRoot 'Get-DoxaDeviceSignature.ps1'
@@ -6,12 +6,19 @@ $wrong=(& $client -Question 'Why one screen?' -Endpoint 'https://unapproved.exam
 if($wrong.status -ne 'endpoint_not_approved'){throw 'Unapproved endpoint accepted'}
 $noConsent=(& $client -Question 'Why RDP shows one monitor?'|Out-String)|ConvertFrom-Json
 if($noConsent.status -ne 'consent_required'){throw 'Direct AI client accepted a question without explicit consent'}
-$identityResult=(& $identity -PublicOnly|Out-String)
-if(-not $identityResult.Contains('DEVICE_PRIVATE_KEY=WINDOWS_DPAPI')){throw 'Dell user private-key storage unavailable'}
+# Explicitly create an ephemeral test identity inside an isolated per-run profile.
+$priorAppData=$env:LOCALAPPDATA
+$testAppData=Join-Path ([IO.Path]::GetTempPath()) ('doxa-test-signing-'+[Guid]::NewGuid().ToString('N'))
+try {
+ New-Item -ItemType Directory -Force -Path $testAppData|Out-Null
+ $env:LOCALAPPDATA=$testAppData
+ $identityResult=(& $identity -PrepareEnrollment|Out-String)|ConvertFrom-Json
+ if($identityResult.private_key_protection -ne 'Windows DPAPI CurrentUser' -or -not $identityResult.client_id -or $identityResult.approved_by_server){throw 'Isolated device enrollment preparation failed'}
+
 function Invoke-RestMethod{
  param([string]$Method,[string]$Uri,$Headers,[string]$ContentType,$Body,[int]$TimeoutSec)
  if($Uri -ne 'https://doxa-installer-assistant.marius-moldovan.workers.dev/v1/ask'){throw 'Doxa must not route through Vision'}
- if(-not $Headers['x-doxa-signature'] -or -not $Headers['x-doxa-timestamp']){throw 'Missing automatic Dell authentication'}
+ if(-not $Headers['x-doxa-signature'] -or -not $Headers['x-doxa-timestamp'] -or -not $Headers['x-doxa-client-id']){throw 'Missing signed per-device authentication'}
  if($Headers.ContainsKey('Authorization')){throw 'Bearer token is forbidden in Doxa alpha'}
  $payload=[Text.Encoding]::UTF8.GetString($Body)|ConvertFrom-Json
  if($payload.intent -ne 'ask_doxa_installer'){throw 'Unexpected intent'}
@@ -35,6 +42,10 @@ $romanian=(& $localKb -Question 'Ce vreme este azi?' -Language ro|Out-String)|Co
 if($romanian.status -ne 'out_of_scope' -or -not $romanian.answer.Contains('instalarea')){throw 'Romanian scope refusal failed'}
 $romanianDisplay=(& $localKb -Question 'De ce ecranul Doxa nu apare?' -Language ro|Out-String)|ConvertFrom-Json
 if($romanianDisplay.status -ne 'curated_answer'){throw 'Romanian Doxa screen troubleshooting must remain supported'}
+}finally{
+ $env:LOCALAPPDATA=$priorAppData
+ Remove-Item -LiteralPath $testAppData -Recurse -Force -ErrorAction SilentlyContinue
+}
 'DOXA_SIGNED_CLIENT_AND_CURATED_TESTS=PASS'
 'MANUAL_SECRETS_REQUIRED=False'
 'VISION_ASSISTANT_DEPENDENCY=False'
