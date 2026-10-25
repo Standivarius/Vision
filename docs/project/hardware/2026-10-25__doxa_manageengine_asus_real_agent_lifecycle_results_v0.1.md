@@ -33,3 +33,16 @@
 - UI path: `Configurations > Script Repository > Add Script`, then `Add Configurations > Windows > Custom Script > Computer Configuration`.
 - Choose `Repository: DoxaPilot.ps1`; `Script Arguments: -Action Install` or `-Action Uninstall`; upload `DoxaSetupPayload.zip` dependency; `Once`, `Run As System User`, `Exit Codes 0`, `Enable Logging`, disable `Retry this configuration on failed targets`; `Remote Office: Default Remote Office`, refine on **Computer ASUS-DESKTOP-HOME**, confirm *one selected computer only*.
 - The exact created IDs are recorded above; future pilot runs should use new one-time configurations and a recoverable endpoint.
+
+## Verified post-test decommission
+
+- **ASUS managed agent removal successful:** Windows Application MsiInstaller event **1034** plus event **11724** for `ManageEngine UEMS - Agent` at **09:20:51 on 2026-10-25**, removal error status 0. ASUS independent service enumeration later showed **zero ManageEngine services**.
+- **Doxa absent:** `DoxaPilot.ps1 -Action Detect` returned **1**, Doxa Program Files folder absent, and no pending Windows Update or CBS reboot.
+- **Endpoint Central Cloud**: vendor-supported ASUS-only agent uninstall had been requested after all three real managed jobs passed; UI showed **Uninstalled Successfully**. Its single ASUS device record was then removed with the one-record scope check. Following refresh, **No computers managed, 0–0 of Total Records**.
+- **Cloud one-time jobs**: test configuration IDs `43565000000332018`, `43565000000332038`, `43565000000332053` moved to **Trash** only after recording success evidence. They are no longer active jobs. The `DoxaPilot.ps1` Script Repository entry **remains**: vendor UI refused deletion because of these historical associated tasks, even after moving them to Trash. It cannot execute without an active job/target. The managed Endpoint Central tenant/subscription **was not deleted or cancelled**.
+- **ASUS transient cleanup**: dedicated isolated CDP Chrome profile / listener port `9223` closed and the Doxa-only temporary `%LOCALAPPDATA%\DoxaPilot-Staging` folder deleted. The two exact desktop pilot installers `Install-ManageEngine-ASUS-Pilot.cmd` and `Install-ManageEngine-ASUS-Pilot-v2.cmd` removed. Ordinary Chrome and all AiGov application/repo work remain untouched.
+- **User-owned download preserved**: `C:\Users\User\OneDrive - DMR Ergonomics\DefaultRemoteOffice.zip` not changed. It is a Zoho-generated agent bootstrap download with tenant configuration and should be protected; optional deletion from OneDrive is a separate user-data action, not part of this test.
+- **TinyFish**: the previously-created Standivarius Endpoint Central EU saved browser profile within TinyFish **was not removed by local Playwright**. TinyFish may retain cookies; its profile cleanup is separate from local ASUS cleanup. No TinyFish wallet top-up or billing modification was performed.
+- **Dell**: unrelated Intune app-only pilot and original Doxa hardware/driver unchanged. **No merge** was performed.
+
+**Final ManageEngine pilot conclusion:** core genuine app-only remote Install, repeat/ idempotency, managed Uninstall **PASS**, agent uninstall and managed-device cleanup **PASS**. Physical vendor-driver lifecycle and wider regulated endpoint-policy tests remain distinct unpassed gates.
