@@ -23,6 +23,15 @@ try{
  if($noApproval.blocking_reasons -notcontains 'owner_not_physically_present' -or $noApproval.blocking_reasons -notcontains 'laptop_recovery_display_not_confirmed'){throw 'Recovery assurance gates missing'}
  $missing=(& $script -EvidencePath $fixturePath -VendorMsiPath (Join-Path $temp 'missing.msi') |Out-String)|ConvertFrom-Json
  if($missing.recovery_msi_gate -ne 'package_missing' -or $missing.may_begin_attended_recovery_rehearsal){throw 'MSI gate not enforced'}
+ $fetcher=Join-Path $PSScriptRoot 'Get-DoxaOfficialRecoveryMsi.ps1'
+ $source=(& $fetcher|Out-String)|ConvertFrom-Json
+ if($source.installation_started -or $source.downloads_started -or $source.expected_msi_sha256 -ne '3379B46DA029423748E2D2E64DB2015B50136E310A492E31857CC726719192D4'){throw 'Official vendor source metadata invalid'}
+ $badArchive=Join-Path $temp 'bad.zip'
+ [IO.File]::WriteAllText($badArchive,'not a vendor ZIP')
+ $badDir=Join-Path $temp 'bad-output'
+ $rejected=$false
+ try{& $fetcher -ArchivePath $badArchive -OutputDirectory $badDir | Out-Null}catch{$rejected=$true}
+ if(-not $rejected -or (Test-Path (Join-Path $badDir 'SMIUSBDisplaySW770.msi'))){throw 'Tampered vendor archive was not rejected'}
  $live=(& $script|Out-String)|ConvertFrom-Json
  if($live.operation -ne 'read_only_preflight' -or $live.driver_changes -or $live.software_deployed -or $live.reboot_initiated -or $live.may_begin_attended_recovery_rehearsal){throw 'ASUS live preflight failed closed'}
  'DOXA_RECOVERY_PREFLIGHT_RDP_FIXTURE_MSI_LAPTOP_AND_LIVE_GATES_PASS'

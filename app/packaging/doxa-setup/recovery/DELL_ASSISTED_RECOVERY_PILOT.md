@@ -7,6 +7,17 @@ Silicon Motion publishes SM770 Windows EXE and MSI packages at https://www.silic
 
 Doxa's existing Test-DoxaPackageGate.ps1 pins SHA256 3379B46DA029423748E2D2E64DB2015B50136E310A492E31857CC726719192D4 and signer cert thumbprint 81956F4C8904963B707B994E42FEA1EDBBFA51C6. A newer vendor MSI must not be silently accepted or downgraded to this baseline; review its signature, hash, version, installer product identity and hardware eligibility first.
 
+## Official vendor MSI now verified directly on ASUS
+On 2026-10-25 the official `SMI-USB-Display-SW-MSI-for-Windows-4.7-R06.zip` was retrieved from `https://www.siliconmotion.com/downloads/SMI-USB-Display-SW-MSI-for-Windows-4.7-R06.zip`. Archive length 6,598,200 and SHA256 `DD41326F9641D6E43DC2F2A42AC515902F497F7A376E77F9FB5D22DB6DD8C383`. The sole contained MSI `SMIUSBDisplaySW770.msi` is 6,816,256 bytes, SHA256 `3379B46DA029423748E2D2E64DB2015B50136E310A492E31857CC726719192D4`, with valid Silicon Motion Authenticode signer thumbprint `81956F4C8904963B707B994E42FEA1EDBBFA51C6`. The existing Test-DoxaPackageGate.ps1 ALLOWED it unchanged. No install was executed.
+
+New `Get-DoxaOfficialRecoveryMsi.ps1` does only a pinned vendor-direct download or uses an already downloaded archive, validates ZIP structure/hash, extracts to local user storage, validates MSI SHA256 and publisher signature, and does NOT invoke MSI or drivers. Typical future attended Dell preparation:
+
+```powershell
+& .\app\packaging\doxa-setup\recovery\Get-DoxaOfficialRecoveryMsi.ps1 -Download
+& .\app\packaging\doxa-setup\recovery\Test-DoxaRecoveryPreflight.ps1 -VendorMsiPath "$env:LOCALAPPDATA\Standivarius\DoxaRecovery\vendor\SMIUSBDisplaySW770.msi" -OwnerAtKeyboard -LaptopDisplayIndependentlyUsable
+```
+
+Only use the two owner assertion switches after their physical truth is checked at the Dell keyboard; commands do NOT authorise driver uninstall. No MSI is embedded in the public Standivarius ZIP. Tests reject incorrect vendor archives, lack of owner safeguards, RDP misinterpretations, missing MSI and non-Dell execution.
 ## Preflight: non-negotiable
 1. Dell development bridge returns project_start('visual'); record clean before/after Git branch/status, preserve all existing dirty work. Inspect RELEASE-CONTROL current state and relevant Windows display/driver inventory. Use real Dell console, not an RDP logical desktop.
 2. Owner is at Dell keyboard. A **separate independent working laptop panel** has been physically confirmed, and Doxa can be disconnected without losing operator control. Keep recovery communication channel available even if USB displays fail.
