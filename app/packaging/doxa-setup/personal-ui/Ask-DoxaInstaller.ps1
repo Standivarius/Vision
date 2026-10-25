@@ -1,4 +1,4 @@
-param(
+﻿param(
  [Parameter(Mandatory=$true)][string]$Question,
  [ValidateSet('en','ro')][string]$Language='en',
  [string]$Endpoint='https://doxa-installer-assistant.marius-moldovan.workers.dev/v1/ask',
@@ -53,6 +53,7 @@ try{
  $headers=@{
   'x-doxa-timestamp'=[string]$signature.timestamp
   'x-doxa-signature'=[string]$signature.signature
+  'x-doxa-client-id'=[string]$signature.client_id
  }
  $res=Invoke-RestMethod -Method Post -Uri $approved -Headers $headers -ContentType 'application/json; charset=utf-8' -Body ([Text.Encoding]::UTF8.GetBytes($body)) -TimeoutSec ([Math]::Max(1,[Math]::Min($TimeoutSec,40)))
  if([string]$res.status -in @('knowledge_gap','out_of_scope') -and [string]$res.answer){Result ([string]$res.status) ([string]$res.answer);return}

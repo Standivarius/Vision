@@ -45,8 +45,28 @@ export function normalizeDiagnostics(raw){
   package_signature_verified:obj.package_signature_verified===true,
  };
 }
-// Only Dell holds the DPAPI-encrypted private key. The public key ships with this Worker.
-async function authorised(req, rawBody){
+// Existing Dell key is still accepted. Additional Windows devices are permitted ONLY
+// when their public key is present in the server-side allowlist, not from request data.
+export function approvedDeviceJwk(env,clientId){
+ if(!clientId) return dellPublicKey; // backward-compatible existing Dell alpha
+ if(!/^[a-f0-9]{24}$/.test(clientId))return null;
+ let trusted;
+ try {trusted=JSON.parse(env?.DOXA_APPROVED_DEVICES_JSON||"{}");}catch{return null;}
+ if(!trusted || typeof trusted!=="object" || Array.isArray(trusted) || Object.keys(trusted).length>64)return null;
+ const jwk=trusted[clientId];
+ if(!jwk || jwk.kty!=="RSA" || jwk.alg!=="RS256" ||
+    !/^[A-Za-z0-9_-]{320,400}$/.test(jwk.n||"") ||
+    !/^[A-Za-z0-9_-]{2,8}$/.test(jwk.e||""))return null;
+ return jwk;
+}
+async function authorised(req,rawBody,env){
+ const clientId=req.headers.get("x-doxa-client-id")||"";
+ // A packed Dell client upgraded to the new code sends its derived ID,
+ // while old Dell clients omit the ID. Both map to the same original public key.
+ const legacyHash=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(dellPublicKey.n));
+ const legacyId=Array.from(new Uint8Array(legacyHash),x=>x.toString(16).padStart(2,"0")).join("").slice(0,24);
+ const publicJwk=(clientId===legacyId)?dellPublicKey:approvedDeviceJwk(env,clientId);
+ if(!publicJwk)return null;
  const timestamp=req.headers.get("x-doxa-timestamp")||"";
  const encoded=req.headers.get("x-doxa-signature")||"";
  if(!/^[0-9]{10}$/.test(timestamp) || !/^[A-Za-z0-9_-]{300,400}$/.test(encoded)) return false;
@@ -55,18 +75,19 @@ async function authorised(req, rawBody){
   const raw=atob(encoded.replace(/-/g,"+").replace(/_/g,"/"));
   const signature=Uint8Array.from(raw,c=>c.charCodeAt(0));
   const publicKey=await crypto.subtle.importKey(
-   "jwk",dellPublicKey,{name:"RSASSA-PKCS1-v1_5",hash:"SHA-256"},false,["verify"]
+   "jwk",publicJwk,{name:"RSASSA-PKCS1-v1_5",hash:"SHA-256"},false,["verify"]
   );
-  return await crypto.subtle.verify(
+  const valid=await crypto.subtle.verify(
    {name:"RSASSA-PKCS1-v1_5"},publicKey,signature,
    new TextEncoder().encode(timestamp+"\n"+rawBody)
   );
- }catch{return false;}
+  return valid ? (clientId||"dell-legacy") : null;
+ }catch{return null;}
 }
 export async function handleRequest(req,env){
  const uri=new URL(req.url);
  if(req.method==="GET" && uri.pathname==="/health"){
-   return json({service:"standivarius-doxa-installer-assistant",schema_version:1,knowledge:knowledgeIdentity(),model_configured:!!env?.AI,authentication:"dell-device-signature",actions_enabled:false});
+   return json({service:"standivarius-doxa-installer-assistant",schema_version:1,knowledge:knowledgeIdentity(),model_configured:!!env?.AI,authentication:"approved-device-signature",actions_enabled:false});
  }
  if(uri.pathname!=="/v1/ask" || req.method!=="POST") return json({error:"not_found"},404);
  const len=Number(req.headers.get("content-length")||0);
@@ -74,7 +95,8 @@ export async function handleRequest(req,env){
  let rawBody;
  try{rawBody=await req.text();}catch{return json({error:"invalid_json"},400);}
  if(rawBody.length>16384)return json({error:"request_too_large"},413);
- if(!await authorised(req,rawBody))return json({error:"unauthorized"},401);
+ const authenticatedDevice=await authorised(req,rawBody,env);
+ if(!authenticatedDevice)return json({error:"unauthorized"},401);
  let input;
  try{input=JSON.parse(rawBody);}catch{return json({error:"invalid_json"},400);}
  if(input?.schema_version!=="1" || input?.intent!=="ask_doxa_installer" || !input.context || typeof input.context!=="object" || Array.isArray(input.context)){
@@ -96,7 +118,7 @@ export async function handleRequest(req,env){
    return json({schema_version:"1",status:"knowledge_gap",answer:"This question isn't covered by the current Doxa installation knowledge. I can check the signed driver, detected panels and installation result without changing Windows.",sources:[],mode:"curated_local",execution_performed:false});
  }
  if(!env.AI || !env.DOXA_RATE)return json({error:"ai_offline",code:"ai_binding_not_configured"},503);
- const quota=await env.DOXA_RATE.limit({key:"approved-dell-development-device"});
+ const quota=await env.DOXA_RATE.limit({key:authenticatedDevice});
  if(!quota.success)return json({error:"rate_limited"},429);
  let data;
  try{

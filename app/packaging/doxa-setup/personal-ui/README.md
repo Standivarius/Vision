@@ -77,3 +77,10 @@ The Azure for Students **Azure credit** is not an Intune licence. Some universit
 **Completed:** dedicated live Doxa Worker, real native model response, signed Dell request verified by the Worker, read-only feedback to the Windows client. **Pending:** GUI full attended user-journey test, actual physical driver reinstall where appropriate, signed self-contained downloadable installer, OEM redistribution permissions and Intune-managed pilot.
 
 The first functional product matters more than Mac-like visual polish; the owner explicitly deferred appearance research.
+
+## Device-centred interface and multi-device AI developer gate
+The main UI includes an original Windows-drawn three-screen Doxa illustration, a true-data status badge (not connected/verified/check), plain-language offline connection guide and screen-reader labels. The illustration never masquerades as hardware proof. English is prioritized; Romanian is placeholder-quality. The preview performs no driver installation without an explicit separate user action and vendor MSI gate.
+
+The AI client supports per-Windows-user DPAPI RSA identities. An operator prepares enrollment with Get-DoxaDeviceSignature.ps1 -PrepareEnrollment, which outputs a public JWK/client ID, never a private key. The operator must approve only the public JWK on Cloudflare and deploy Worker source; until then offline assistance remains functional. Old Dell signed requests remain accepted in updated worker code. No secrets are bundled.
+
+The Worker model is native Cloudflare Workers AI, not Dify. The curated knowledge set is a deliberately small functional sample, not a complete support knowledge base. The assistant cannot run commands or repair drivers.

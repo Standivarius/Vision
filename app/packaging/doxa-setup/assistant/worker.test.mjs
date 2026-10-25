@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {execFileSync} from "node:child_process";
+import {mkdtempSync,rmSync} from "node:fs";
+import {tmpdir} from "node:os";
 import {dirname,join} from "node:path";
 import {fileURLToPath} from "node:url";
 import {retrieve,knowledgeIdentity} from "./curated-kb.mjs";
@@ -9,6 +11,12 @@ import worker,{normalizeDiagnostics,handleRequest} from "./worker.mjs";
 const here=dirname(fileURLToPath(import.meta.url));
 const signer=join(here,"..","personal-ui","Get-DoxaDeviceSignature.ps1");
 const endpoint="https://doxa-installer-assistant.example/v1/ask";
+const isolatedProfile=mkdtempSync(join(tmpdir(),"doxa-identity-unit-"));
+const signingEnv={...process.env,LOCALAPPDATA:isolatedProfile};
+execFileSync("powershell.exe",["-NoProfile","-File",signer,"-PrepareEnrollment"],{encoding:"utf8",timeout:15000,env:signingEnv});
+const approval=JSON.parse(execFileSync("powershell.exe",["-NoProfile","-File",signer,"-PublicOnly"],{encoding:"utf8",timeout:15000,env:signingEnv}));
+process.on("exit",()=>rmSync(isolatedProfile,{recursive:true,force:true}));
+const approvedDevices=JSON.stringify({[approval.client_id]:approval.public_jwk});
 const evidence={
  session_kind:"remote",signed_driver_present:true,driver_version:"4.7.6.0",
  pnp_doxa_panel_count:3,physical_display_topology_verified:true,hardware_ready:true,
@@ -19,13 +27,13 @@ const payload=(question="Why does Remote Desktop show one screen?")=>
 function sign(raw){
  const command="& '"+signer.replace(/'/g,"''")+"' -SignBody @'\n"+raw+"\n'@";
  const encoded=Buffer.from(command,"utf16le").toString("base64");
- return JSON.parse(execFileSync("powershell.exe",["-NoProfile","-EncodedCommand",encoded],{encoding:"utf8",timeout:15000}));
+ return JSON.parse(execFileSync("powershell.exe",["-NoProfile","-EncodedCommand",encoded],{encoding:"utf8",timeout:15000,env:signingEnv}));
 }
 function req(question,override={}){
  const body=payload(question);
  const auth=sign(body);
  return new Request(endpoint,{method:"POST",headers:{"content-type":"application/json",
-  "x-doxa-timestamp":String(auth.timestamp),"x-doxa-signature":auth.signature,...override},body});
+  "x-doxa-timestamp":String(auth.timestamp),"x-doxa-signature":auth.signature,"x-doxa-client-id":auth.client_id,...override},body});
 }
 const modelEnv=()=>{
  let calls=0;
@@ -39,7 +47,7 @@ const modelEnv=()=>{
  assert(!JSON.stringify(evidence).includes("NEVER_SEND_DEVICE_SERIAL"));
  assert(evidence.curated_knowledge.length>0);
  return {response:"Three Doxa panels and a signed driver are detected; RDP shows a virtual display, not the console layout."};
- }},DOXA_RATE:{async limit(){return {success:true};}}};
+ }},DOXA_APPROVED_DEVICES_JSON:approvedDevices,DOXA_RATE:{async limit(){return {success:true};}}};
  return {env,numberOfCalls:()=>calls};
 };
 test("isolated Doxa curated sources",()=>{
@@ -65,10 +73,10 @@ test("health exposes no action and no secret dependence",async()=>{
  const res=await worker.fetch(new Request("https://doxa-installer-assistant.example/health"),{AI:{}});
  const body=await res.json();
  assert.equal(body.model_configured,true);
- assert.equal(body.authentication,"dell-device-signature");
+ assert.equal(body.authentication,"approved-device-signature");
  assert.equal(body.actions_enabled,false);
 });
-test("rejects requests without Dell's signed identity",async()=>{
+test("rejects requests without an approved's signed identity",async()=>{
  const r=await worker.fetch(new Request(endpoint,{method:"POST",body:payload("Why does RDP show one screen?")}),modelEnv().env);
  assert.equal(r.status,401);
 });
@@ -86,13 +94,13 @@ test("signed requests without an acknowledged current AI disclosure do not reach
   const auth=sign(raw);
   const m=modelEnv();
   const response=await handleRequest(new Request(endpoint,{method:"POST",headers:{
-   "x-doxa-timestamp":String(auth.timestamp),"x-doxa-signature":auth.signature},body:raw}),m.env);
+   "x-doxa-timestamp":String(auth.timestamp),"x-doxa-signature":auth.signature,"x-doxa-client-id":auth.client_id},body:raw}),m.env);
   assert.equal(response.status,403);
   assert.equal((await response.json()).error,"ai_disclosure_required");
   assert.equal(m.numberOfCalls(),0);
  }
 });
-test("valid Dell signature authorizes read-only model inference",async()=>{
+test("approved device signature authorizes read-only model inference",async()=>{
  const m=modelEnv();
  const r=await handleRequest(req("Why does Remote Desktop show one screen?"),m.env);
  const body=await r.json();
@@ -146,7 +154,7 @@ test("Romanian out-of-scope reply is from deterministic policy, not AI",async()=
    question:"Ce vreme este azi?",context:evidence});
  const sig=sign(raw);
  const r=await handleRequest(new Request(endpoint,{method:"POST",headers:{
-   "x-doxa-timestamp":String(sig.timestamp),"x-doxa-signature":sig.signature},body:raw}),m.env);
+   "x-doxa-timestamp":String(sig.timestamp),"x-doxa-signature":sig.signature,"x-doxa-client-id":sig.client_id},body:raw}),m.env);
  assert.equal((await r.json()).answer,scopeRefusal("ro"));
  assert.equal(m.numberOfCalls(),0);
 });
@@ -156,6 +164,28 @@ test("enforces rate limit before model",async()=>{
  assert.equal(r.status,429);assert.equal(m.numberOfCalls(),0);
 });
 test("missing AI binding refuses inference",async()=>{
- const r=await handleRequest(req("Why does Remote Desktop show one screen?"),{});
+ const r=await handleRequest(req("Why does Remote Desktop show one screen?"),{DOXA_APPROVED_DEVICES_JSON:approvedDevices});
  assert.equal(r.status,503);assert.equal((await r.json()).error,"ai_offline");
+});
+
+test("signed but unapproved new device is denied before model",async()=>{
+ const m=modelEnv();
+ delete m.env.DOXA_APPROVED_DEVICES_JSON;
+ const response=await handleRequest(req("Why does Remote Desktop show one screen?"),m.env);
+ assert.equal(response.status,401);
+ assert.equal(m.numberOfCalls(),0);
+});
+test("never trusts a request-supplied public identity",async()=>{
+ const m=modelEnv();
+ m.env.DOXA_APPROVED_DEVICES_JSON=JSON.stringify({"invalid":approval.public_jwk});
+ const response=await handleRequest(req("Why does Remote Desktop show one screen?"),m.env);
+ assert.equal(response.status,401);assert.equal(m.numberOfCalls(),0);
+});
+test("per-device rate limits use validated identity",async()=>{
+ const m=modelEnv();
+ let key="";
+ m.env.DOXA_RATE.limit=async v=>{key=v.key;return {success:true};};
+ const response=await handleRequest(req("Why does Remote Desktop show one screen?"),m.env);
+ assert.equal(response.status,200);
+ assert.equal(key,approval.client_id);
 });
