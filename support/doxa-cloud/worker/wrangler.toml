@@ -4,3 +4,6 @@ compatibility_date = "2026-09-25"
 
 [observability]
 enabled = true
+
+# Isolated non-production Cloudflare PR builds only.
+[previews]

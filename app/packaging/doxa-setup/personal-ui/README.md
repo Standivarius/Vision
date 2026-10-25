@@ -1,4 +1,4 @@
-# Standivarius Doxa Setup — dedicated hardware installer
+﻿# Standivarius Doxa Setup — dedicated hardware installer
 
 **Status 2026-10-16:** functional Windows-native development preview, **not** a signed public release.
 
@@ -7,6 +7,13 @@
 **Standivarius Doxa Setup** is the hardware driver installer and troubleshooting/support product for Doxa. It does not install, configure, bundle, diagnose, or require **Standivarius Vision** (the independent low-vision magnification application). Doxa hardware can later serve as a separate test platform for Vision, but that does not merge the products.
 
 Although this work currently shares the canonical local Vision repository due to the active project setup, the Doxa setup source, knowledge base, server routes, model request/response contract and release identity must remain separable.
+
+## First-use interface (ASUS preview update)
+- The consent-first welcome now offers **English / Romanian before any local hardware diagnostics**. All welcome instructions, permissions and connection choices switch language live; language switching never grants consent.
+- The chosen language carries into the main Doxa equipment + help window. A user can also change languages there. Keyboard Tab order, accessible names for core controls and Enter-to-continue are explicit.
+- Local hardware checks require checked consent; cloud AI remains separately opt-in. The installed signed-driver no-op, official vendor MSI gate, unavailable physical hardware and hidden developer simulations are unchanged.
+- The extracted portable preview acceptance tests cover both language journeys and refuse any driver or display mutation.
+- On ASUS without Doxa hardware only disconnected/offline behaviour is verified; an attended owner visual UI review and real connected-hardware verification remain separate.
 
 ## Personal workflow
 
@@ -70,3 +77,10 @@ The Azure for Students **Azure credit** is not an Intune licence. Some universit
 **Completed:** dedicated live Doxa Worker, real native model response, signed Dell request verified by the Worker, read-only feedback to the Windows client. **Pending:** GUI full attended user-journey test, actual physical driver reinstall where appropriate, signed self-contained downloadable installer, OEM redistribution permissions and Intune-managed pilot.
 
 The first functional product matters more than Mac-like visual polish; the owner explicitly deferred appearance research.
+
+## Device-centred interface and multi-device AI developer gate
+The main UI includes an original Windows-drawn three-screen Doxa illustration, a true-data status badge (not connected/verified/check), plain-language offline connection guide and screen-reader labels. The illustration never masquerades as hardware proof. English is prioritized; Romanian is placeholder-quality. The preview performs no driver installation without an explicit separate user action and vendor MSI gate.
+
+The AI client supports per-Windows-user DPAPI RSA identities. An operator prepares enrollment with Get-DoxaDeviceSignature.ps1 -PrepareEnrollment, which outputs a public JWK/client ID, never a private key. The operator must approve only the public JWK on Cloudflare and deploy Worker source; until then offline assistance remains functional. Old Dell signed requests remain accepted in updated worker code. No secrets are bundled.
+
+The Worker model is native Cloudflare Workers AI, not Dify. The curated knowledge set is a deliberately small functional sample, not a complete support knowledge base. The assistant cannot run commands or repair drivers.
