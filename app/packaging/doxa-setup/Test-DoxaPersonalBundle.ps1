@@ -1,4 +1,4 @@
-param(
+﻿param(
  [Parameter(Mandatory=$true)][string]$BundlePath,
  [switch]$LiveAI
 )
@@ -37,6 +37,8 @@ try{
  $wizard=Join-Path $testRoot 'app\packaging\doxa-setup\personal-ui\Start-DoxaGuidedSetup.ps1'
  $welcome=(& $wizard -JourneyTest | Out-String)|ConvertFrom-Json
  if($welcome.journey -ne 'PASS' -or $welcome.hardware_scans_before_consent -ne 0){throw 'Packaged consent wizard failed'}
+ $welcomeRo=(& $wizard -JourneyTest -Language ro -TestConnectionChoice without_doxa | Out-String)|ConvertFrom-Json
+ if($welcomeRo.journey -ne 'PASS' -or $welcomeRo.language -ne 'ro' -or $welcomeRo.localized_step -notmatch 'Pasul 2' -or $welcomeRo.hardware_scans_before_consent -ne 0 -or $welcomeRo.remote_requests -ne 0){throw 'Packaged Romanian consent journey failed'}
  $runner=Join-Path $testRoot 'app\packaging\doxa-setup\personal-ui\Start-DoxaSetup.ps1'
  $old=(Get-Location).Path
  Set-Location -LiteralPath $env:TEMP
@@ -44,7 +46,9 @@ try{
   $result=(& $runner -JourneyTest|Out-String)|ConvertFrom-Json
   if($result.journey -ne 'PASS'){throw 'Extracted installer journey failed'}
   if($result.fault_did_not_call_ai -ne $true){throw 'Simulation safety regression'}
-  if($result.install_button -notin @('correct_driver_noop','connect_doxa_first')){throw 'Unsafe driver installation decision on Dell'}
+  if($result.install_button -notin @('correct_driver_noop','connect_doxa_first')){throw 'Unsafe driver installation decision on this PC'}
+  $mainRo=(& $runner -JourneyTest -Language ro | Out-String)|ConvertFrom-Json
+  if($mainRo.journey -ne 'PASS' -or $mainRo.language -ne 'ro' -or $mainRo.localized_intro -notmatch 'Pregateste' -or $mainRo.driver_changes -or $mainRo.fault_did_not_call_ai -ne $true){throw 'Packaged Romanian main UI journey failed'}
  }finally{Set-Location -LiteralPath $old}
  $localHelp=Join-Path $testRoot 'app\packaging\doxa-setup\personal-ui\Get-DoxaKnowledgeAnswer.ps1'
  $scopeOut=(& $localHelp -Question 'What is the weather today? Doxa driver'|Out-String)|ConvertFrom-Json
@@ -61,7 +65,7 @@ try{
   $aiStatus=[string]$reply.status
   if($aiStatus -ne 'answered'){throw ('Extracted client did not reach live Doxa AI: '+$aiStatus)}
  }
- [ordered]@{status='PASS';file_integrity_verified=$checked;archive_total_files=$all.Count;driver_payload_bundled=$false;credentials_bundled=$false;extracted_away_from_repository=$true;journey=$result.journey;simulated_fault_did_not_call_ai=$result.fault_did_not_call_ai;driver_install_prevented_safely=$true;installation_button_result=$result.install_button;cloud_ai=$aiStatus}|ConvertTo-Json -Compress
+ [ordered]@{status='PASS';file_integrity_verified=$checked;archive_total_files=$all.Count;driver_payload_bundled=$false;credentials_bundled=$false;extracted_away_from_repository=$true;journey=$result.journey;simulated_fault_did_not_call_ai=$result.fault_did_not_call_ai;driver_install_prevented_safely=$true;installation_button_result=$result.install_button;cloud_ai=$aiStatus;bilingual_ui_verified=$true;consent_before_diagnostics=$true}|ConvertTo-Json -Compress
 }finally{
  Set-Location -LiteralPath $before
  if(Test-Path -LiteralPath $testRoot){Remove-Item -LiteralPath $testRoot -Recurse -Force}

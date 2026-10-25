@@ -1,11 +1,12 @@
-param(
+﻿param(
  [switch]$Smoke,[switch]$JourneyTest,[switch]$DeveloperTests,
  [switch]$DiagnosticsApproved,[switch]$AIApproved,
- [ValidateSet('connected','without_doxa')][string]$ConnectionPreference='without_doxa'
+ [ValidateSet('connected','without_doxa')][string]$ConnectionPreference='without_doxa',
+ [ValidateSet('en','ro')][string]$Language='en'
 )
 # Regular entry always presents explicit permissions before scanning the computer.
 if(-not $DiagnosticsApproved -and -not $Smoke -and -not $JourneyTest -and -not $DeveloperTests){
- & (Join-Path $PSScriptRoot 'Start-DoxaGuidedSetup.ps1')
+ & (Join-Path $PSScriptRoot 'Start-DoxaGuidedSetup.ps1') -Language $Language
  return
 }
 $script:cloudConsent=[bool]$AIApproved
@@ -50,10 +51,12 @@ $head=New-Object Windows.Forms.Panel
 $head.SetBounds(0,0,1060,110);$head.BackColor=$navy;$form.Controls.Add($head)
 $head.Controls.Add((Label 'Standivarius' 28 13 430 32 19 $true ([Drawing.Color]::White)))
 $head.Controls.Add((Label 'D O X A    /    SETUP & SUPPORT' 29 55 520 24 10 $true ([Drawing.Color]::FromArgb(119,225,222))))
-$language=New-Object Windows.Forms.ComboBox
-$language.SetBounds(840,27,181,31);$language.DropDownStyle='DropDownList'
-[void]$language.Items.Add('English');[void]$language.Items.Add('Romana')
-$language.SelectedIndex=0;$head.Controls.Add($language)
+$languageChoice=New-Object Windows.Forms.ComboBox
+$languageChoice.SetBounds(840,27,181,31);$languageChoice.DropDownStyle='DropDownList'
+[void]$languageChoice.Items.Add('English');[void]$languageChoice.Items.Add('Romana')
+$languageChoice.SelectedIndex=0;$head.Controls.Add($languageChoice)
+$languageChoice.AccessibleName='Application language / Limba aplicatiei'
+$languageChoice.TabIndex=0
 $intro=Label 'Get your screens ready' 29 138 610 34 20 $true $navy
 $sub=Label 'Step 3 of 4: checking Windows, USB and Doxa readiness.' 29 178 620 38
 $form.Controls.AddRange(@($intro,$sub))
@@ -73,6 +76,11 @@ $check=Button 'Check Doxa' 28 576 155 46 $teal ([Drawing.Color]::White)
 $reset=Button 'Return to live check' 194 576 187 46 $light $navy
 $reinstall=Button 'Install signed driver...' 394 576 253 46 $navy ([Drawing.Color]::White)
 $form.Controls.AddRange(@($check,$reset,$reinstall))
+$check.TabIndex=0
+$check.AccessibleName='Check Windows and Doxa without modifying drivers'
+$reinstall.TabIndex=1
+$reinstall.AccessibleName='Install a verified original signed vendor driver, if required'
+$reinstall.AccessibleDescription='Only after local source verification and separate administrator approval. Will not reinstall a working signed driver.'
 $reset.Visible=$script:developerMode
 if(-not $script:developerMode){
  $check.SetBounds(28,576,240,46)
@@ -88,10 +96,17 @@ $chat=New-Object Windows.Forms.RichTextBox
 $chat.SetBounds(17,80,326,242);$chat.ReadOnly=$true;$chat.BorderStyle='None'
 $chat.BackColor=[Drawing.Color]::FromArgb(249,252,253)
 $chat.Font=New-Object Drawing.Font('Segoe UI',10);$side.Controls.Add($chat)
+$chat.AccessibleName='Doxa help conversation'
+$chat.TabStop=$true
+$chat.TabIndex=0
 $ask=New-Object Windows.Forms.TextBox
 $ask.SetBounds(17,330,228,33);$side.Controls.Add($ask)
+$ask.AccessibleName='Ask a Doxa installation question'
+$ask.TabIndex=1
 $send=Button 'Ask' 258 328 85 35 $teal ([Drawing.Color]::White)
 $side.Controls.Add($send)
+$send.TabIndex=2
+$send.AccessibleDescription='Send an installation question. Online AI is used only if separately approved.'
 $faultTitle=Label 'Test an installation problem (safe)' 17 381 326 25 10 $true $navy
 $side.Controls.Add($faultTitle)
 $faults=New-Object Windows.Forms.ComboBox
@@ -131,7 +146,7 @@ $official.Add_LinkClicked({
 })
 $footer=Label 'Doxa Setup personal preview -- Driver changes require your approval' 29 648 995 22 9
 $form.Controls.Add($footer)
-$script:current=$null;$script:fault='none';$script:lang='en'
+$script:current=$null;$script:fault='none';$script:lang=$Language
 $script:cloudPolicyScript=Join-Path $PSScriptRoot 'Get-DoxaCloudAIPolicy.ps1'
 function T([string]$en,[string]$ro){if($script:lang -eq 'ro'){$ro}else{$en}}
 function Say([string]$speaker,[string]$body){
@@ -303,7 +318,7 @@ $send.Add_Click({
  $send.Enabled=$false
  $assistantStatus.Text=T 'Checking with Doxa AI...' 'Consultam Doxa AI...'
  try{
-  $script:aiJob=Start-Job -ScriptBlock {param($path,$question,$language) & $path -Question $question -Language $language -AIConsentGranted} -ArgumentList @($assistantScript,$q,$script:lang)
+  $script:aiJob=Start-Job -ScriptBlock {param($path,$question,$languageChoice) & $path -Question $question -Language $languageChoice -AIConsentGranted} -ArgumentList @($assistantScript,$q,$script:lang)
   $aiTimer.Start()
  }catch{
   $send.Enabled=$true
@@ -334,8 +349,8 @@ $offline.Add_Click({
  Say 'Doxa' 'Cloud AI is off for the remainder of this setup session. Previous questions cannot be recalled.'
 })
 $ask.Add_KeyDown({param($sender,$e);if($e.KeyCode -eq 'Enter'){$e.SuppressKeyPress=$true;$send.PerformClick()}})
-$language.Add_SelectedIndexChanged({
- $script:lang=if($language.SelectedIndex -eq 1){'ro'}else{'en'}
+function ApplyMainLanguage {
+ $script:lang=if($languageChoice.SelectedIndex -eq 1){'ro'}else{'en'}
  $intro.Text=T 'Get your screens ready' 'Pregateste ecranele Doxa'
  $sub.Text=T 'Doxa checks your equipment, explains problems and guides the next step.' 'Doxa verifica echipamentele si te ajuta sa rezolvi problemele.'
  $cardHeading.Text=T 'Your equipment' 'Echipamentele tale'
@@ -347,8 +362,12 @@ $language.Add_SelectedIndexChanged({
  $faultTitle.Text=T 'Test an installation problem (safe)' 'Simuleaza o problema de instalare'
  $send.Text=T 'Ask' 'Intreaba'
  $assistantStatus.Text=T 'Doxa installation questions only' 'Doar intrebari despre instalarea Doxa'
- $chat.Clear();RefreshState
-})
+ $chat.Clear()
+ if(-not $Smoke){RefreshState}
+}
+$languageChoice.Add_SelectedIndexChanged({ApplyMainLanguage})
+# The welcome wizard's selection carries into the main window without a second prompt.
+if($Language -eq 'ro'){$languageChoice.SelectedIndex=1}
 $advanced.Add_LinkClicked({
  if($script:fault -ne 'none') {
   [Windows.Forms.MessageBox]::Show((T 'Clear the simulated fault before a real maintenance test.' 'Inchide simularea inainte de testul real.'),'Doxa')|Out-Null
@@ -421,30 +440,31 @@ if($JourneyTest){
  $ask.Text='What is the weather today?'
  [void]$click.Invoke($send,@([EventArgs]::Empty))
  if($null -ne $script:aiJob){throw 'Out-of-scope question started an AI job.'}
- if(-not $chat.Text.Contains('only with Doxa hardware installation')){throw 'Scope refusal was not displayed in chat.'}
+ $scopeResult=(& (Join-Path $PSScriptRoot 'Get-DoxaKnowledgeAnswer.ps1') -Question 'What is the weather today?' -Language $script:lang | Out-String)|ConvertFrom-Json
+ if(-not $chat.Text.Contains([string]$scopeResult.answer)){throw 'Localized scope refusal was not displayed in chat.'}
  $script:fault='display_missing';RefreshState
  $ask.Text='Why is the simulated display missing?'
  [void]$click.Invoke($send,@([EventArgs]::Empty))
  if($null -ne $script:aiJob){throw 'Simulated fault contacted the online assistant.'}
- if(-not $chat.Text.Contains('diagnostic test')){throw 'Fault message did not stay local.'}
+ if(-not $chat.Text.Contains((T 'diagnostic test' 'simulare'))){throw 'Fault message did not stay local.'}
  $script:fault='none';RefreshState
  $installSkip='not_checked'
  if($script:current.code -eq 'doxa_not_detected'){
   [void]$click.Invoke($reinstall,@([EventArgs]::Empty))
-  if(-not $chat.Text.Contains('First connect Doxa power')){throw 'Disconnected Doxa did not provide appropriate connection guidance.'}
+  if(-not $chat.Text.Contains((T 'First connect Doxa power' 'Conecteaza mai intai alimentarea'))){throw 'Disconnected Doxa did not provide appropriate connection guidance.'}
   $installSkip='connect_doxa_first'
  }elseif($script:current.observed.signed_driver_present){
   [void]$click.Invoke($reinstall,@([EventArgs]::Empty))
-  if(-not $chat.Text.Contains('No installation is necessary')){throw 'Already-installed path did not avoid MSI selection.'}
+  if(-not $chat.Text.Contains((T 'No installation is necessary' 'Nu este necesara instalarea'))){throw 'Already-installed path did not avoid MSI selection.'}
   $installSkip='correct_driver_noop'
  }
- $result=[ordered]@{journey='PASS';initial_code=$initialCode;fault_did_not_call_ai=$true;install_button=$installSkip;driver_changes=$false;official_source=$official.Text;language_options=$language.Items.Count}
+ $result=[ordered]@{journey='PASS';initial_code=$initialCode;fault_did_not_call_ai=$true;install_button=$installSkip;driver_changes=$false;official_source=$official.Text;language_options=$languageChoice.Items.Count;language=$script:lang;localized_intro=$intro.Text}
  $form.Dispose()
  $result|ConvertTo-Json -Compress
  return
 }
 if($Smoke) {
- @{smoke='PASS';window=$form.Text;languages=@('English','Romana');fault_count=$faults.Items.Count;developer_controls_visible=[bool]$inject.Visible;reset_visible=[bool]$reset.Visible;advanced_visible=[bool]$advanced.Visible;chat_height=$chat.Height;driver_changes_without_user_action=$false;cloud_ai_connected=$false}|ConvertTo-Json -Compress
+ @{smoke='PASS';window=$form.Text;languages=@('English','Romana');fault_count=$faults.Items.Count;initial_language=$script:lang;intro_text=$intro.Text;help_title=$helpHeading.Text;language_dropdown_count=$languageChoice.Items.Count;developer_controls_visible=[bool]$inject.Visible;reset_visible=[bool]$reset.Visible;advanced_visible=[bool]$advanced.Visible;chat_height=$chat.Height;driver_changes_without_user_action=$false;cloud_ai_connected=$false}|ConvertTo-Json -Compress
  $form.Dispose()
  return
 }

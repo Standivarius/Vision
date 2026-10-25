@@ -1,4 +1,4 @@
-# Standivarius Doxa Setup — dedicated hardware installer
+﻿# Standivarius Doxa Setup — dedicated hardware installer
 
 **Status 2026-10-16:** functional Windows-native development preview, **not** a signed public release.
 
@@ -7,6 +7,13 @@
 **Standivarius Doxa Setup** is the hardware driver installer and troubleshooting/support product for Doxa. It does not install, configure, bundle, diagnose, or require **Standivarius Vision** (the independent low-vision magnification application). Doxa hardware can later serve as a separate test platform for Vision, but that does not merge the products.
 
 Although this work currently shares the canonical local Vision repository due to the active project setup, the Doxa setup source, knowledge base, server routes, model request/response contract and release identity must remain separable.
+
+## First-use interface (ASUS preview update)
+- The consent-first welcome now offers **English / Romanian before any local hardware diagnostics**. All welcome instructions, permissions and connection choices switch language live; language switching never grants consent.
+- The chosen language carries into the main Doxa equipment + help window. A user can also change languages there. Keyboard Tab order, accessible names for core controls and Enter-to-continue are explicit.
+- Local hardware checks require checked consent; cloud AI remains separately opt-in. The installed signed-driver no-op, official vendor MSI gate, unavailable physical hardware and hidden developer simulations are unchanged.
+- The extracted portable preview acceptance tests cover both language journeys and refuse any driver or display mutation.
+- On ASUS without Doxa hardware only disconnected/offline behaviour is verified; an attended owner visual UI review and real connected-hardware verification remain separate.
 
 ## Personal workflow
 
