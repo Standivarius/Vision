@@ -1,4 +1,4 @@
-param([string]$OutputDirectory='')
+﻿param([string]$OutputDirectory='', [switch]$Reproducible)
 # Vendor-neutral managed deployment preview; app-only, unsigned.
 # The same DoxaPilot.ps1 and source-built personal payload are used by Intune.
 $ErrorActionPreference='Stop'
@@ -12,7 +12,7 @@ $src=Join-Path $stage 'package'
 $extract=Join-Path $stage 'verify'
 try{
  New-Item -Path $bundleOut,$src,$extract -ItemType Directory -Force|Out-Null
- $created=(& (Join-Path $PSScriptRoot 'Build-DoxaPersonalBundle.ps1') -OutputDirectory $bundleOut|Out-String)|ConvertFrom-Json
+ $created=(& (Join-Path $PSScriptRoot 'Build-DoxaPersonalBundle.ps1') -OutputDirectory $bundleOut -Reproducible:$Reproducible|Out-String)|ConvertFrom-Json
  if($created.status -ne 'created' -or $created.vendor_msi_included -or $created.credentials_included){throw 'Personal app-only builder refused'}
  $verified=(& (Join-Path $PSScriptRoot 'Test-DoxaPersonalBundle.ps1') -BundlePath $created.path|Out-String)|ConvertFrom-Json
  if($verified.status -ne 'PASS' -or $verified.archive_total_files -ne 19){throw 'Extracted personal payload failed verification'}
@@ -28,7 +28,12 @@ try{
  $name='Doxa-Managed-AppOnly-Pilot-'+(Get-Date -Format 'yyyyMMdd-HHmmss')+'.zip'
  $outFile=Join-Path $output $name
  if(Test-Path -LiteralPath $outFile){throw 'Refusing to overwrite managed pilot artifact'}
+ if($Reproducible){
+  & python (Join-Path $PSScriptRoot 'Build-DoxaStableZip.py') $src $outFile | Out-Null
+  if($LASTEXITCODE -ne 0){throw 'Reproducible managed ZIP failed'}
+ }else{
  Compress-Archive -LiteralPath (Join-Path $src 'DoxaPilot.ps1'),(Join-Path $src 'DoxaSetupPayload.zip') -DestinationPath $outFile -CompressionLevel Optimal
+ }
  Expand-Archive -LiteralPath $outFile -DestinationPath $extract
  $actual=@(Get-ChildItem -LiteralPath $extract -File -Recurse)
  if($actual.Count -ne 2){throw 'Managed ZIP contains unexpected files'}
