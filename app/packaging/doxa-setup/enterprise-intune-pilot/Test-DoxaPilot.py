@@ -47,5 +47,31 @@ with tempfile.TemporaryDirectory(prefix="DoxaEnterprisePilotTest-") as tmp:
     with zipfile.ZipFile(tampered,"a") as archive:
         archive.writestr("unlisted-extra.exe",b"MZ-not-an-authorised-Doxa-file")
     steps.append(run("Install",tampered));assert steps[-1]["exit"]==30 and not target.exists(),steps[-1]
+    # A missing download must not write an installation directory.
+    missing=pathlib.Path(tmp)/"missing-vendor-or-app-bundle.zip"
+    steps.append(run("Install",missing)); assert steps[-1]["exit"]==21 and not target.exists(),steps[-1]
+    # A corrupt/interrupted ZIP must fail closed and clean its temporary stage.
+    truncated=pathlib.Path(tmp)/"truncated-payload.zip"
+    truncated.write_bytes(b"corrupt-incomplete-zip")
+    steps.append(run("Install",truncated)); assert steps[-1]["exit"]==30 and not target.exists(),steps[-1]
+    assert not list(pathlib.Path(tmp).glob("doxa-pilot-stage-*")), "Interrupted ZIP left staging files"
+    # An unrelated existing directory must never be overwritten or removed.
+    target.mkdir()
+    owner_note=target/"owner-files-must-survive.txt"
+    owner_note.write_text("KEEP",encoding="utf-8")
+    steps.append(run("Install")); assert steps[-1]["exit"]==32 and owner_note.read_text()=="KEEP",steps[-1]
+    steps.append(run("Uninstall")); assert steps[-1]["exit"]==33 and owner_note.read_text()=="KEEP",steps[-1]
+    shutil.rmtree(target)
+    # Modifying a legitimate app file must cause detection failure and
+    # prevent removal until exact original byte contents are restored.
+    steps.append(run("Install")); assert steps[-1]["exit"]==0,steps[-1]
+    altered=target/"app"/"packaging"/"doxa-setup"/"personal-ui"/"Start-DoxaSetup.ps1"
+    original=altered.read_bytes()
+    altered.write_bytes(original+b"\n# changed by simulated fault")
+    steps.append(run("Detect")); assert steps[-1]["exit"]==1,steps[-1]
+    steps.append(run("Uninstall")); assert steps[-1]["exit"]==33 and altered.exists(),steps[-1]
+    altered.write_bytes(original)
+    steps.append(run("Uninstall")); assert steps[-1]["exit"]==0 and not target.exists(),steps[-1]
+    assert not list(pathlib.Path(tmp).glob("doxa-pilot-stage-*")), "Staging residue after tests"
     assert any("DOXA_INTEGRITY_REASON:" in item["err"] for item in steps if item["exit"] != 0)
     print(json.dumps({"status":"PASS","test_root":"isolated_temp","driver_installation":False,"steps":steps,"payload_sha256":hashlib.sha256(payload.read_bytes()).hexdigest()}))
