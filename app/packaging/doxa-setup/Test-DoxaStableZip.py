@@ -32,6 +32,12 @@ class StableZipTest(unittest.TestCase):
             with zipfile.ZipFile(first) as z:
                 self.assertEqual(z.namelist(),["a/zero.txt","z.txt"])
                 self.assertEqual(z.getinfo("z.txt").date_time,mod.ZIP_TIME)
+    def test_crossdrive_windows_output_is_not_inside_source(self):
+        # GitHub Windows uses C: for Python temporary directories and D: for artifacts.
+        self.assertFalse(mod.is_under_source("c:\\temp\\doxa", "d:\\a\\_temp\\doxa.zip"))
+        self.assertTrue(mod.is_under_source("c:\\temp\\doxa", "c:\\temp\\doxa\\bad.zip"))
+        self.assertFalse(mod.is_under_source("c:\\temp\\doxa", "c:\\temp\\other.zip"))
+
     def test_output_must_not_be_replaced_or_inside_source(self):
         with tempfile.TemporaryDirectory() as temp:
             root=Path(temp)

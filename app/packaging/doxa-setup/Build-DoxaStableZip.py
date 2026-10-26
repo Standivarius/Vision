@@ -9,6 +9,17 @@ import zipfile
 ZIP_TIME = (2000, 1, 1, 0, 0, 0)
 
 
+def is_under_source(source_key: str, destination_key: str) -> bool:
+    """Drive-aware containment. Cross-drive paths are necessarily disjoint."""
+    source_drive = os.path.splitdrive(source_key)[0].casefold()
+    destination_drive = os.path.splitdrive(destination_key)[0].casefold()
+    if source_drive != destination_drive:
+        if not source_drive or not destination_drive:
+            raise ValueError("Ambiguous drive in output containment check")
+        return False
+    return os.path.commonpath((source_key, destination_key)) == source_key
+
+
 def create(source: Path, destination: Path) -> tuple[int, int]:
     source = source.resolve(strict=True)
     # Windows runners may resolve short/canonical directory aliases differently
@@ -18,7 +29,7 @@ def create(source: Path, destination: Path) -> tuple[int, int]:
         raise ValueError("Source must be a directory")
     source_key = os.path.normcase(str(source))
     destination_key = os.path.normcase(str(destination))
-    if os.path.commonpath((source_key, destination_key)) == source_key:
+    if is_under_source(source_key, destination_key):
         raise ValueError("Output must be outside ZIP source")
     if destination.exists():
         raise ValueError("Refuse to overwrite existing package")
