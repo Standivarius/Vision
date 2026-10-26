@@ -90,3 +90,6 @@ Test-DoxaTroubleshootingMatrix.ps1 exercises 11 evidence-supported and negative 
 
 ### Automated compact-screen and consent UI acceptance
 Test-DoxaUILayout.ps1 now runs 10 offline Windows Forms smoke cases in EN and placeholder RO: welcome consent defaults, keyboard tab order, English/Romanian selector, privacy notice, source of device illustration, controls hidden for customers, full layout plus 440/480/522-pixel compact widths. The main customer UI reserves 30 pixels beyond the side panel for vertical-scrollbar width, puts the full-width signed-driver action on its own row, and never exposes developer fault injection. CompactTestWidth is strictly smoke-only and refuses ordinary setup invocation. This validates bounds and control contracts; human visual/assistive-technology review remains separate.
+
+### Perceived AI response time
+The installer shows source-backed offline guidance immediately before launching optional cloud AI asynchronously. AI may still need 30-40s but does not block the first useful troubleshooting step; failures and cancellations avoid duplicate offline answers. Test-DoxaQuickResponse.ps1 checks the first answer and source ordering with no remote model or driver action. This is a user experience improvement, not a claimed speedup of the model itself.
