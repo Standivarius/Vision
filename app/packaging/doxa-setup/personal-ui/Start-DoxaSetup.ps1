@@ -346,6 +346,7 @@ $inject.Add_Click({
 })
 $script:aiJob=$null
 $script:queuedQuestion=''
+$script:quickAdviceShown=$false
 $aiTimer=New-Object System.Windows.Forms.Timer
 $aiTimer.Interval=350
 $aiTimer.Add_Tick({
@@ -362,15 +363,24 @@ $aiTimer.Add_Tick({
    Say 'Doxa' ([string]$reply.answer)
    $assistantStatus.Text=T 'Doxa installation support only' 'Doar asistenta pentru instalarea Doxa'
   }else{
-   Say 'Doxa' ((Answer $script:queuedQuestion)+' '+(T 'Online AI was unavailable; this is local guidance.' 'AI nu a fost disponibil; acesta este un raspuns local.'))
+   if($script:quickAdviceShown){
+    Say 'Doxa' (T 'Online AI was unavailable. The verified offline guidance above remains available.' 'AI online nu a fost disponibil. Recomandarile offline de mai sus raman disponibile.')
+   }else{
+    Say 'Doxa' ((Answer $script:queuedQuestion)+' '+(T 'Online AI was unavailable; this is local guidance.' 'AI nu a fost disponibil; acesta este un raspuns local.'))
+   }
    $assistantStatus.Text=T 'Local guidance -- Cloud AI unavailable' 'Asistenta locala -- AI indisponibil'
   }
  }catch{
-  Say 'Doxa' ((Answer $script:queuedQuestion)+' '+(T 'Online AI was unavailable; using local guidance.' 'AI nu a fost disponibil; am folosit asistenta locala.'))
+  if($script:quickAdviceShown){
+   Say 'Doxa' (T 'Online AI failed. Continue with the verified offline guidance above.' 'AI online a esuat. Continua cu recomandarile offline de mai sus.')
+  }else{
+   Say 'Doxa' ((Answer $script:queuedQuestion)+' '+(T 'Online AI was unavailable; using local guidance.' 'AI nu a fost disponibil; am folosit asistenta locala.'))
+  }
  }finally{
   Remove-Job -Job $script:aiJob -Force -ErrorAction SilentlyContinue
   $script:aiJob=$null
   $script:queuedQuestion=''
+  $script:quickAdviceShown=$false
   $send.Enabled=$true
  }
 })
@@ -411,16 +421,23 @@ $send.Add_Click({
   $script:cloudConsent=$false
   return
  }
+ # Curated, source-backed advice appears before starting the optional AI job.
+ # Cloud latency must never block the first useful troubleshooting steps.
+ $script:quickAdviceShown=($scopeResult.status -eq 'curated_answer' -and [bool]$scopeResult.answer)
+ if($script:quickAdviceShown){
+  Say (T 'Doxa - quick offline guidance' 'Doxa - recomandari offline rapide') ([string]$scopeResult.answer)
+ }
  $script:queuedQuestion=$q
  $send.Enabled=$false
- $assistantStatus.Text=T 'Checking with Doxa AI...' 'Consultam Doxa AI...'
+ $assistantStatus.Text=T 'Checking with Doxa AI... offline steps above are ready' 'Consultam Doxa AI... recomandarile offline sunt gata'
  try{
   $script:aiJob=Start-Job -ScriptBlock {param($path,$question,$languageChoice) & $path -Question $question -Language $languageChoice -AIConsentGranted} -ArgumentList @($assistantScript,$q,$script:lang)
   $aiTimer.Start()
  }catch{
   $send.Enabled=$true
   $script:aiJob=$null
-  Say 'Doxa' (Answer $q)
+  if(-not $script:quickAdviceShown){Say 'Doxa' (Answer $q)}
+  $script:quickAdviceShown=$false
   $assistantStatus.Text=T 'Local guidance -- Cloud AI unavailable' 'Asistenta locala -- AI indisponibil'
  }
 })
@@ -438,6 +455,7 @@ $offline.Add_Click({
   Stop-Job -Job $script:aiJob -ErrorAction SilentlyContinue
   Remove-Job -Job $script:aiJob -Force -ErrorAction SilentlyContinue
   $script:aiJob=$null
+  $script:quickAdviceShown=$false
   $send.Enabled=$true
  }
  $offline.Visible=$false
