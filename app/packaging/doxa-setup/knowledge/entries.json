@@ -1,498 +1,498 @@
 {
-  "schema_version": 1,
-  "product": "Standivarius Doxa Setup",
-  "scope": "SMI770-based hardware installer/support only, never Standivarius Vision magnification software",
-  "updated_utc": "2026-10-16",
-  "source_policy": "Curated official vendor and Microsoft documentation plus labelled device observations; no runtime web search; paraphrases only",
-  "entries": [
-    {
-      "id": "smi-sm770-supported-stack",
-      "topic": "hardware",
-      "title": "SM770 Windows driver and hardware family",
-      "tags": [
-        "SM770",
-        "SMI770",
-        "driver",
-        "download",
-        "windows",
-        "version",
-        "release"
-      ],
-      "summary": "Silicon Motion provides SM77x Windows 10/11 driver and MSI downloads. The vendor download listing distinguishes a driver-only release from the MSI package, so package/version matching must be verified before an installation.",
-      "safe_steps": [
-        "Identify the connected USB-display hardware and currently installed signed package.",
-        "Use the official SM77x download page for current packages; confirm package hash and signer before installation."
-      ],
-      "limits": [
-        "Public download access does not grant Standivarius redistribution rights.",
-        "Do not infer an exact DLL version from the vendor's marketing release label."
-      ],
-      "sources": [
-        {
-          "url": "https://www.siliconmotion.com/downloads/SM770-drivers.html",
-          "section": "Windows driver and MSI download list",
-          "publisher": "Silicon Motion"
-        }
-      ]
-    },
-    {
-      "id": "smi-display-unsteady",
-      "topic": "display",
-      "title": "SM770 display intermittently disappears or drops",
-      "tags": [
-        "unstable",
-        "missing",
-        "drops",
-        "black",
-        "power",
-        "usb",
-        "cable",
-        "flicker"
-      ],
-      "summary": "Silicon Motion's troubleshooting guidance prioritises power and USB connectivity, then suitable cables and a different port or display resolution. Driver replacement is a later controlled option, not the default for every disconnect.",
-      "safe_steps": [
-        "Verify docking power and the USB host connection.",
-        "If safe, disconnect the dock from USB and power for at least a minute, then reconnect power followed by host USB.",
-        "If the problem persists, try a suitable USB-C data cable or another host USB port, then investigate video cables and resolution."
-      ],
-      "limits": [
-        "Do not reboot, uninstall or update firmware without the user's separate approval.",
-        "Power loss may temporarily remove external displays; check again after reconnection."
-      ],
-      "sources": [
-        {
-          "url": "https://www.siliconmotion.com/products/USB-Display-Docking-SoC/detail",
-          "section": "Graphics Software FAQ — display unstable and randomly dropped off",
-          "publisher": "Silicon Motion"
-        }
-      ]
-    },
-    {
-      "id": "smi-not-working",
-      "topic": "display",
-      "title": "SM770 adapter not working as expected",
-      "tags": [
-        "screen",
-        "display",
-        "no output",
-        "not working",
-        "undetected",
-        "usb"
-      ],
-      "summary": "Silicon Motion advises an orderly check of power, USB connections and driver presence when a docking adapter isn't working as expected. Windows Update may have installed the vendor driver without a visible Silicon Motion Programs and Features entry.",
-      "safe_steps": [
-        "Check Windows device inventory and the signed driver identity.",
-        "Verify Doxa power and host USB connection.",
-        "If the driver really is missing, acquire and verify a current official package before proposing installation."
-      ],
-      "limits": [
-        "Do not assume that no Programs and Features entry means no driver exists.",
-        "Only the user/authorised installer can initiate a driver change."
-      ],
-      "sources": [
-        {
-          "url": "https://www.siliconmotion.com/products/USB-Display-Docking-SoC/detail",
-          "section": "Graphics Software FAQ — adapter not working",
-          "publisher": "Silicon Motion"
-        }
-      ]
-    },
-    {
-      "id": "smi-image-quality",
-      "topic": "display",
-      "title": "USB display quality and compression limitations",
-      "tags": [
-        "pixels",
-        "blurry",
-        "compression",
-        "image",
-        "quality",
-        "artefacts",
-        "graphics"
-      ],
-      "summary": "Silicon Motion explains that USB display adapters transfer a compressed desktop image; compared with directly connected displays, this can affect image sharpness. This is not by itself evidence of a broken installation.",
-      "safe_steps": [
-        "Identify whether the issue appears only on USB-attached screens.",
-        "Compare a static reference on the built-in display and the Doxa screen at the same resolution."
-      ],
-      "limits": [
-        "Do not promise pixel-perfect parity with a directly driven display."
-      ],
-      "sources": [
-        {
-          "url": "https://www.siliconmotion.com/products/USB-Display-Docking-SoC/detail",
-          "section": "Graphics Software FAQ — image crispness",
-          "publisher": "Silicon Motion"
-        }
-      ]
-    },
-    {
-      "id": "smi-instantview-alternative",
-      "topic": "architecture",
-      "title": "SM770 InstantView application versus Windows driver",
-      "tags": [
-        "instantview",
-        "driverless",
-        "virtual",
-        "no driver",
-        "software",
-        "application"
-      ],
-      "summary": "Silicon Motion describes InstantView as an alternative USB display software approach without requiring installation of a traditional display driver. Its behaviour, firmware management and suitability must not be confused with the signed Windows driver in the qualified Doxa configuration.",
-      "safe_steps": [
-        "Identify whether the customer actually uses the driver-based or InstantView software stack.",
-        "Recommend only packages that match the verified hardware and chosen approved deployment method."
-      ],
-      "limits": [
-        "Do not mix InstantView and driver operations without separate testing."
-      ],
-      "sources": [
-        {
-          "url": "https://www.siliconmotion.com/products/USB-Display-Docking-SoC/detail",
-          "section": "InstantView overview",
-          "publisher": "Silicon Motion"
-        }
-      ]
-    },
-    {
-      "id": "smi-driver-msi-gpo",
-      "topic": "enterprise",
-      "title": "Silicon Motion MSI deployment with Windows Group Policy",
-      "tags": [
-        "MSI",
-        "gpo",
-        "enterprise",
-        "domain",
-        "deployment",
-        "reboot",
-        "installer"
-      ],
-      "summary": "Silicon Motion documents distributing its SM770 MSI through Windows Group Policy via a secured network share, dedicated OU and assigned computer policy. In that documented GPO path, deployment can require policy refresh and reboot.",
-      "safe_steps": [
-        "For a managed domain, ask IT to review the vendor's GPO deployment instructions.",
-        "Use a dedicated test organisational unit/group and approved package source for a pilot.",
-        "Record Windows Installer and device-installation results after any authorised reboot."
-      ],
-      "limits": [
-        "The vendor manual describes GPO; it does not by itself certify Intune deployment.",
-        "This manual is labelled proprietary and does not grant a redistribution licence.",
-        "Never restart an employee PC autonomously."
-      ],
-      "sources": [
-        {
-          "url": "https://www.siliconmotion.com/downloads/video/SMI_Windows_SM770_MSI_File_User_Manual.pdf",
-          "section": "§1–2 MSI Group Policy deployment, pp.4–14",
-          "publisher": "Silicon Motion"
-        }
-      ]
-    },
-    {
-      "id": "smi-driver-release-firmware",
-      "topic": "firmware",
-      "title": "Silicon Motion SM77x driver releases may include firmware",
-      "tags": [
-        "firmware",
-        "automatic",
-        "upgrade",
-        "driver",
-        "release"
-      ],
-      "summary": "Silicon Motion's SM77x release notes state that some driver packages include embedded firmware which may update supported devices automatically according to product configuration. Do not assume an MSI has no firmware side effects.",
-      "safe_steps": [
-        "Check vendor release notes and approved package metadata before any driver update.",
-        "Treat firmware and restarts as separately approved high-impact operations."
-      ],
-      "limits": [
-        "Do not perform firmware update as a troubleshooting side effect.",
-        "Do not claim an exact firmware revision unless read from the actual Doxa device."
-      ],
-      "sources": [
-        {
-          "url": "https://www.siliconmotion.com/downloads/Release%20Notes/SiliconMotion%20Windows%20InstantView%20and%20Driver%20release%20note%20for%20SM77x.txt",
-          "section": "SM77x release notes, overview and 2026 changes",
-          "publisher": "Silicon Motion"
-        }
-      ]
-    },
-    {
-      "id": "smi-oem-licensing",
-      "topic": "distribution",
-      "title": "Vendor documentation does not grant third-party redistribution",
-      "tags": [
-        "license",
-        "redistribute",
-        "bundle",
-        "resell",
-        "oem",
-        "legal",
-        "standivarius"
-      ],
-      "summary": "Silicon Motion's publicly available Windows MSI manual explicitly says that the document alone does not grant intellectual-property rights. A bundled Standivarius redistributable needs verification of OEM/supplier rights, distinct from end-user access to the vendor's own download.",
-      "safe_steps": [
-        "For early personal testing, point to the official vendor download rather than repackaging the MSI.",
-        "Obtain written supplier/OEM confirmation for bundling or rehosting before public distribution."
-      ],
-      "limits": [
-        "Do not treat a downloadable MSI as an unconditional redistribution licence."
-      ],
-      "sources": [
-        {
-          "url": "https://www.siliconmotion.com/downloads/video/SMI_Windows_SM770_MSI_File_User_Manual.pdf",
-          "section": "Important Notice, p.ii",
-          "publisher": "Silicon Motion"
-        }
-      ]
-    },
-    {
-      "id": "ms-driver-errors-pnputil",
-      "topic": "windows",
-      "title": "Microsoft-supported driver diagnostics",
-      "tags": [
-        "pnputil",
-        "device manager",
-        "device error",
-        "problem code",
-        "windows driver"
-      ],
-      "summary": "Microsoft recommends reading device problem codes via Device Manager or PnPUtil when troubleshooting device and driver installation. The diagnostic checks can be performed without modifying Windows.",
-      "safe_steps": [
-        "Read the device and driver status with built-in Windows APIs.",
-        "Use pnputil /enum-devices /problem to inspect problem devices without installing anything.",
-        "Correlate reported codes with the vendor package and SetupAPI log."
-      ],
-      "limits": [
-        "Reading diagnostics does not grant permission to modify device-installation policy."
-      ],
-      "sources": [
-        {
-          "url": "https://learn.microsoft.com/en-us/windows-hardware/drivers/install/troubleshooting-device-and-driver-installations",
-          "section": "Check if the device is marked with a problem",
-          "publisher": "Microsoft"
-        }
-      ]
-    },
-    {
-      "id": "ms-setupapi-log",
-      "topic": "windows",
-      "title": "Windows SetupAPI.dev.log identifies driver-installation failures",
-      "tags": [
-        "setupapi",
-        "log",
-        "installer",
-        "signature",
-        "error",
-        "windows",
-        "reboot"
-      ],
-      "summary": "Windows stores device installation events in %SystemRoot%\\inf\\SetupAPI.dev.log, including driver signing diagnostics and installation errors. The assistant should request narrow, redacted, user-authorised error summaries rather than upload the complete log.",
-      "safe_steps": [
-        "Locate the official Windows device-installation log only with permission.",
-        "Extract the applicable error codes and approximate event time locally.",
-        "Avoid uploading full logs or device identifiers to an LLM by default."
-      ],
-      "limits": [
-        "Do not rename or rewrite the system log during troubleshooting."
-      ],
-      "sources": [
-        {
-          "url": "https://learn.microsoft.com/en-us/windows-hardware/drivers/install/setupapi-device-installation-log-entries",
-          "section": "SetupAPI device installation logs",
-          "publisher": "Microsoft"
-        }
-      ]
-    },
-    {
-      "id": "ms-pnp-exit",
-      "topic": "windows",
-      "title": "PnP driver installation exit codes",
-      "tags": [
-        "0",
-        "259",
-        "3010",
-        "1641",
-        "pnputil",
-        "exit",
-        "restart"
-      ],
-      "summary": "Microsoft documents PnPUtil return values: 0 is success, 259 can indicate no matching device or a better driver already selected, 3010 indicates restart required, and 1641 indicates restart initiated. The installer should not confuse these with a missing driver.",
-      "safe_steps": [
-        "Capture exact PnPUtil exit codes if an authorised install action is performed.",
-        "Report whether a restart is needed but never initiate one without approval."
-      ],
-      "limits": [
-        "Do not interpret 259 as unqualified proof of a bad package."
-      ],
-      "sources": [
-        {
-          "url": "https://learn.microsoft.com/en-us/windows-hardware/drivers/devtest/pnputil-return-values",
-          "section": "PnPUtil return values",
-          "publisher": "Microsoft"
-        }
-      ]
-    },
-    {
-      "id": "ms-policy-block",
-      "topic": "windows",
-      "title": "Group Policy and MDM may block particular devices",
-      "tags": [
-        "enterprise",
-        "intune",
-        "policy",
-        "blocked",
-        "approved",
-        "admin",
-        "device installation"
-      ],
-      "summary": "Windows supports documented installation restrictions based on PnP hardware IDs, device instance IDs, and device classes. A corporate installation block is a policy decision, not a defect to be bypassed by a troubleshooting assistant.",
-      "safe_steps": [
-        "Report the relevant approved device and policy-block evidence to IT.",
-        "Use Intune or corporate deployment mechanisms for an authorised package."
-      ],
-      "limits": [
-        "Never suggest disabling corporate policy, signature enforcement, antivirus, endpoint management or UAC."
-      ],
-      "sources": [
-        {
-          "url": "https://learn.microsoft.com/en-us/windows/client-management/manage-device-installation-with-group-policy",
-          "section": "Device installation restrictions",
-          "publisher": "Microsoft"
-        }
-      ]
-    },
-    {
-      "id": "doxa-rdp-session",
-      "topic": "doxa-evidence",
-      "title": "Remote Desktop screen count is not the physical Doxa layout",
-      "tags": [
-        "rdp",
-        "remote",
-        "one screen",
-        "missing",
-        "display",
-        "session"
-      ],
-      "summary": "On the observed Dell test, Windows detected the signed SMI770 driver and all three Doxa panels while an RDP session showed only one logical screen. Session-level display count must not be presented as definitive evidence of missing physical Doxa panels.",
-      "safe_steps": [
-        "Read the current Windows session type separately from driver and physical-panel PnP status.",
-        "If panel inventory is healthy, defer verification of independently active physical screens until a console session."
-      ],
-      "limits": [
-        "This is local observed test evidence, not a universal guarantee about all RDP configurations."
-      ],
-      "sources": [
-        {
-          "url": "https://learn.microsoft.com/en-us/windows/win32/termserv/remote-desktop-services",
-          "section": "Remote Desktop sessions and physical/remote environment",
-          "publisher": "Microsoft"
-        }
-      ]
-    },
-    {
-      "id": "doxa-physical-profile",
-      "topic": "doxa-evidence",
-      "title": "Observed Doxa hardware driver baseline on Dell",
-      "tags": [
-        "4.7.6.0",
-        "oem101.inf",
-        "smi770",
-        "doxa",
-        "three",
-        "panels"
-      ],
-      "summary": "The verified Dell device uses a WHCP-signed Silicon Motion SMI770 display driver version 4.7.6.0, installed as oem101.inf, with three named Doxa panel PnP nodes. Exact INF/CAT/DLL hashes match the archived official MSI driver payload.",
-      "safe_steps": [
-        "Detect the connected hardware rather than assume all machines use the same driver store INF number.",
-        "Verify signer, driver version, correct hardware IDs and physical panel inventory separately."
-      ],
-      "limits": [
-        "oem101.inf is machine-local and not a universal filename.",
-        "Hardware observation is specific to this Dell and Doxa sample."
-      ],
-      "sources": [
-        {
-          "url": "https://www.siliconmotion.com/downloads/SM770-drivers.html",
-          "section": "Source of official MSI, supplemented by 2026-10-16 Doxa hardware local qualification",
-          "publisher": "Silicon Motion / Standivarius observed device"
-        }
-      ]
-    },
-    {
-      "id": "doxa-driver-store-vs-disconnected-device",
-      "topic": "installation",
-      "title": "Driver package remains installed when Doxa USB display is disconnected",
-      "tags": [
-        "driver",
-        "missing",
-        "install",
-        "reinstall",
-        "driver store",
-        "connection",
-        "usb",
-        "not detected",
-        "disconnected",
-        "device",
-        "power",
-        "plug",
-        "why",
-        "cannot"
-      ],
-      "summary": "Windows can retain the Silicon Motion display driver package in its Driver Store even when no Doxa USB display device is currently connected. A missing present-device entry does not prove the driver was uninstalled. On the checked Dell, Windows still lists the original smiiddx770.inf package when no Doxa panels are detected.",
-      "safe_steps": [
-        "Connect Doxa to power and connect its USB data cable directly to the computer.",
-        "Run Check Doxa again and see whether Windows discovers the Doxa USB graphics device and three panels.",
-        "Only consider selecting a verified signed MSI if Doxa hardware is detected and the required driver truly is unavailable."
-      ],
-      "limits": [
-        "Do not automatically reinstall or claim an installation has occurred solely because the hardware is disconnected.",
-        "A stored driver package is not proof the currently attached device is functioning.",
-        "A disconnected Doxa cannot have its current physical display arrangement verified."
-      ],
-      "sources": [
-        {
-          "publisher": "Microsoft",
-          "section": "Windows Plug and Play device versus driver installation diagnosis",
-          "url": "https://learn.microsoft.com/en-us/windows-hardware/drivers/install/troubleshooting-device-and-driver-installations"
-        }
-      ]
-    },
-    {
-      "id": "doxa-msi-integrity-gate",
-      "topic": "installation",
-      "title": "Doxa installer rejects mismatched or untrusted driver MSI packages",
-      "tags": [
-        "mismatched",
-        "checksum",
-        "sha256",
-        "hash mismatch",
-        "signature mismatch",
-        "untrusted",
-        "rejected",
-        "authenticode",
-        "verified original",
-        "installer package"
-      ],
-      "summary": "The Doxa installer checks the selected Silicon Motion Windows MSI against its reviewed original SHA-256 and publisher certificate. An MSI with a different checksum, invalid signature or different signer must not be installed, even if its filename or version looks correct.",
-      "safe_steps": [
-        "Stop the installation when the package differs from the reviewed original.",
-        "Acquire the vendor MSI from Silicon Motion's official download page and check its SHA-256 and Authenticode signature before considering installation.",
-        "Keep the currently functioning signed driver installed while investigating an unexpected package mismatch."
-      ],
-      "limits": [
-        "This guidance does not authorise a driver reinstall, firmware change, UAC bypass or unsigned executable.",
-        "The current verified package hash applies only to one reviewed Silicon Motion release, not all future versions."
-      ],
-      "sources": [
-        {
-          "publisher": "Microsoft",
-          "section": "Get-AuthenticodeSignature reference",
-          "url": "https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.security/get-authenticodesignature"
-        },
-        {
-          "publisher": "Silicon Motion",
-          "section": "SM770 official Windows driver download",
-          "url": "https://www.siliconmotion.com/downloads/SM770-drivers.html"
-        }
-      ]
-    }
-  ]
+    "schema_version":  1,
+    "product":  "Standivarius Doxa Setup",
+    "scope":  "SMI770-based hardware installer/support only, never Standivarius Vision magnification software",
+    "updated_utc":  "2026-10-16",
+    "source_policy":  "Curated official vendor and Microsoft documentation plus labelled device observations; no runtime web search; paraphrases only",
+    "entries":  [
+                    {
+                        "id":  "smi-sm770-supported-stack",
+                        "topic":  "hardware",
+                        "title":  "SM770 Windows driver and hardware family",
+                        "tags":  [
+                                     "SM770",
+                                     "SMI770",
+                                     "driver",
+                                     "download",
+                                     "windows",
+                                     "version",
+                                     "release"
+                                 ],
+                        "summary":  "Silicon Motion provides SM77x Windows 10/11 driver and MSI downloads. The vendor download listing distinguishes a driver-only release from the MSI package, so package/version matching must be verified before an installation.",
+                        "safe_steps":  [
+                                           "Identify the connected USB-display hardware and currently installed signed package.",
+                                           "Use the official SM77x download page for current packages; confirm package hash and signer before installation."
+                                       ],
+                        "limits":  [
+                                       "Public download access does not grant Standivarius redistribution rights.",
+                                       "Do not infer an exact DLL version from the vendor\u0027s marketing release label."
+                                   ],
+                        "sources":  [
+                                        {
+                                            "url":  "https://www.siliconmotion.com/downloads/SM770-drivers.html",
+                                            "section":  "Windows driver and MSI download list",
+                                            "publisher":  "Silicon Motion"
+                                        }
+                                    ]
+                    },
+                    {
+                        "id":  "smi-display-unsteady",
+                        "topic":  "display",
+                        "title":  "SM770 display intermittently disappears or drops",
+                        "tags":  [
+                                     "unstable",
+                                     "missing",
+                                     "drops",
+                                     "black",
+                                     "power",
+                                     "usb",
+                                     "cable",
+                                     "flicker"
+                                 ],
+                        "summary":  "Silicon Motion\u0027s troubleshooting guidance prioritises power and USB connectivity, then suitable cables and a different port or display resolution. Driver replacement is a later controlled option, not the default for every disconnect.",
+                        "safe_steps":  [
+                                           "Verify docking power and the USB host connection.",
+                                           "If safe, disconnect the dock from USB and power for at least a minute, then reconnect power followed by host USB.",
+                                           "If the problem persists, try a suitable USB-C data cable or another host USB port, then investigate video cables and resolution."
+                                       ],
+                        "limits":  [
+                                       "Do not reboot, uninstall or update firmware without the user\u0027s separate approval.",
+                                       "Power loss may temporarily remove external displays; check again after reconnection."
+                                   ],
+                        "sources":  [
+                                        {
+                                            "url":  "https://www.siliconmotion.com/products/USB-Display-Docking-SoC/detail",
+                                            "section":  "Graphics Software FAQ — display unstable and randomly dropped off",
+                                            "publisher":  "Silicon Motion"
+                                        }
+                                    ]
+                    },
+                    {
+                        "id":  "smi-not-working",
+                        "topic":  "display",
+                        "title":  "SM770 adapter not working as expected",
+                        "tags":  [
+                                     "screen",
+                                     "display",
+                                     "no output",
+                                     "not working",
+                                     "undetected",
+                                     "usb"
+                                 ],
+                        "summary":  "Silicon Motion advises an orderly check of power, USB connections and driver presence when a docking adapter isn\u0027t working as expected. Windows Update may have installed the vendor driver without a visible Silicon Motion Programs and Features entry.",
+                        "safe_steps":  [
+                                           "Check Windows device inventory and the signed driver identity.",
+                                           "Verify Doxa power and host USB connection.",
+                                           "If the driver really is missing, acquire and verify a current official package before proposing installation."
+                                       ],
+                        "limits":  [
+                                       "Do not assume that no Programs and Features entry means no driver exists.",
+                                       "Only the user/authorised installer can initiate a driver change."
+                                   ],
+                        "sources":  [
+                                        {
+                                            "url":  "https://www.siliconmotion.com/products/USB-Display-Docking-SoC/detail",
+                                            "section":  "Graphics Software FAQ — adapter not working",
+                                            "publisher":  "Silicon Motion"
+                                        }
+                                    ]
+                    },
+                    {
+                        "id":  "smi-image-quality",
+                        "topic":  "display",
+                        "title":  "USB display quality and compression limitations",
+                        "tags":  [
+                                     "pixels",
+                                     "blurry",
+                                     "compression",
+                                     "image",
+                                     "quality",
+                                     "artefacts",
+                                     "graphics"
+                                 ],
+                        "summary":  "Silicon Motion explains that USB display adapters transfer a compressed desktop image; compared with directly connected displays, this can affect image sharpness. This is not by itself evidence of a broken installation.",
+                        "safe_steps":  [
+                                           "Identify whether the issue appears only on USB-attached screens.",
+                                           "Compare a static reference on the built-in display and the Doxa screen at the same resolution."
+                                       ],
+                        "limits":  [
+                                       "Do not promise pixel-perfect parity with a directly driven display."
+                                   ],
+                        "sources":  [
+                                        {
+                                            "url":  "https://www.siliconmotion.com/products/USB-Display-Docking-SoC/detail",
+                                            "section":  "Graphics Software FAQ — image crispness",
+                                            "publisher":  "Silicon Motion"
+                                        }
+                                    ]
+                    },
+                    {
+                        "id":  "smi-instantview-alternative",
+                        "topic":  "architecture",
+                        "title":  "SM770 InstantView application versus Windows driver",
+                        "tags":  [
+                                     "instantview",
+                                     "driverless",
+                                     "virtual",
+                                     "no driver",
+                                     "software",
+                                     "application"
+                                 ],
+                        "summary":  "Silicon Motion describes InstantView as an alternative USB display software approach without requiring installation of a traditional display driver. Its behaviour, firmware management and suitability must not be confused with the signed Windows driver in the qualified Doxa configuration.",
+                        "safe_steps":  [
+                                           "Identify whether the customer actually uses the driver-based or InstantView software stack.",
+                                           "Recommend only packages that match the verified hardware and chosen approved deployment method."
+                                       ],
+                        "limits":  [
+                                       "Do not mix InstantView and driver operations without separate testing."
+                                   ],
+                        "sources":  [
+                                        {
+                                            "url":  "https://www.siliconmotion.com/products/USB-Display-Docking-SoC/detail",
+                                            "section":  "InstantView overview",
+                                            "publisher":  "Silicon Motion"
+                                        }
+                                    ]
+                    },
+                    {
+                        "id":  "smi-driver-msi-gpo",
+                        "topic":  "enterprise",
+                        "title":  "Silicon Motion MSI deployment with Windows Group Policy",
+                        "tags":  [
+                                     "MSI",
+                                     "gpo",
+                                     "enterprise",
+                                     "domain",
+                                     "deployment",
+                                     "reboot",
+                                     "installer"
+                                 ],
+                        "summary":  "Silicon Motion documents distributing its SM770 MSI through Windows Group Policy via a secured network share, dedicated OU and assigned computer policy. In that documented GPO path, deployment can require policy refresh and reboot.",
+                        "safe_steps":  [
+                                           "For a managed domain, ask IT to review the vendor\u0027s GPO deployment instructions.",
+                                           "Use a dedicated test organisational unit/group and approved package source for a pilot.",
+                                           "Record Windows Installer and device-installation results after any authorised reboot."
+                                       ],
+                        "limits":  [
+                                       "The vendor manual describes GPO; it does not by itself certify Intune deployment.",
+                                       "This manual is labelled proprietary and does not grant a redistribution licence.",
+                                       "Never restart an employee PC autonomously."
+                                   ],
+                        "sources":  [
+                                        {
+                                            "url":  "https://www.siliconmotion.com/downloads/video/SMI_Windows_SM770_MSI_File_User_Manual.pdf",
+                                            "section":  "§1–2 MSI Group Policy deployment, pp.4–14",
+                                            "publisher":  "Silicon Motion"
+                                        }
+                                    ]
+                    },
+                    {
+                        "id":  "smi-driver-release-firmware",
+                        "topic":  "firmware",
+                        "title":  "Silicon Motion SM77x driver releases may include firmware",
+                        "tags":  [
+                                     "firmware",
+                                     "automatic",
+                                     "upgrade",
+                                     "driver",
+                                     "release"
+                                 ],
+                        "summary":  "Silicon Motion\u0027s SM77x release notes state that some driver packages include embedded firmware which may update supported devices automatically according to product configuration. Do not assume an MSI has no firmware side effects.",
+                        "safe_steps":  [
+                                           "Check vendor release notes and approved package metadata before any driver update.",
+                                           "Treat firmware and restarts as separately approved high-impact operations."
+                                       ],
+                        "limits":  [
+                                       "Do not perform firmware update as a troubleshooting side effect.",
+                                       "Do not claim an exact firmware revision unless read from the actual Doxa device."
+                                   ],
+                        "sources":  [
+                                        {
+                                            "url":  "https://www.siliconmotion.com/downloads/Release%20Notes/SiliconMotion%20Windows%20InstantView%20and%20Driver%20release%20note%20for%20SM77x.txt",
+                                            "section":  "SM77x release notes, overview and 2026 changes",
+                                            "publisher":  "Silicon Motion"
+                                        }
+                                    ]
+                    },
+                    {
+                        "id":  "smi-oem-licensing",
+                        "topic":  "distribution",
+                        "title":  "Vendor documentation does not grant third-party redistribution",
+                        "tags":  [
+                                     "license",
+                                     "redistribute",
+                                     "bundle",
+                                     "resell",
+                                     "oem",
+                                     "legal",
+                                     "standivarius"
+                                 ],
+                        "summary":  "Silicon Motion\u0027s publicly available Windows MSI manual explicitly says that the document alone does not grant intellectual-property rights. A bundled Standivarius redistributable needs verification of OEM/supplier rights, distinct from end-user access to the vendor\u0027s own download.",
+                        "safe_steps":  [
+                                           "For early personal testing, point to the official vendor download rather than repackaging the MSI.",
+                                           "Obtain written supplier/OEM confirmation for bundling or rehosting before public distribution."
+                                       ],
+                        "limits":  [
+                                       "Do not treat a downloadable MSI as an unconditional redistribution licence."
+                                   ],
+                        "sources":  [
+                                        {
+                                            "url":  "https://www.siliconmotion.com/downloads/video/SMI_Windows_SM770_MSI_File_User_Manual.pdf",
+                                            "section":  "Important Notice, p.ii",
+                                            "publisher":  "Silicon Motion"
+                                        }
+                                    ]
+                    },
+                    {
+                        "id":  "ms-driver-errors-pnputil",
+                        "topic":  "windows",
+                        "title":  "Microsoft-supported driver diagnostics",
+                        "tags":  [
+                                     "pnputil",
+                                     "device manager",
+                                     "device error",
+                                     "problem code",
+                                     "windows driver"
+                                 ],
+                        "summary":  "Microsoft recommends reading device problem codes via Device Manager or PnPUtil when troubleshooting device and driver installation. The diagnostic checks can be performed without modifying Windows.",
+                        "safe_steps":  [
+                                           "Read the device and driver status with built-in Windows APIs.",
+                                           "Use pnputil /enum-devices /problem to inspect problem devices without installing anything.",
+                                           "Correlate reported codes with the vendor package and SetupAPI log."
+                                       ],
+                        "limits":  [
+                                       "Reading diagnostics does not grant permission to modify device-installation policy."
+                                   ],
+                        "sources":  [
+                                        {
+                                            "url":  "https://learn.microsoft.com/en-us/windows-hardware/drivers/install/troubleshooting-device-and-driver-installations",
+                                            "section":  "Check if the device is marked with a problem",
+                                            "publisher":  "Microsoft"
+                                        }
+                                    ]
+                    },
+                    {
+                        "id":  "ms-setupapi-log",
+                        "topic":  "windows",
+                        "title":  "Windows SetupAPI.dev.log identifies driver-installation failures",
+                        "tags":  [
+                                     "setupapi",
+                                     "log",
+                                     "installer",
+                                     "signature",
+                                     "error",
+                                     "windows",
+                                     "reboot"
+                                 ],
+                        "summary":  "Windows stores device installation events in %SystemRoot%\\inf\\SetupAPI.dev.log, including driver signing diagnostics and installation errors. The assistant should request narrow, redacted, user-authorised error summaries rather than upload the complete log.",
+                        "safe_steps":  [
+                                           "Locate the official Windows device-installation log only with permission.",
+                                           "Extract the applicable error codes and approximate event time locally.",
+                                           "Avoid uploading full logs or device identifiers to an LLM by default."
+                                       ],
+                        "limits":  [
+                                       "Do not rename or rewrite the system log during troubleshooting."
+                                   ],
+                        "sources":  [
+                                        {
+                                            "url":  "https://learn.microsoft.com/en-us/windows-hardware/drivers/install/setupapi-device-installation-log-entries",
+                                            "section":  "SetupAPI device installation logs",
+                                            "publisher":  "Microsoft"
+                                        }
+                                    ]
+                    },
+                    {
+                        "id":  "ms-pnp-exit",
+                        "topic":  "windows",
+                        "title":  "PnP driver installation exit codes",
+                        "tags":  [
+                                     "0",
+                                     "259",
+                                     "3010",
+                                     "1641",
+                                     "pnputil",
+                                     "exit",
+                                     "restart"
+                                 ],
+                        "summary":  "Microsoft documents PnPUtil return values: 0 is success, 259 can indicate no matching device or a better driver already selected, 3010 indicates restart required, and 1641 indicates restart initiated. The installer should not confuse these with a missing driver.",
+                        "safe_steps":  [
+                                           "Capture exact PnPUtil exit codes if an authorised install action is performed.",
+                                           "Report whether a restart is needed but never initiate one without approval."
+                                       ],
+                        "limits":  [
+                                       "Do not interpret 259 as unqualified proof of a bad package."
+                                   ],
+                        "sources":  [
+                                        {
+                                            "url":  "https://learn.microsoft.com/en-us/windows-hardware/drivers/devtest/pnputil-return-values",
+                                            "section":  "PnPUtil return values",
+                                            "publisher":  "Microsoft"
+                                        }
+                                    ]
+                    },
+                    {
+                        "id":  "ms-policy-block",
+                        "topic":  "windows",
+                        "title":  "Group Policy and MDM may block particular devices",
+                        "tags":  [
+                                     "enterprise",
+                                     "intune",
+                                     "policy",
+                                     "blocked",
+                                     "approved",
+                                     "admin",
+                                     "device installation"
+                                 ],
+                        "summary":  "Windows supports documented installation restrictions based on PnP hardware IDs, device instance IDs, and device classes. A corporate installation block is a policy decision, not a defect to be bypassed by a troubleshooting assistant.",
+                        "safe_steps":  [
+                                           "Report the relevant approved device and policy-block evidence to IT.",
+                                           "Use Intune or corporate deployment mechanisms for an authorised package."
+                                       ],
+                        "limits":  [
+                                       "Never suggest disabling corporate policy, signature enforcement, antivirus, endpoint management or UAC."
+                                   ],
+                        "sources":  [
+                                        {
+                                            "url":  "https://learn.microsoft.com/en-us/windows/client-management/manage-device-installation-with-group-policy",
+                                            "section":  "Device installation restrictions",
+                                            "publisher":  "Microsoft"
+                                        }
+                                    ]
+                    },
+                    {
+                        "id":  "doxa-rdp-session",
+                        "topic":  "doxa-evidence",
+                        "title":  "Remote Desktop screen count is not the physical Doxa layout",
+                        "tags":  [
+                                     "rdp",
+                                     "remote",
+                                     "one screen",
+                                     "missing",
+                                     "display",
+                                     "session"
+                                 ],
+                        "summary":  "On the observed Dell test, Windows detected the signed SMI770 driver and all three Doxa panels while an RDP session showed only one logical screen. Session-level display count must not be presented as definitive evidence of missing physical Doxa panels.",
+                        "safe_steps":  [
+                                           "Read the current Windows session type separately from driver and physical-panel PnP status.",
+                                           "If panel inventory is healthy, defer verification of independently active physical screens until a console session."
+                                       ],
+                        "limits":  [
+                                       "This is local observed test evidence, not a universal guarantee about all RDP configurations."
+                                   ],
+                        "sources":  [
+                                        {
+                                            "url":  "https://learn.microsoft.com/en-us/windows/win32/termserv/remote-desktop-services",
+                                            "section":  "Remote Desktop sessions and physical/remote environment",
+                                            "publisher":  "Microsoft"
+                                        }
+                                    ]
+                    },
+                    {
+                        "id":  "doxa-physical-profile",
+                        "topic":  "doxa-evidence",
+                        "title":  "Observed Doxa hardware driver baseline on Dell",
+                        "tags":  [
+                                     "4.7.6.0",
+                                     "oem101.inf",
+                                     "smi770",
+                                     "doxa",
+                                     "three",
+                                     "panels"
+                                 ],
+                        "summary":  "The verified Dell device uses a WHCP-signed Silicon Motion SMI770 display driver version 4.7.6.0, installed as oem101.inf, with three named Doxa panel PnP nodes. Exact INF/CAT/DLL hashes match the archived official MSI driver payload.",
+                        "safe_steps":  [
+                                           "Detect the connected hardware rather than assume all machines use the same driver store INF number.",
+                                           "Verify signer, driver version, correct hardware IDs and physical panel inventory separately."
+                                       ],
+                        "limits":  [
+                                       "oem101.inf is machine-local and not a universal filename.",
+                                       "Hardware observation is specific to this Dell and Doxa sample."
+                                   ],
+                        "sources":  [
+                                        {
+                                            "url":  "https://www.siliconmotion.com/downloads/SM770-drivers.html",
+                                            "section":  "Source of official MSI, supplemented by 2026-10-16 Doxa hardware local qualification",
+                                            "publisher":  "Silicon Motion / Standivarius observed device"
+                                        }
+                                    ]
+                    },
+                    {
+                        "id":  "doxa-driver-store-vs-disconnected-device",
+                        "topic":  "installation",
+                        "title":  "Driver package remains installed when Doxa USB display is disconnected",
+                        "tags":  [
+                                     "driver",
+                                     "missing",
+                                     "install",
+                                     "reinstall",
+                                     "driver store",
+                                     "connection",
+                                     "usb",
+                                     "not detected",
+                                     "disconnected",
+                                     "device",
+                                     "power",
+                                     "plug",
+                                     "why",
+                                     "cannot"
+                                 ],
+                        "summary":  "Windows can retain the Silicon Motion display driver package in its Driver Store even when no Doxa USB display device is currently connected. A missing present-device entry does not prove the driver was uninstalled. On the checked Dell, Windows still lists the original smiiddx770.inf package when no Doxa panels are detected.",
+                        "safe_steps":  [
+                                           "Connect Doxa to power and connect its USB data cable directly to the computer.",
+                                           "Run Check Doxa again and see whether Windows discovers the Doxa USB graphics device and three panels.",
+                                           "Only consider selecting a verified signed MSI if Doxa hardware is detected and the required driver truly is unavailable."
+                                       ],
+                        "limits":  [
+                                       "Do not automatically reinstall or claim an installation has occurred solely because the hardware is disconnected.",
+                                       "A stored driver package is not proof the currently attached device is functioning.",
+                                       "A disconnected Doxa cannot have its current physical display arrangement verified."
+                                   ],
+                        "sources":  [
+                                        {
+                                            "publisher":  "Microsoft",
+                                            "section":  "Windows Plug and Play device versus driver installation diagnosis",
+                                            "url":  "https://learn.microsoft.com/en-us/windows-hardware/drivers/install/troubleshooting-device-and-driver-installations"
+                                        }
+                                    ]
+                    },
+                    {
+                        "id": "doxa-msi-integrity-gate",
+                        "topic": "installation",
+                        "title": "Doxa installer rejects mismatched or untrusted driver MSI packages",
+                        "tags": [
+                            "mismatched",
+                            "checksum",
+                            "sha256",
+                            "hash mismatch",
+                            "signature mismatch",
+                            "untrusted",
+                            "rejected",
+                            "authenticode",
+                            "verified original",
+                            "installer package"
+                        ],
+                        "summary": "The Doxa installer checks the selected Silicon Motion Windows MSI against its reviewed original SHA-256 and publisher certificate. An MSI with a different checksum, invalid signature or different signer must not be installed, even if its filename or version looks correct.",
+                        "safe_steps": [
+                            "Stop the installation when the package differs from the reviewed original.",
+                            "Acquire the vendor MSI from Silicon Motion's official download page and check its SHA-256 and Authenticode signature before considering installation.",
+                            "Keep the currently functioning signed driver installed while investigating an unexpected package mismatch."
+                        ],
+                        "limits": [
+                            "This guidance does not authorise a driver reinstall, firmware change, UAC bypass or unsigned executable.",
+                            "The current verified package hash applies only to one reviewed Silicon Motion release, not all future versions."
+                        ],
+                        "sources": [
+                            {
+                                "publisher": "Microsoft",
+                                "section": "Get-AuthenticodeSignature reference",
+                                "url": "https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.security/get-authenticodesignature"
+                            },
+                            {
+                                "publisher": "Silicon Motion",
+                                "section": "SM770 official Windows driver download",
+                                "url": "https://www.siliconmotion.com/downloads/SM770-drivers.html"
+                            }
+                        ]
+                    }
+                ]
 }
