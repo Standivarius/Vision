@@ -1,0 +1,20 @@
+DOXA SETUP - WHAT THE FIRST LOCAL CHECK READS
+
+The local check is optional: you can close Doxa Setup without agreeing.
+
+What it inspects on this PC:
+- Windows version/build and system architecture.
+- USB host-controller names and an indication of USB 3.x capability.
+- Windows display device information, active desktop count, console/remote session.
+- Present Doxa/SMI770 hardware and enumerated Doxa panels.
+- Silicon Motion driver identity, signature, version and whether a package remains in the Windows Driver Store.
+
+Purpose: help identify connection, Windows display-mode and approved driver problems without replacing a working driver.
+
+The local read-only check does not change device settings, install drivers, use firmware commands, transmit its result to the internet or send screenshots/passwords. Its immediate findings are displayed in the Doxa Setup window and held in process memory; the check does not itself write diagnostic logs. Windows can separately keep its normal system events.
+
+Optional ONLINE AI is separate, OFF by default. Only if you agree may your typed question and limited Doxa/Windows facts be sent over HTTPS to the Cloudflare-hosted service. Please read the separate cloud AI privacy notice. You can complete the local process with no AI.
+
+If a driver is subsequently required, the separate, explicit Windows administrator operation may create Windows Installer logs. Closing Setup discards the in-window results.
+
+ROMANA: Verificarea locala citeste datele Windows, USB, ecranele si driverul Silicon Motion, fara modificari si fara incarcare pe internet. AI online necesita acord separat. Inchiderea aplicatiei elimina rezultatele din fereastra.

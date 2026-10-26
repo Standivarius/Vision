@@ -1,4 +1,4 @@
-﻿param([switch]$Smoke,[switch]$JourneyTest,[ValidateSet('connected','without_doxa')][string]$TestConnectionChoice='without_doxa',[switch]$TestAIAllowed,[ValidateSet('en','ro')][string]$Language='en')
+param([switch]$Smoke,[switch]$JourneyTest,[ValidateSet('connected','without_doxa')][string]$TestConnectionChoice='without_doxa',[switch]$TestAIAllowed,[ValidateSet('en','ro')][string]$Language='en')
 # Consent-first welcome. No hardware enumeration or remote AI call occurs before consent.
 # Reading the organization cloud-AI prohibition is a local policy check only.
 $ErrorActionPreference='Stop'
@@ -8,7 +8,7 @@ Add-Type -AssemblyName System.Drawing
 $form=New-Object Windows.Forms.Form
 $script:lang=$Language
 function T([string]$en,[string]$ro){if($script:lang -eq 'ro'){$ro}else{$en}}
-$form.Text='Standivarius Doxa Setup - Welcome'
+$form.Text='Standivarius Doxa Setup - Welcome (TEST preview.8)'
 $form.StartPosition='CenterScreen'
 $form.ClientSize=New-Object Drawing.Size(750,510)
 $form.FormBorderStyle='FixedDialog'
@@ -40,16 +40,35 @@ $explanation=New-Object Windows.Forms.Label
 $explanation.SetBounds(35,140,670,78)
 $form.Controls.Add($explanation)
 $local=New-Object Windows.Forms.CheckBox
-$local.SetBounds(35,236,672,62)
+$local.SetBounds(35,222,672,51)
 $local.Text='I allow local read-only checks of Windows version, USB controllers, display devices and installed driver packages.'
 $local.CheckAlign='TopLeft'
 $local.TabIndex=1
 $local.AccessibleName='Local read-only diagnostics permission'
 $form.Controls.Add($local)
+$localDetails=New-Object System.Windows.Forms.LinkLabel
+$localDetails.SetBounds(35,277,671,26)
+$localDetails.Text='What does this local check read?'
+$localDetails.LinkColor=$teal
+$localDetails.TabIndex=2
+$localDetails.AccessibleName='Read the local device-check information before agreeing'
+$localDetails.Add_LinkClicked({
+ $file=Join-Path $PSScriptRoot 'LOCAL-CHECK-NOTICE.txt'
+ $message=if(Test-Path -LiteralPath $file){Get-Content -LiteralPath $file -Raw -Encoding UTF8}else{'Local-check information unavailable. Close Setup to avoid continuing without it.'}
+ $window=New-Object System.Windows.Forms.Form
+ $window.Text=T 'Doxa Setup - local check details' 'Doxa - verificari locale'
+ $window.StartPosition='CenterParent';$window.ClientSize=New-Object Drawing.Size(650,440)
+ $window.FormBorderStyle='Sizable';$window.MinimumSize=New-Object Drawing.Size(390,310)
+ $window.Font=New-Object Drawing.Font('Segoe UI',10)
+ $copy=New-Object System.Windows.Forms.TextBox
+ $copy.Dock='Fill';$copy.Multiline=$true;$copy.ReadOnly=$true;$copy.ScrollBars='Vertical';$copy.WordWrap=$true;$copy.Text=$message
+ $window.Controls.Add($copy);[void]$window.ShowDialog($form);$window.Dispose()
+})
+$form.Controls.Add($localDetails)
 $cloud=New-Object Windows.Forms.CheckBox
-$cloud.SetBounds(35,306,674,82)
+$cloud.SetBounds(35,312,674,71)
 $cloud.Text='Optional remote AI: send the question you type and limited Windows/Doxa diagnostic facts over HTTPS to a Cloudflare-hosted AI service. No screenshots, raw USB identifiers or passwords. You can continue without AI.'
-$cloud.TabIndex=2
+$cloud.TabIndex=3
 $cloud.AccessibleName='Optional online AI permission'
 $form.Controls.Add($cloud)
 $policyScript=Join-Path $PSScriptRoot 'Get-DoxaCloudAIPolicy.ps1'
@@ -61,7 +80,7 @@ if(-not [bool]$policy.cloud_ai_allowed){
 }
 $privacy=New-Object System.Windows.Forms.LinkLabel
 $privacy.Text='What is sent to cloud AI? Privacy and AI details'
-$privacy.SetBounds(35,385,660,25)
+$privacy.SetBounds(35,388,660,25)
 $privacy.LinkColor=$teal
 $privacy.Add_LinkClicked({
  $noticeFile=Join-Path $PSScriptRoot 'AI-PRIVACY-NOTICE.txt'
@@ -78,28 +97,28 @@ $privacy.Add_LinkClicked({
  [void]$window.ShowDialog($form)
  $window.Dispose()
 })
-$privacy.TabIndex=3
+$privacy.TabIndex=4
 $privacy.AccessibleName='Privacy details'
 $form.Controls.Add($privacy)
 $connect=New-Object Windows.Forms.RadioButton
 $connect.SetBounds(35,240,660,50)
 $connect.Text='I will connect Doxa now (or it is already connected)'
 $connect.Visible=$false
-$connect.TabIndex=4
+$connect.TabIndex=5
 $connect.AccessibleName='Doxa connected'
 $form.Controls.Add($connect)
 $without=New-Object Windows.Forms.RadioButton
 $without.SetBounds(35,310,665,65)
 $without.Text='Continue without Doxa - check this PC and prepare what is possible'
 $without.Visible=$false
-$without.TabIndex=5
+$without.TabIndex=6
 $without.AccessibleName='Continue without Doxa'
 $form.Controls.Add($without)
 $back=New-Object Windows.Forms.Button
 $back.Text='Back'
 $back.SetBounds(390,423,123,45)
 $back.Enabled=$false
-$back.TabIndex=6
+$back.TabIndex=7
 $back.AccessibleName='Back'
 $form.Controls.Add($back)
 $next=New-Object Windows.Forms.Button
@@ -107,7 +126,7 @@ $next.Text='Continue'
 $next.SetBounds(532,423,160,45)
 $next.BackColor=$teal
 $next.ForeColor=[Drawing.Color]::White
-$next.TabIndex=7
+$next.TabIndex=8
 $next.AccessibleName='Continue'
 $form.AcceptButton=$next
 $form.Controls.Add($next)
@@ -118,7 +137,7 @@ $script:aiAllowed=$false
 $script:finished=$false
 function ShowStep {
  $first=$script:page -eq 1
- $form.Text=T 'Standivarius Doxa Setup - Welcome' 'Standivarius Doxa - Bun venit'
+ $form.Text=T 'Doxa Setup - Welcome (TEST preview.8)' 'Doxa - Bun venit (TEST preview.8)'
  $title.Text=T 'Welcome to Doxa Setup' 'Bine ai venit la Doxa'
  $step.Text=if($first){T 'Step 1 of 2 - permissions' 'Pasul 1 din 2 - permisiuni'}else{T 'Step 2 of 2 - connect Doxa or continue' 'Pasul 2 din 2 - conecteaza Doxa sau continua'}
  $explanation.Text=if($first){
@@ -131,10 +150,11 @@ function ShowStep {
    T 'Optional remote AI: send the question you type and limited Windows/Doxa diagnostic facts over HTTPS to a Cloudflare-hosted AI service. No screenshots, raw USB identifiers or passwords. You can continue without AI.' 'AI online optional: intrebarea si date limitate despre Windows/Doxa sunt trimise prin HTTPS catre Cloudflare. Nu trimitem capturi de ecran, identificatori USB completi sau parole. Poti continua fara AI.'
  }else{T 'Cloud AI is disabled by your organization. Offline Doxa setup is available.' 'Organizatia a dezactivat AI online. Poti utiliza Doxa offline.'}
  $privacy.Text=T 'What is sent to cloud AI? Privacy and AI details' 'Ce date trimite AI online? Confidentialitate si detalii'
+ $localDetails.Text=T 'What does this local check read?' 'Ce citeste verificarea locala?'
  $connect.Text=T 'I will connect Doxa now (or it is already connected)' 'Conectez Doxa acum (sau este deja conectat)'
  $without.Text=T 'Continue without Doxa - check this PC and prepare what is possible' 'Continua fara Doxa - verifica PC-ul si pregateste ce este posibil'
  $back.Text=T 'Back' 'Inapoi'
- $local.Visible=$first;$cloud.Visible=$first;$privacy.Visible=$first
+ $local.Visible=$first;$localDetails.Visible=$first;$cloud.Visible=$first;$privacy.Visible=$first
  $connect.Visible=-not $first;$without.Visible=-not $first
  $back.Enabled=-not $first
  $next.Text=if($first){T 'Continue' 'Continua'}else{T 'Open Doxa Setup' 'Deschide Doxa'}
@@ -167,7 +187,7 @@ $next.Add_Click({
 })
 ShowStep
 if($Smoke){
- $result=[ordered]@{smoke='PASS';first_page=$script:page;local_checks_before_consent=$false;cloud_ai_before_consent=$false;local_consent_default=$local.Checked;remote_ai_default=$cloud.Checked;privacy_details_available=(Test-Path (Join-Path $PSScriptRoot 'AI-PRIVACY-NOTICE.txt'));org_cloud_ai_allowed=[bool]$policy.cloud_ai_allowed;connect_options=2;language=$script:lang;localized_step=$step.Text;next_caption=$next.Text;language_count=$languageChoice.Items.Count;tab_order=@($languageChoice.TabIndex,$local.TabIndex,$cloud.TabIndex,$privacy.TabIndex,$connect.TabIndex,$without.TabIndex,$back.TabIndex,$next.TabIndex);accept_button_set=([object]::ReferenceEquals($form.AcceptButton,$next))}
+ $result=[ordered]@{smoke='PASS';first_page=$script:page;local_checks_before_consent=$false;cloud_ai_before_consent=$false;local_consent_default=$local.Checked;remote_ai_default=$cloud.Checked;privacy_details_available=(Test-Path (Join-Path $PSScriptRoot 'AI-PRIVACY-NOTICE.txt'));local_check_details_available=(Test-Path (Join-Path $PSScriptRoot 'LOCAL-CHECK-NOTICE.txt'));local_check_link_label=$localDetails.Text;org_cloud_ai_allowed=[bool]$policy.cloud_ai_allowed;connect_options=2;language=$script:lang;localized_step=$step.Text;next_caption=$next.Text;language_count=$languageChoice.Items.Count;tab_order=@($languageChoice.TabIndex,$local.TabIndex,$localDetails.TabIndex,$cloud.TabIndex,$privacy.TabIndex,$connect.TabIndex,$without.TabIndex,$back.TabIndex,$next.TabIndex);accept_button_set=([object]::ReferenceEquals($form.AcceptButton,$next))}
  $form.Dispose();$result|ConvertTo-Json -Compress;return
 }
 if($JourneyTest){
@@ -190,7 +210,7 @@ if($JourneyTest){
  [void]$click.Invoke($next,@([EventArgs]::Empty))
  if(-not $script:finished -or $script:choice -ne $TestConnectionChoice){throw 'Connection-choice journey failed'}
  $form.Dispose()
- [ordered]@{journey='PASS';consent_required=$true;remote_ai_optional=$true;connection_choice=$script:choice;ai_consent=$script:aiAllowed;hardware_scans_before_consent=0;remote_requests=0;language=$script:lang;localized_step=$step.Text}|ConvertTo-Json -Compress;return
+ [ordered]@{journey='PASS';consent_required=$true;remote_ai_optional=$true;connection_choice=$script:choice;ai_consent=$script:aiAllowed;hardware_scans_before_consent=0;remote_requests=0;local_check_link_present=$true;language=$script:lang;localized_step=$step.Text}|ConvertTo-Json -Compress;return
 }
 [Windows.Forms.Application]::Run($form)
 $form.Dispose()

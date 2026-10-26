@@ -439,7 +439,7 @@
                         "summary":  "Windows can retain the Silicon Motion display driver package in its Driver Store even when no Doxa USB display device is currently connected. A missing present-device entry does not prove the driver was uninstalled. On the checked Dell, Windows still lists the original smiiddx770.inf package when no Doxa panels are detected.",
                         "safe_steps":  [
                                            "Connect Doxa to power and connect its USB data cable directly to the computer.",
-                                           "Run Check Doxa again and see whether Windows discovers the Doxa USB graphics device and three panels.",
+                                           "Run Detect Doxa again and see whether Windows discovers the Doxa USB graphics device and three panels.",
                                            "Only consider selecting a verified signed MSI if Doxa hardware is detected and the required driver truly is unavailable."
                                        ],
                         "limits":  [

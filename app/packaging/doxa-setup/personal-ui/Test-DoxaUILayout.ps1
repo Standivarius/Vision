@@ -1,4 +1,4 @@
-﻿# Deterministic, offline layout/keyboard/consent/UI gate. Does not modify
+# Deterministic, offline layout/keyboard/consent/UI gate. Does not modify
 # vendor drivers, launch network AI, or install/uninstall software.
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
@@ -10,7 +10,7 @@ foreach($language in @('en','ro')){
  if($first.smoke -ne 'PASS' -or
     $first.local_consent_default -or $first.remote_ai_default -or
     $first.local_checks_before_consent -or $first.cloud_ai_before_consent -or
-    -not $first.privacy_details_available -or -not $first.accept_button_set -or
+    -not $first.privacy_details_available -or -not $first.local_check_details_available -or -not $first.accept_button_set -or
     $first.language_count -ne 2 -or @($first.tab_order).Count -lt 8){
   throw "Welcome privacy, keyboard or language contract failed ($language)"
  }
@@ -23,7 +23,8 @@ foreach($language in @('en','ro')){
      $x.driver_changes_without_user_action -or $x.cloud_ai_connected -or
      -not $x.device_illustration_accessible -or
      -not $x.side_within_horizontal_bounds -or
-     -not $x.connection_steps_wired -or $x.language_dropdown_count -ne 2){
+     -not $x.connection_steps_wired -or -not $x.resize_supported -or $x.language_dropdown_count -ne 2 -or ($x.short_laptop_layout -and -not $x.critical_buttons_visible) -or
+     $x.exact_detect_button_text -ne $(if($language -eq 'en'){'Detect Doxa'}else{'Detecteaza Doxa'})){
    throw "Main customer UI contract failed ($language, $width)"
   }
   if($width -ne 0){
@@ -33,11 +34,13 @@ foreach($language in @('en','ro')){
     throw "Compact UI clipped a critical control ($language, $width)"
    }
   }
+
+  if($width -eq 0 -and $x.short_laptop_layout -and -not $x.window_fits_work_area){throw 'Real-height laptop window clips its bottom'}
   $passed++
  }
 }
 [ordered]@{
  status='PASS';cases=$passed;languages=@('en','ro')
  simulated_compact_widths=@(440,480,522)
- read_only=$true;remote_ai_calls=0;driver_changes=0
+ read_only=$true;remote_ai_calls=0;driver_changes=0;local_check_privacy_link=$true;detect_doxa_exact=$true
 }|ConvertTo-Json -Compress
