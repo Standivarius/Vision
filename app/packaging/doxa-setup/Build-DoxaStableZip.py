@@ -11,9 +11,15 @@ ZIP_TIME = (2000, 1, 1, 0, 0, 0)
 
 def create(source: Path, destination: Path) -> tuple[int, int]:
     source = source.resolve(strict=True)
-    destination = destination.absolute()
-    if not source.is_dir() or destination.is_relative_to(source):
-        raise ValueError("Source must be directory and output outside source")
+    # Windows runners may resolve short/canonical directory aliases differently
+    # from Path.absolute(); resolve BOTH ends before enforcing containment.
+    destination = destination.resolve(strict=False)
+    if not source.is_dir():
+        raise ValueError("Source must be a directory")
+    source_key = os.path.normcase(str(source))
+    destination_key = os.path.normcase(str(destination))
+    if os.path.commonpath((source_key, destination_key)) == source_key:
+        raise ValueError("Output must be outside ZIP source")
     if destination.exists():
         raise ValueError("Refuse to overwrite existing package")
     entries = []
