@@ -218,7 +218,7 @@ def create_app(token, file, encrypted, clear_size):
         print("REUSING_UNPUBLISHED_PILOT_APP=" + active_pilot_app_id(), flush=True)
         return active_pilot_app_id()
     script = (ROOT / "enterprise-intune-pilot" / "DoxaPilot.ps1").read_bytes()
-    ensure(b"Get-FileHash" in script and b"'Detect'" in script,
+    ensure(b"Get-DoxaSha256" in script and b"'Detect'" in script,
            "Expected content-hash detection script missing")
     rule = {"@odata.type": "#microsoft.graph.win32LobAppPowerShellScriptRule",
             "ruleType": "detection", "scriptContent": base64.b64encode(script).decode("ascii"),
