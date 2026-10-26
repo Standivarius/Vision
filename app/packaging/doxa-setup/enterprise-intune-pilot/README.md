@@ -17,3 +17,6 @@ Uninstall command: powershell.exe -NoProfile -NonInteractive -File .\DoxaPilot.p
 Install behavior: System. Target: an isolated disposable enrolled Windows test device. Detection rule: custom script DoxaPilot.ps1 with default Action Detect; run 64-bit; detected only on exit 0 with nonempty stdout. No dependency on a Silicon Motion driver install. Driver is a separate future package after OEM rights and safe clean install/rollback qualifications.
 
 Do not assign this unsigned pilot to production devices or bypass WDAC/AppLocker. A signed standalone executable and enterprise policy matrix are release gates. The pilot verifies Intune plumbing, not driver deployment or product readiness.
+
+### Deterministic integrity diagnosis for test fixtures
+DoxaPilot.ps1 normally logs no internals or protected paths. For isolated installer qualification only, environment flag DOXA_PILOT_DIAGNOSTICS=1 writes short DOXA_INTEGRITY_REASON codes to stderr when manifest/path/hash/unexpected-file validation refuses a payload. It does not weaken the gate or grant permissions. Test-DoxaPilot.py enables these codes only inside its ephemeral fixture. Never enable verbose Windows file paths or customer/private identifiers in public logs.

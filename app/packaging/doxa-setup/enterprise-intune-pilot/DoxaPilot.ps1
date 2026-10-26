@@ -1,4 +1,4 @@
-param(
+﻿param(
  [ValidateSet('Install','Uninstall','Detect')][string]$Action='Detect',
  [string]$TargetRoot='',
  [string]$PayloadPath=''
@@ -10,42 +10,48 @@ Set-StrictMode -Version Latest
 if(-not $TargetRoot){$pf=if($env:ProgramW6432){$env:ProgramW6432}else{$env:ProgramFiles};$TargetRoot=Join-Path $pf 'Standivarius\DoxaSetup'}
 if(-not $PayloadPath){$PayloadPath=Join-Path $PSScriptRoot 'DoxaSetupPayload.zip'}
 $target=[IO.Path]::GetFullPath($TargetRoot)
+function PayloadRejected([string]$code) {
+ if($env:DOXA_PILOT_DIAGNOSTICS -eq '1'){
+  [Console]::Error.WriteLine('DOXA_INTEGRITY_REASON: '+$code)
+ }
+ return $false
+}
 function IsInstalled([string]$folder) {
  $manifestPath=Join-Path $folder 'manifest.json'
- if(-not(Test-Path -LiteralPath $manifestPath -PathType Leaf)){return $false}
+ if(-not(Test-Path -LiteralPath $manifestPath -PathType Leaf)){return (PayloadRejected 'manifest_absent')}
  try{
   $m=Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8|ConvertFrom-Json
-  if([string]$m.product -cne 'Standivarius Doxa Setup' -or @($m.files).Count -ne 16){return $false}
+  if([string]$m.product -cne 'Standivarius Doxa Setup' -or @($m.files).Count -ne 16){return (PayloadRejected 'schema_or_filecount')}
   $allowed=@((Join-Path $folder 'manifest.json'))
   foreach($f in @($m.files)){
    $rel=[string]$f.file
-   if($rel -notmatch '^app/packaging/doxa-setup/(?:[A-Za-z0-9._-]+|(?:personal-ui|assistant|knowledge|profiles)/[A-Za-z0-9._-]+)$'){return $false}
+   if($rel -notmatch '^app/packaging/doxa-setup/(?:[A-Za-z0-9._-]+|(?:personal-ui|assistant|knowledge|profiles)/[A-Za-z0-9._-]+)$'){return (PayloadRejected 'unexpected_source_path')}
    $path=[IO.Path]::GetFullPath((Join-Path $folder ($rel.Replace('/','\'))))
-   if(-not $path.StartsWith(([IO.Path]::GetFullPath($folder).TrimEnd('\')+'\'),[StringComparison]::OrdinalIgnoreCase)){return $false}
-   if(-not(Test-Path -LiteralPath $path -PathType Leaf)){return $false}
-   if((Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash -ine [string]$f.sha256){return $false}
+   if(-not $path.StartsWith(([IO.Path]::GetFullPath($folder).TrimEnd('\')+'\'),[StringComparison]::OrdinalIgnoreCase)){return (PayloadRejected 'path_escape')}
+   if(-not(Test-Path -LiteralPath $path -PathType Leaf)){return (PayloadRejected 'missing_source')}
+   if((Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash -ine [string]$f.sha256){return (PayloadRejected 'source_hash')}
    $allowed+=,$path
   }
   $generated=@($m.generated_files)
-  if($generated.Count -ne 2){return $false}
+  if($generated.Count -ne 2){return (PayloadRejected 'generated_count')}
   $names=@($generated|ForEach-Object {[string]$_.file})
-  if($names -notcontains 'Open Doxa Setup.cmd' -or $names -notcontains 'README-FIRST.txt'){return $false}
+  if($names -notcontains 'Open Doxa Setup.cmd' -or $names -notcontains 'README-FIRST.txt'){return (PayloadRejected 'generated_names')}
   foreach($g in $generated){
    $path=Join-Path $folder ([string]$g.file)
-   if(-not(Test-Path -LiteralPath $path -PathType Leaf)){return $false}
-   if((Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash -ine [string]$g.sha256){return $false}
+   if(-not(Test-Path -LiteralPath $path -PathType Leaf)){return (PayloadRejected 'generated_missing')}
+   if((Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash -ine [string]$g.sha256){return (PayloadRejected 'generated_hash')}
    $allowed+=,$path
   }
   # A valid manifest is insufficient if the unpacked payload contains extra files.
   # Keep detection and removal confined to the exact 16 source files plus two generated files.
   $actual=@(Get-ChildItem -LiteralPath $folder -File -Recurse -ErrorAction Stop)
-  if($actual.Count -ne $allowed.Count){return $false}
+  if($actual.Count -ne $allowed.Count){return (PayloadRejected 'actual_count')}
   foreach($item in $actual){
-   if($allowed -notcontains $item.FullName){return $false}
-   if(($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0){return $false}
+   if($allowed -notcontains $item.FullName){return (PayloadRejected 'unexpected_file')}
+   if(($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0){return (PayloadRejected 'reparse_point')}
   }
   return $true
- }catch{return $false}
+ }catch{return (PayloadRejected 'unexpected_error')}
 }
 if($Action -eq 'Detect'){
  if(IsInstalled $target){'DETECTED:DoxaSetupPilot';exit 0}

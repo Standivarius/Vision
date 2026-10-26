@@ -12,7 +12,7 @@ with tempfile.TemporaryDirectory(prefix="DoxaEnterprisePilotTest-") as tmp:
     target=pathlib.Path(tmp)/"Installed Doxa Setup"
     def run(action, payload_override=None):
         chosen_payload=payload_override if payload_override is not None else payload
-        res=subprocess.run([ps,"-NoProfile","-NonInteractive","-File",str(script),"-Action",action,"-TargetRoot",str(target),"-PayloadPath",str(chosen_payload)],capture_output=True,text=True,timeout=50)
+        res=subprocess.run([ps,"-NoProfile","-NonInteractive","-File",str(script),"-Action",action,"-TargetRoot",str(target),"-PayloadPath",str(chosen_payload)],capture_output=True,text=True,timeout=50,env={**os.environ,"DOXA_PILOT_DIAGNOSTICS":"1"})
         return {"action":action,"exit":res.returncode,"out":res.stdout.strip()[-150:],"err":res.stderr.strip()[-150:]}
     steps=[]
     steps.append(run("Detect"));assert steps[-1]["exit"]==1,steps[-1]
@@ -36,4 +36,5 @@ with tempfile.TemporaryDirectory(prefix="DoxaEnterprisePilotTest-") as tmp:
     with zipfile.ZipFile(tampered,"a") as archive:
         archive.writestr("unlisted-extra.exe",b"MZ-not-an-authorised-Doxa-file")
     steps.append(run("Install",tampered));assert steps[-1]["exit"]==30 and not target.exists(),steps[-1]
+    assert any("DOXA_INTEGRITY_REASON:" in item["err"] for item in steps if item["exit"] != 0)
     print(json.dumps({"status":"PASS","test_root":"isolated_temp","driver_installation":False,"steps":steps,"payload_sha256":hashlib.sha256(payload.read_bytes()).hexdigest()}))
