@@ -42,5 +42,6 @@ class StableZipTest(unittest.TestCase):
             mod.create(inp,out)
             with self.assertRaises(ValueError):mod.create(inp,out)
             with self.assertRaises(ValueError):mod.create(inp,inp/"bad.zip")
+            with self.assertRaises(ValueError):mod.create(inp,inp/"nested"/"bad.zip")
 if __name__=="__main__":
     unittest.main()
