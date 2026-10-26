@@ -1,4 +1,4 @@
-import os, tempfile, subprocess, json, pathlib, hashlib, argparse, zipfile, shutil
+﻿import os, tempfile, subprocess, json, pathlib, hashlib, argparse, zipfile, shutil
 base=pathlib.Path(__file__).resolve().parent
 parser=argparse.ArgumentParser()
 parser.add_argument("--script",default=str(base/"DoxaPilot.ps1"))
@@ -13,7 +13,13 @@ with tempfile.TemporaryDirectory(prefix="DoxaEnterprisePilotTest-") as tmp:
     def run(action, payload_override=None):
         chosen_payload=payload_override if payload_override is not None else payload
         res=subprocess.run([ps,"-NoProfile","-NonInteractive","-File",str(script),"-Action",action,"-TargetRoot",str(target),"-PayloadPath",str(chosen_payload)],capture_output=True,text=True,timeout=50,env={**os.environ,"DOXA_PILOT_DIAGNOSTICS":"1"})
-        return {"action":action,"exit":res.returncode,"out":res.stdout.strip()[-150:],"err":res.stderr.strip()[-150:]}
+        # Keep deterministic, non-sensitive diagnostic code and exception type visible
+        # even if a long stderr message would otherwise truncate their start.
+        codes = [line.strip() for line in res.stderr.splitlines()
+                 if line.startswith("DOXA_INTEGRITY_")]
+        summary = " | ".join(codes)[-450:] if codes else res.stderr.strip()[-150:]
+        return {"action":action,"exit":res.returncode,
+                "out":res.stdout.strip()[-150:],"err":summary}
     steps=[]
     steps.append(run("Detect"));assert steps[-1]["exit"]==1,steps[-1]
     steps.append(run("Install"));assert steps[-1]["exit"]==0 and "INSTALLED" in steps[-1]["out"],steps[-1]
