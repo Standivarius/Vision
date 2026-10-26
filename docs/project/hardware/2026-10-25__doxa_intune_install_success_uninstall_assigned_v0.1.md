@@ -1,0 +1,23 @@
+# Doxa Intune Dell — first managed install PASS, managed uninstall assigned
+
+**Observed Sunday 25 October 2026 (Europe/Bucharest), 09:47–10:09.** Scope: dedicated Dell-only *app-only* Intune pilot, not Silicon Motion driver or display configuration. Vision draft PR #78 / GitHub issue #75.
+
+## Actual Dell first managed Win32 install — PASS
+
+- **App** `Standivarius Doxa Setup - MARIUS-DELL app-only pilot`, ID `62fcb7ce-ebc2-4407-9b51-0710cb809c32`, content version **1**.
+- First failed at **23:41 Oct 24** because PowerShell execution was restricted. Process-local `-ExecutionPolicy Bypass` added to the app-specific install and uninstall commands without changing Windows' system-wide execution policy.
+- **Actual Microsoft Intune Management Extension execution 01:08:12–01:08:41 Oct 25**: corrected install command `powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File .\DoxaPilot.ps1 -Action Install`. Agent log `AppWorkload.log` reported installer exit **0**, execution/enforcement **Success**, and native SYSTEM detection `DETECTED:DoxaSetupPilot` exit **0**; Intune DetectionState changed NotInstalled -> Installed. Files under `C:\Program Files\Standivarius\DoxaSetup` created at **01:08:22**. Local exact script `-Action Detect` independently returned exit **0** at **09:47** and again at **10:07**.
+- No Silicon Motion driver MSI bundled or installed by the Doxa app-only package. `IntuneManagementExtension` running; Dell display baseline includes SMI USB Display adapter OK (other enumerated USB adapters showed Unknown with RDP session, do not assert full physical display topology from remote session).
+
+## Actual Dell-only uninstall assignment — accepted, delivery pending
+
+- Before switch: guarded `Test-DoxaIntuneUninstallSwitch.py` **5/5 PASS**, `Switch-DoxaIntunePilotToUninstall.py` dry-run **PASS**, Doxa locally Detected=True, noninteractive encrypted Microsoft token reuse **PASS**.
+- Applied through Microsoft Graph using existing verified tenant permissions at approximately **10:04 Oct 25**: `python Switch-DoxaIntunePilotToUninstall.py --execute`. Script revalidated exact app ID, name, publisher, published version 1, both Bypass commands, exactly one Required assignment and one-member dedicated Dell-only security group; POSTed and read back exactly one **Uninstall** assignment for original Dell-only group. Tool reported `INTUNE_DELL_ONLY_UNINSTALL_ASSIGNED=true`, `DRIVER_UNINSTALL_INCLUDED=false`, `INTUNE_DEVICE_UNINSTALL_VERIFIED=false`; exit **0**.
+- **Last check 10:09 Oct 25:** `C:\Program Files\Standivarius\DoxaSetup` **still present**, native Detect exit 0. Intune AppWorkload.log last modified **09:46:54**, before assignment switch; normal policy processing hasn't applied uninstall yet. **DO NOT claim uninstall passed or remove device enrollment until the IME logs show actual uninstall exit 0 AND exact package Detect exit 1 with Program Files payload absent.**
+- Once actual managed uninstall is confirmed: record evidence, then decommission the Dell-only Intune pilot using supported MDM/tenant path without `dsregcmd /leave`, Wipe, system-wide policy hacks, or touching driver or other managed workloads; verify Dell Doxa displays and connectivity. No Graph additional changes pending.
+
+## What this closes and what remains
+
+- **ManageEngine ASUS separate real-agent pilot PASS** Install/repeat/Uninstall and completed decommission: see `2026-10-25__doxa_manageengine_asus_real_agent_lifecycle_results_v0.1.md`.
+- **Two-platform app-only enterprise management lifecycle** can close once this Dell Intune-managed uninstall and cleanup is independently verified. This does **not** mean full enterprise/product release validation. Outstanding separate release gates: vendor Silicon Motion/OEM driver redistribution rights, recoverable real-device full driver/rollback and security policies (e.g. WDAC, AppLocker, HVCI), public code signing and privacy/legal documentation.
+- **User attended personal installer preview is still due.** Existing on Dell: `C:\dev\Vision\artifacts\releases\Standivarius-Doxa-Setup-personal-preview-20261024-153817.zip` (42,429 bytes, unsigned preview, not signed retail EXE). Extract outside repo and double-click `Open Doxa Setup.cmd`. It starts `Start-DoxaSetup.ps1`: EN/RO UI, current driver and panel diagnostics, offline troubleshooting, optional Cloudflare AI help off by default/consent-first guided route, safe install action for known signed vendor MSI. Do not perform vendor-driver reinstall on working Dell during walkthrough. Next step after management cleanup: attended full personal user journey and feedback; then safer disposable hardware driver qualification, release packaging/signing/licensing and final go/no-go.
