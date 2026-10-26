@@ -51,7 +51,13 @@ function IsInstalled([string]$folder) {
    if(($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0){return (PayloadRejected 'reparse_point')}
   }
   return $true
- }catch{return (PayloadRejected 'unexpected_error')}
+ }catch{
+  if($env:DOXA_PILOT_DIAGNOSTICS -eq '1'){
+   [Console]::Error.WriteLine('DOXA_INTEGRITY_EXCEPTION_CLASS: '+$_.Exception.GetType().Name)
+   [Console]::Error.WriteLine('DOXA_INTEGRITY_EXCEPTION_LINE: '+[string]$_.InvocationInfo.ScriptLineNumber)
+  }
+  return (PayloadRejected 'unexpected_error')
+ }
 }
 if($Action -eq 'Detect'){
  if(IsInstalled $target){'DETECTED:DoxaSetupPilot';exit 0}
