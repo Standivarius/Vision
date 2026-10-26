@@ -2,8 +2,12 @@
  [switch]$Smoke,[switch]$JourneyTest,[switch]$DeveloperTests,[string]$SnapshotPath="",
  [switch]$DiagnosticsApproved,[switch]$AIApproved,
  [ValidateSet('connected','without_doxa')][string]$ConnectionPreference='without_doxa',
- [ValidateSet('en','ro')][string]$Language='en'
+ [ValidateSet('en','ro')][string]$Language='en', [int]$CompactTestWidth=0
 )
+# Simulation flag only works in read-only UI smoke mode, never actual setup.
+if($CompactTestWidth -ne 0 -and ((-not $Smoke) -or $CompactTestWidth -lt 440 -or $CompactTestWidth -gt 522)){
+ throw 'Compact width injection is restricted to smoke tests between 440 and 522 pixels'
+}
 # Regular entry always presents explicit permissions before scanning the computer.
 if(-not $DiagnosticsApproved -and -not $Smoke -and -not $JourneyTest -and -not $DeveloperTests){
  & (Join-Path $PSScriptRoot 'Start-DoxaGuidedSetup.ps1') -Language $Language
@@ -198,10 +202,10 @@ $footer=Label 'Doxa Setup personal preview -- Driver changes require your approv
 $form.Controls.Add($footer)
 # In a portrait/remote Windows desktop, stack device and help instead of losing
 # half the application off-screen. On full-size desktops retain the two-column view.
-$script:compactLayout=([Windows.Forms.Screen]::PrimaryScreen.WorkingArea.Width -lt 1090)
+$script:compactLayout=($CompactTestWidth -gt 0 -or [Windows.Forms.Screen]::PrimaryScreen.WorkingArea.Width -lt 1090)
 if($script:compactLayout){
  $work=[Windows.Forms.Screen]::PrimaryScreen.WorkingArea
- $width=[Math]::Max(440,[Math]::Min(522,$work.Width-16))
+ $width=if($CompactTestWidth -gt 0){$CompactTestWidth}else{[Math]::Max(440,[Math]::Min(522,$work.Width-16))}
  $height=[Math]::Max(530,[Math]::Min(940,$work.Height-55))
  $form.AutoScroll=$true
  $form.ClientSize=New-Object Drawing.Size($width,$height)
@@ -209,7 +213,7 @@ if($script:compactLayout){
  $languageChoice.SetBounds(($width-174),30,157,30)
  $intro.SetBounds(17,121,($width-34),35)
  $sub.SetBounds(17,163,($width-34),40)
- $cardWidth=$width-20
+ $cardWidth=$width-40 # Reserve space for the vertical scrollbar at high DPI.
  $card.SetBounds(10,213,$cardWidth,332)
  $cardHeading.SetBounds(17,14,253,30)
  $connectionBadge.SetBounds(($cardWidth-195),20,177,23)
@@ -219,9 +223,10 @@ if($script:compactLayout){
  $actionsTop=556
  $check.SetBounds(10,$actionsTop,155,46)
  $guide.SetBounds(173,$actionsTop,145,46)
- $reinstall.SetBounds(326,$actionsTop,($width-336),46)
- $reset.SetBounds(10,606,200,30)
- $side.SetBounds(10,616,$cardWidth,488)
+ # Driver install requires a full-width labelled action on narrow screens.
+ $reinstall.SetBounds(10,610,$cardWidth,46)
+ $reset.SetBounds(10,1240,200,30)
+ $side.SetBounds(10,667,$cardWidth,488)
  $helpHeading.SetBounds(17,15,($cardWidth-34),30)
  $assistantStatus.SetBounds(17,48,($cardWidth-34),25)
  $chat.SetBounds(17,80,($cardWidth-34),295)
@@ -229,8 +234,8 @@ if($script:compactLayout){
  $send.SetBounds(($cardWidth-99),388,82,38)
  $hint.SetBounds(17,448,($cardWidth-34),25)
  $offline.SetBounds(17,442,($cardWidth-34),31)
- $official.SetBounds(20,1117,($width-40),23)
- $footer.SetBounds(20,1142,($width-40),24)
+ $official.SetBounds(20,1169,($width-40),23)
+ $footer.SetBounds(20,1203,($width-40),24)
 }
 $script:current=$null;$script:fault='none';$script:lang=$Language
 $script:cloudPolicyScript=Join-Path $PSScriptRoot 'Get-DoxaCloudAIPolicy.ps1'
@@ -571,7 +576,7 @@ if($Smoke) {
    $snapshot.Save($SnapshotPath,[Drawing.Imaging.ImageFormat]::Png)
   }
  }finally{if($SnapshotPath){$form.Hide()};$snapshot.Dispose()}
- @{smoke='PASS';window=$form.Text;layout_mode=$(if($script:compactLayout){'compact_stacked'}else{'wide_columns'});viewport_width=$form.ClientSize.Width;side_within_horizontal_bounds=($side.Right -le $form.ClientSize.Width);languages=@('English','Romana');form_width=$form.Width;form_height=$form.Height;fault_count=$faults.Items.Count;device_illustration_present=($deviceArt.Width -gt 300 -and $deviceArt.Height -gt 100);connection_steps_wired=($guide.Parent -eq $form);device_illustration_accessible=([bool]$deviceArt.AccessibleName);artwork_render_pass=$artworkRenderPass;illustration_not_device_evidence=$true;initial_language=$script:lang;intro_text=$intro.Text;help_title=$helpHeading.Text;language_dropdown_count=$languageChoice.Items.Count;developer_controls_visible=[bool]$inject.Visible;reset_visible=[bool]$reset.Visible;advanced_visible=[bool]$advanced.Visible;chat_height=$chat.Height;driver_changes_without_user_action=$false;cloud_ai_connected=$false}|ConvertTo-Json -Compress
+ @{smoke=$(if($script:compactLayout -and ($reinstall.Width -lt 280 -or $side.Right -gt ($form.ClientSize.Width-17))){'FAIL'}else{'PASS'});reinstall_button_width=$reinstall.Width;compact_scrollbar_margin=($form.ClientSize.Width-$side.Right);window=$form.Text;layout_mode=$(if($script:compactLayout){'compact_stacked'}else{'wide_columns'});viewport_width=$form.ClientSize.Width;side_within_horizontal_bounds=($side.Right -le $form.ClientSize.Width);languages=@('English','Romana');form_width=$form.Width;form_height=$form.Height;fault_count=$faults.Items.Count;device_illustration_present=($deviceArt.Width -gt 300 -and $deviceArt.Height -gt 100);connection_steps_wired=($guide.Parent -eq $form);device_illustration_accessible=([bool]$deviceArt.AccessibleName);artwork_render_pass=$artworkRenderPass;illustration_not_device_evidence=$true;initial_language=$script:lang;intro_text=$intro.Text;help_title=$helpHeading.Text;language_dropdown_count=$languageChoice.Items.Count;developer_controls_visible=[bool]$inject.Visible;reset_visible=[bool]$reset.Visible;advanced_visible=[bool]$advanced.Visible;chat_height=$chat.Height;driver_changes_without_user_action=$false;cloud_ai_connected=$false}|ConvertTo-Json -Compress
  $form.Dispose()
  return
 }
