@@ -1,0 +1,145 @@
+﻿{
+    "captured_utc":  "2026-10-26T14:16:54.4753849Z",
+    "baseline":  "canonical uncommitted-protected Vision Dell host",
+    "display_preflight":  {
+                              "display_count":  4,
+                              "roles":  {
+                                            "LAPTOP":  {
+                                                           "gdi_name":  "\\\\.\\DISPLAY1",
+                                                           "bounds":  {
+                                                                          "left":  0,
+                                                                          "top":  0,
+                                                                          "right":  1920,
+                                                                          "bottom":  1080
+                                                                      },
+                                                           "primary":  true
+                                                       },
+                                            "CENTRE":  {
+                                                           "gdi_name":  "\\\\.\\DISPLAY8",
+                                                           "bounds":  {
+                                                                          "left":  3,
+                                                                          "top":  -1080,
+                                                                          "right":  1923,
+                                                                          "bottom":  0
+                                                                      },
+                                                           "primary":  false
+                                                       },
+                                            "RIGHT":  {
+                                                          "gdi_name":  "\\\\.\\DISPLAY9",
+                                                          "bounds":  {
+                                                                         "left":  1923,
+                                                                         "top":  -1064,
+                                                                         "right":  3843,
+                                                                         "bottom":  16
+                                                                     },
+                                                          "primary":  false
+                                                      },
+                                            "LEFT":  {
+                                                         "gdi_name":  "\\\\.\\DISPLAY7",
+                                                         "bounds":  {
+                                                                        "left":  -1917,
+                                                                        "top":  -1088,
+                                                                        "right":  3,
+                                                                        "bottom":  -8
+                                                                    },
+                                                         "primary":  false
+                                                     }
+                                        },
+                              "unlocked":  true,
+                              "topology_ok":  true,
+                              "session_id":  1,
+                              "console_session_id":  1,
+                              "physical_console":  true,
+                              "environment":  "PHYSICAL_CONSOLE_SOFTWARE_OUTPUT_NOT_CAMERA"
+                          },
+    "identity":  {
+                     "schema_version":  1,
+                     "origin":  "Dell_live_read_only",
+                     "timestamp_utc":  "2026-10-26T14:16:54.4461949Z",
+                     "dpi_aware":  true,
+                     "desktop_count":  4,
+                     "external_count":  3,
+                     "external_identity_records":  3,
+                     "external_distinct_identity_hashes":  3,
+                     "identity_uniqueness":  "distinct_observed",
+                     "serials_exposed":  false,
+                     "settings_modified":  false,
+                     "driver_modified":  false,
+                     "displays":  [
+                                      {
+                                          "gdi_name":  "\\\\.\\DISPLAY1",
+                                          "primary":  true,
+                                          "x":  0,
+                                          "y":  0,
+                                          "width":  1920,
+                                          "height":  1080,
+                                          "adapter_name":  null,
+                                          "adapter_id_hash":  null,
+                                          "monitors":  [
+                                                           {
+                                                               "friendly_name":  "Generic PnP Monitor",
+                                                               "id_hash":  "8856d62397dfb349de64",
+                                                               "key_hash":  "866885a5f612eb0be3a7",
+                                                               "active_flags":  3
+                                                           }
+                                                       ]
+                                      },
+                                      {
+                                          "gdi_name":  "\\\\.\\DISPLAY7",
+                                          "primary":  false,
+                                          "x":  -1917,
+                                          "y":  -1088,
+                                          "width":  1920,
+                                          "height":  1080,
+                                          "adapter_name":  null,
+                                          "adapter_id_hash":  null,
+                                          "monitors":  [
+                                                           {
+                                                               "friendly_name":  "Generic PnP Monitor",
+                                                               "id_hash":  "a6ee4fc79cf2ff1a034d",
+                                                               "key_hash":  "91298fc1db85c5820516",
+                                                               "active_flags":  3
+                                                           }
+                                                       ]
+                                      },
+                                      {
+                                          "gdi_name":  "\\\\.\\DISPLAY8",
+                                          "primary":  false,
+                                          "x":  3,
+                                          "y":  -1080,
+                                          "width":  1920,
+                                          "height":  1080,
+                                          "adapter_name":  null,
+                                          "adapter_id_hash":  null,
+                                          "monitors":  [
+                                                           {
+                                                               "friendly_name":  "Generic PnP Monitor",
+                                                               "id_hash":  "3ab260b0f0377336e0fd",
+                                                               "key_hash":  "07ec633d3dda80537c2c",
+                                                               "active_flags":  3
+                                                           }
+                                                       ]
+                                      },
+                                      {
+                                          "gdi_name":  "\\\\.\\DISPLAY9",
+                                          "primary":  false,
+                                          "x":  1923,
+                                          "y":  -1064,
+                                          "width":  1920,
+                                          "height":  1080,
+                                          "adapter_name":  null,
+                                          "adapter_id_hash":  null,
+                                          "monitors":  [
+                                                           {
+                                                               "friendly_name":  "Generic PnP Monitor",
+                                                               "id_hash":  "7088040ef0509dadc356",
+                                                               "key_hash":  "a301eccd8f8364b6793b",
+                                                               "active_flags":  3
+                                                           }
+                                                       ]
+                                      }
+                                  ]
+                 },
+    "screen_changes":  false,
+    "driver_changes":  false
+}
