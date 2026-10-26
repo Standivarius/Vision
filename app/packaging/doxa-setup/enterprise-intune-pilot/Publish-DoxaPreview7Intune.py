@@ -108,7 +108,7 @@ def create_preview7_app(token):
     published=pub.call("POST","/deviceAppManagement/mobileApps",token,body)
     app_id=str(uuid.UUID(published["id"]))
     pub.record_active_pilot_app_id(app_id)
-    print("PREVIEW6_ISOLATED_MANAGED_APP_CREATED="+app_id,flush=True)
+    print("PREVIEW7_ISOLATED_MANAGED_APP_CREATED="+app_id,flush=True)
     return app_id
 
 
