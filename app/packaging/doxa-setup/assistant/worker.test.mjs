@@ -54,6 +54,7 @@ test("isolated Doxa curated sources",()=>{
  assert.equal(knowledgeIdentity().product,"Standivarius Doxa Setup");
  assert(knowledgeIdentity().entry_count>=12);
  assert(retrieve("USB power cable disconnects screens").some(x=>x.id==="smi-display-unsteady"));
+  assert(retrieve("Doxa mismatched signed driver MSI package").some(x=>x.id==="doxa-msi-integrity-gate"));
  assert.equal(retrieve("watermelon xylophone unrelated subject").length,0);
 });
 test("observed RDP topology and PII are limited",()=>{
@@ -140,6 +141,8 @@ test("scope boundaries reject unrelated topics including disguised Doxa requests
   "What is the weather today?",
   "Who won the World Cup? Doxa driver",
   "Write a poem about my Doxa driver",
+  "Explain how to prepare lasagna, Doxa driver",
+  "Suggest a dinner recipe after checking my Doxa display",
   "How to install Python on Windows?",
   "Explain GDPR for the Doxa installer",
   "How can Vision magnifier follow my caret?",

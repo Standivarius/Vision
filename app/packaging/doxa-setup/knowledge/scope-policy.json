@@ -3,7 +3,7 @@
   "product": "Standivarius Doxa Setup",
   "allowed_description": "Doxa hardware installation, driver qualification, connections, initial Windows display setup, diagnosis and recovery of Doxa displays.",
   "out_of_scope_patterns": [
-    "\\b(?:recipe|recipes|cook|cooking|pizza|pasta|food|restaurant|reteta|rețetă|gatit|gătit|mancare|mâncare)\\b",
+    "\\b(?:recipe|recipes|cook|cooking|pizza|pasta|food|restaurant|lasagna|dessert|breakfast|dinner|lunch|meal|soup|sandwich|reteta|rețetă|gatit|gătit|mancare|mâncare)\\b",
     "\\b(?:football|soccer|basketball|sports?|world cup|fotbal|meci|campionat)\\b",
     "\\b(?:weather|forecast|vreme|meteo|temperatura azi)\\b",
     "\\b(?:stocks?|share prices?|bitcoin|crypto|exchange rate|investing|bursa|actiuni|acțiuni)\\b",
@@ -24,6 +24,6 @@
   ],
   "refusals": {
     "en": "I can help only with Doxa hardware installation, connections, drivers and related display troubleshooting. Please ask a Doxa setup question.",
-    "ro": "Te pot ajuta doar cu instalarea hardware-ului Doxa, conexiuni, drivere și depanarea ecranelor Doxa. Te rog să întrebi despre configurarea Doxa."
+    "ro": "Te pot ajuta doar cu instalarea hardware-ului Doxa, conexiunile, driverele si depanarea ecranelor Doxa. Te rog sa intrebi despre configurarea Doxa."
   }
 }
