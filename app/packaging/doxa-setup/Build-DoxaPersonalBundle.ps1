@@ -1,6 +1,7 @@
-param(
+﻿param(
  [string]$OutputDirectory='',
- [switch]$TestOnly
+ [switch]$TestOnly,
+ [switch]$Reproducible
 )
 # Assemble a personal, portable Doxa hardware installer preview.
 # No vendor binaries, private keys, environments, credentials or live system changes.
@@ -26,6 +27,12 @@ $items=@(
  'app/packaging/doxa-setup/personal-ui/Test-DoxaPackageGate.ps1',
  'app/packaging/doxa-setup/personal-ui/Invoke-DoxaPersonalInstallation.ps1'
 )
+$buildStamp=(Get-Date).ToUniversalTime().ToString('s')+'Z'
+if($Reproducible){
+ $commitDate=(& git -C $repo log -1 --format=%cI | Out-String).Trim()
+ if($LASTEXITCODE -ne 0 -or -not $commitDate){throw 'Immutable Git commit timestamp required for reproducible bundle'}
+ $buildStamp=([DateTimeOffset]::Parse($commitDate)).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
+}
 $stage=Join-Path $env:TEMP ('StandivariusDoxaSetup-'+[Guid]::NewGuid().ToString('N'))
 $zip=$null
 try {
@@ -43,7 +50,7 @@ try {
   product='Standivarius Doxa Setup'
   channel='personal-preview'
   schema_version=1
-  bundle_created_utc=(Get-Date).ToUniversalTime().ToString('s')+'Z'
+  bundle_created_utc=$buildStamp
   no_silicon_motion_driver_bundled=$true
   private_credentials_bundled=$false
   signing_status='UNSIGNED preview - not for public distribution'
@@ -98,7 +105,12 @@ LIMITS:
  $name='Standivarius-Doxa-Setup-personal-preview-'+(Get-Date -Format 'yyyyMMdd-HHmmss')+'.zip'
  $zip=Join-Path $OutputDirectory $name
  if(Test-Path -LiteralPath $zip){throw 'Refusing to overwrite an existing bundle'}
+ if($Reproducible){
+  & python (Join-Path $PSScriptRoot 'Build-DoxaStableZip.py') $stage $zip | Out-Null
+  if($LASTEXITCODE -ne 0){throw 'Reproducible bundle failed'}
+ }else{
  Compress-Archive -Path (Join-Path $stage '*') -DestinationPath $zip -CompressionLevel Optimal
+ }
  [ordered]@{status='created';path=$zip;size_bytes=(Get-Item -LiteralPath $zip).Length;file_count=$items.Count;sha256=(Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash;credentials_included=$false;vendor_msi_included=$false}|ConvertTo-Json -Compress
 }finally{
  if(Test-Path -LiteralPath $stage){Remove-Item -LiteralPath $stage -Recurse -Force}
