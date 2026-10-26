@@ -5,6 +5,11 @@ parser.add_argument("--script",default=str(base/"DoxaPilot.ps1"))
 parser.add_argument("--payload",default=str(base/"DoxaSetupPayload.zip"))
 opts=parser.parse_args()
 script=pathlib.Path(opts.script).resolve()
+# Hashing must work under bare Windows PowerShell/System contexts, without a
+# PowerShell.Utility module dependency that was absent in hosted CI.
+pilot_source=script.read_text(encoding="utf-8-sig")
+assert "Get-DoxaSha256" in pilot_source
+assert "(Get-FileHash " not in pilot_source, "No Get-FileHash cmdlet invocation in managed pilot"
 payload=pathlib.Path(opts.payload).resolve()
 assert script.is_file() and payload.is_file()
 ps=os.path.join(os.environ.get("WINDIR","C:\\Windows"),"System32","WindowsPowerShell","v1.0","powershell.exe")

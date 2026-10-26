@@ -10,6 +10,20 @@ Set-StrictMode -Version Latest
 if(-not $TargetRoot){$pf=if($env:ProgramW6432){$env:ProgramW6432}else{$env:ProgramFiles};$TargetRoot=Join-Path $pf 'Standivarius\DoxaSetup'}
 if(-not $PayloadPath){$PayloadPath=Join-Path $PSScriptRoot 'DoxaSetupPayload.zip'}
 $target=[IO.Path]::GetFullPath($TargetRoot)
+# Use the built-in .NET SHA-256 implementation, independent of Get-FileHash
+# cmdlet discovery in machine-run PowerShell 5.1 or restricted agent sessions.
+function Get-DoxaSha256([string]$file) {
+ $sha=[System.Security.Cryptography.SHA256]::Create()
+ $stream=$null
+ try{
+  $stream=[System.IO.File]::Open($file,[System.IO.FileMode]::Open,[System.IO.FileAccess]::Read,[System.IO.FileShare]::Read)
+  $digest=$sha.ComputeHash($stream)
+  return ([System.BitConverter]::ToString($digest)).Replace('-','')
+ }finally{
+  if($null -ne $stream){$stream.Dispose()}
+  $sha.Dispose()
+ }
+}
 function PayloadRejected([string]$code) {
  if($env:DOXA_PILOT_DIAGNOSTICS -eq '1'){
   [Console]::Error.WriteLine('DOXA_INTEGRITY_REASON: '+$code)
@@ -29,7 +43,7 @@ function IsInstalled([string]$folder) {
    $path=[IO.Path]::GetFullPath((Join-Path $folder ($rel.Replace('/','\'))))
    if(-not $path.StartsWith(([IO.Path]::GetFullPath($folder).TrimEnd('\')+'\'),[StringComparison]::OrdinalIgnoreCase)){return (PayloadRejected 'path_escape')}
    if(-not(Test-Path -LiteralPath $path -PathType Leaf)){return (PayloadRejected 'missing_source')}
-   if((Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash -ine [string]$f.sha256){return (PayloadRejected 'source_hash')}
+   if((Get-DoxaSha256 $path) -ine [string]$f.sha256){return (PayloadRejected 'source_hash')}
    $allowed+=,$path
   }
   $generated=@($m.generated_files)
@@ -39,7 +53,7 @@ function IsInstalled([string]$folder) {
   foreach($g in $generated){
    $path=Join-Path $folder ([string]$g.file)
    if(-not(Test-Path -LiteralPath $path -PathType Leaf)){return (PayloadRejected 'generated_missing')}
-   if((Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash -ine [string]$g.sha256){return (PayloadRejected 'generated_hash')}
+   if((Get-DoxaSha256 $path) -ine [string]$g.sha256){return (PayloadRejected 'generated_hash')}
    $allowed+=,$path
   }
   # A valid manifest is insufficient if the unpacked payload contains extra files.
