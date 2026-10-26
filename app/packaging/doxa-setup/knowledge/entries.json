@@ -454,6 +454,45 @@
                                             "url":  "https://learn.microsoft.com/en-us/windows-hardware/drivers/install/troubleshooting-device-and-driver-installations"
                                         }
                                     ]
+                    },
+                    {
+                        "id": "doxa-msi-integrity-gate",
+                        "topic": "installation",
+                        "title": "Doxa installer rejects mismatched or untrusted driver MSI packages",
+                        "tags": [
+                            "mismatched",
+                            "checksum",
+                            "sha256",
+                            "hash mismatch",
+                            "signature mismatch",
+                            "untrusted",
+                            "rejected",
+                            "authenticode",
+                            "verified original",
+                            "installer package"
+                        ],
+                        "summary": "The Doxa installer checks the selected Silicon Motion Windows MSI against its reviewed original SHA-256 and publisher certificate. An MSI with a different checksum, invalid signature or different signer must not be installed, even if its filename or version looks correct.",
+                        "safe_steps": [
+                            "Stop the installation when the package differs from the reviewed original.",
+                            "Acquire the vendor MSI from Silicon Motion's official download page and check its SHA-256 and Authenticode signature before considering installation.",
+                            "Keep the currently functioning signed driver installed while investigating an unexpected package mismatch."
+                        ],
+                        "limits": [
+                            "This guidance does not authorise a driver reinstall, firmware change, UAC bypass or unsigned executable.",
+                            "The current verified package hash applies only to one reviewed Silicon Motion release, not all future versions."
+                        ],
+                        "sources": [
+                            {
+                                "publisher": "Microsoft",
+                                "section": "Get-AuthenticodeSignature reference",
+                                "url": "https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.security/get-authenticodesignature"
+                            },
+                            {
+                                "publisher": "Silicon Motion",
+                                "section": "SM770 official Windows driver download",
+                                "url": "https://www.siliconmotion.com/downloads/SM770-drivers.html"
+                            }
+                        ]
                     }
                 ]
 }

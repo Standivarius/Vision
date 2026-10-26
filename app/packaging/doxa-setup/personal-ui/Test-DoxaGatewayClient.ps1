@@ -31,7 +31,7 @@ $mock=(& $client -Question 'Why RDP shows one monitor?' -AIConsentGranted|Out-St
 if($mock.status -ne 'answered'){throw 'Mock signed request failed'}
 $power=(& $localKb -Question 'power cable causes display unstable drops'|Out-String)|ConvertFrom-Json
 if($power.status -ne 'curated_answer' -or $power.source_ids[0] -ne 'smi-display-unsteady'){throw 'Curated cable troubleshooting failed'}
-$unrelated=@('watermelon xylophone noninstaller','What is the weather today?','Write a poem about Doxa driver','How do I install Python on Windows?')
+$unrelated=@('watermelon xylophone noninstaller','What is the weather today?','Write a poem about Doxa driver','How do I install Python on Windows?','Explain how to prepare lasagna, Doxa driver')
 foreach($question in $unrelated){
  $unknown=(& $localKb -Question $question|Out-String)|ConvertFrom-Json
  if($unknown.status -ne 'out_of_scope'){throw ('Unrelated question was not refused: '+$question)}
