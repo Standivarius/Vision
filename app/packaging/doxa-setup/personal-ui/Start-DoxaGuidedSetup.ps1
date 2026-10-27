@@ -1,4 +1,4 @@
-param([switch]$Smoke,[switch]$JourneyTest,[ValidateSet('connected','without_doxa')][string]$TestConnectionChoice='without_doxa',[switch]$TestAIAllowed,[ValidateSet('en','ro')][string]$Language='en')
+param([switch]$Smoke,[switch]$JourneyTest,[switch]$SeamlessTest,[ValidateSet('connected','without_doxa')][string]$TestConnectionChoice='without_doxa',[switch]$TestAIAllowed,[ValidateSet('en','ro')][string]$Language='en')
 # Consent-first welcome. No hardware enumeration or remote AI call occurs before consent.
 # Reading the organization cloud-AI prohibition is a local policy check only.
 $ErrorActionPreference='Stop'
@@ -8,7 +8,7 @@ Add-Type -AssemblyName System.Drawing
 $form=New-Object Windows.Forms.Form
 $script:lang=$Language
 function T([string]$en,[string]$ro){if($script:lang -eq 'ro'){$ro}else{$en}}
-$form.Text='Standivarius Doxa Setup - Welcome (TEST preview.8)'
+$form.Text='Standivarius Doxa Setup - TEST preview.9'
 $form.StartPosition='CenterScreen'
 $form.ClientSize=New-Object Drawing.Size(750,510)
 $form.FormBorderStyle='FixedDialog'
@@ -137,9 +137,9 @@ $script:aiAllowed=$false
 $script:finished=$false
 function ShowStep {
  $first=$script:page -eq 1
- $form.Text=T 'Doxa Setup - Welcome (TEST preview.8)' 'Doxa - Bun venit (TEST preview.8)'
+ $form.Text=T 'Doxa Setup - TEST preview.9' 'Doxa - TEST preview.9'
  $title.Text=T 'Welcome to Doxa Setup' 'Bine ai venit la Doxa'
- $step.Text=if($first){T 'Step 1 of 2 - permissions' 'Pasul 1 din 2 - permisiuni'}else{T 'Step 2 of 2 - connect Doxa or continue' 'Pasul 2 din 2 - conecteaza Doxa sau continua'}
+ $step.Text=if($first){T 'Step 1 of 4 - permissions' 'Pasul 1 din 4 - permisiuni'}else{T 'Step 2 of 4 - connect Doxa or continue' 'Pasul 2 din 4 - conecteaza Doxa sau continua'}
  $explanation.Text=if($first){
   T 'Before checking this PC, Doxa asks permission for local read-only diagnostics. Remote AI assistance is separate and optional. Driver installation will request its own Windows approval later.' 'Doxa cere acordul pentru verificari locale fara modificari. Asistenta AI online este separata si optionala. Instalarea driverului necesita ulterior aprobare Windows.'
  }else{
@@ -157,7 +157,7 @@ function ShowStep {
  $local.Visible=$first;$localDetails.Visible=$first;$cloud.Visible=$first;$privacy.Visible=$first
  $connect.Visible=-not $first;$without.Visible=-not $first
  $back.Enabled=-not $first
- $next.Text=if($first){T 'Continue' 'Continua'}else{T 'Open Doxa Setup' 'Deschide Doxa'}
+ $next.Text=if($first){T 'Continue' 'Continua'}else{T 'Continue to Doxa checks' 'Continua cu verificarea Doxa'}
 }
 $languageChoice.Add_SelectedIndexChanged({
  $script:lang=if($languageChoice.SelectedIndex -eq 1){'ro'}else{'en'}
@@ -168,7 +168,7 @@ $back.Add_Click({$script:page=1;ShowStep})
 $next.Add_Click({
  if($script:page -eq 1){
   if(-not $local.Checked){
-   if(-not $JourneyTest){[Windows.Forms.MessageBox]::Show((T 'Local read-only checks need your permission. You may close Setup instead.' 'Verificarile locale necesita acordul tau. Poti inchide Doxa fara a continua.'),(T 'Doxa permissions' 'Permisiuni Doxa'))|Out-Null}
+   if(-not ($JourneyTest -or $SeamlessTest)){[Windows.Forms.MessageBox]::Show((T 'Local read-only checks need your permission. You may close Setup instead.' 'Verificarile locale necesita acordul tau. Poti inchide Doxa fara a continua.'),(T 'Doxa permissions' 'Permisiuni Doxa'))|Out-Null}
    return
   }
   $script:localAllowed=$true
@@ -178,14 +178,70 @@ $next.Add_Click({
   return
  }
  if(-not $connect.Checked -and -not $without.Checked){
-  if(-not $JourneyTest){[Windows.Forms.MessageBox]::Show((T 'Choose whether Doxa is connected or you want to continue without it.' 'Alege daca Doxa este conectat sau daca vrei sa continui fara dispozitiv.'),'Doxa')|Out-Null}
+  if(-not ($JourneyTest -or $SeamlessTest)){[Windows.Forms.MessageBox]::Show((T 'Choose whether Doxa is connected or you want to continue without it.' 'Alege daca Doxa este conectat sau daca vrei sa continui fara dispozitiv.'),'Doxa')|Out-Null}
   return
  }
  $script:choice=if($connect.Checked){'connected'}else{'without_doxa'}
  $script:finished=$true
- $form.Close()
+ if($JourneyTest){$form.Close();return}
+ # Preserve the same Windows Form and HWND throughout permission, connection,
+ # and hardware setup. A second form creates a flash and breaks continuity.
+ $main=Join-Path $PSScriptRoot 'Start-DoxaSetup.ps1'
+ $originalHandle=$form.Handle
+ $form.SuspendLayout()
+ try{
+  $form.AcceptButton=$null
+  $form.Controls.Clear()
+  $form.AutoScroll=$false
+    # Keep the main UI's PowerShell functions and event-handler session alive
+  # after this navigation click has returned.
+  $script:mainUiModule=New-Module -Name DoxaEmbeddedMainUI -ScriptBlock {
+   param($mainScript,$existingForm,$allowAI,$choice,$uiLanguage,$safeTest)
+   . $mainScript -DiagnosticsApproved -AIApproved:$allowAI -ConnectionPreference $choice -Language $uiLanguage -HostForm $existingForm -EmbeddedSmoke:$safeTest
+  } -ArgumentList @($main,$form,[bool]$script:aiAllowed,$script:choice,$script:lang,[bool]$SeamlessTest)
+  if($form.Handle -ne $originalHandle){throw 'Doxa setup replaced its original window handle.'}
+  $view=[Windows.Forms.Screen]::FromControl($form).WorkingArea
+  $left=$view.Left+[Math]::Max(0,[int](($view.Width-$form.Width)/2))
+  $top=$view.Top+[Math]::Max(0,[int](($view.Height-$form.Height)/2))
+  $form.StartPosition='Manual'
+  $form.Location=New-Object Drawing.Point($left,$top)
+ }catch{
+  if(-not $SeamlessTest){
+   [Windows.Forms.MessageBox]::Show(('Doxa could not open setup in this window: '+$_.Exception.Message),'Doxa Setup')|Out-Null
+  }
+  throw
+ }finally{$form.ResumeLayout($true)}
 })
 ShowStep
+if($SeamlessTest){
+ $form.CreateControl()
+ $originalHandle=$form.Handle
+ $click=[Windows.Forms.Button].GetMethod('OnClick',[Reflection.BindingFlags]'Instance,NonPublic')
+ [void]$click.Invoke($next,@([EventArgs]::Empty))
+ if($script:page -ne 1){throw 'Seamless journey bypassed local consent'}
+ $local.Checked=$true
+ [void]$click.Invoke($next,@([EventArgs]::Empty))
+ if($script:page -ne 2){throw 'Consent did not advance to connection choices'}
+ if($TestConnectionChoice -eq 'connected'){$connect.Checked=$true}else{$without.Checked=$true}
+ [void]$click.Invoke($next,@([EventArgs]::Empty))
+ $state=$form.Tag
+ if(-not $script:finished -or $null -eq $state -or $state.stage -ne 'main'){
+  throw 'Same-window transition did not create the main installer UI'
+ }
+ if($form.Handle -ne $originalHandle){throw 'New window handle created instead of reusing the welcome window'}
+ if($state.checkButton.Parent -ne $form -or $state.guideButton.Parent -ne $form){throw 'Main installer controls are not in the existing window'}
+ [void]$click.Invoke($state.checkButton,@([EventArgs]::Empty))
+ if(-not $state.statusLabel.Text){throw 'The in-place main Detect Doxa action did not work'}
+ [ordered]@{
+  seamless='PASS';window_handle_preserved=$true
+  main_controls_reuse_form=$true;detect_doxa_works=$true
+  initial_hardware_scans_before_consent=0;cloud_ai_requests=0
+  owner_choice=$TestConnectionChoice;language=$Language
+  driver_changes=$false;new_form_opened=$false
+ }|ConvertTo-Json -Compress
+ $form.Dispose()
+ return
+}
 if($Smoke){
  $result=[ordered]@{smoke='PASS';first_page=$script:page;local_checks_before_consent=$false;cloud_ai_before_consent=$false;local_consent_default=$local.Checked;remote_ai_default=$cloud.Checked;privacy_details_available=(Test-Path (Join-Path $PSScriptRoot 'AI-PRIVACY-NOTICE.txt'));local_check_details_available=(Test-Path (Join-Path $PSScriptRoot 'LOCAL-CHECK-NOTICE.txt'));local_check_link_label=$localDetails.Text;org_cloud_ai_allowed=[bool]$policy.cloud_ai_allowed;connect_options=2;language=$script:lang;localized_step=$step.Text;next_caption=$next.Text;language_count=$languageChoice.Items.Count;tab_order=@($languageChoice.TabIndex,$local.TabIndex,$localDetails.TabIndex,$cloud.TabIndex,$privacy.TabIndex,$connect.TabIndex,$without.TabIndex,$back.TabIndex,$next.TabIndex);accept_button_set=([object]::ReferenceEquals($form.AcceptButton,$next))}
  $form.Dispose();$result|ConvertTo-Json -Compress;return
@@ -214,6 +270,4 @@ if($JourneyTest){
 }
 [Windows.Forms.Application]::Run($form)
 $form.Dispose()
-if(-not $script:finished){return}
-$main=Join-Path $PSScriptRoot 'Start-DoxaSetup.ps1'
-& $main -DiagnosticsApproved -AIApproved:$script:aiAllowed -ConnectionPreference $script:choice -Language $script:lang
+# Page transition is handled inside the original form; no second UI is launched.

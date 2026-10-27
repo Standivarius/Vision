@@ -51,7 +51,7 @@ try {
  $manifest=[ordered]@{
   product='Standivarius Doxa Setup'
   channel='personal-preview'
-  preview_version='0.4.0-preview.8'
+  preview_version='0.4.0-preview.9'
   schema_version=1
   bundle_created_utc=$buildStamp
   no_silicon_motion_driver_bundled=$true

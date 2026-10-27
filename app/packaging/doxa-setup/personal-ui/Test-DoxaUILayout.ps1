@@ -14,6 +14,10 @@ foreach($language in @('en','ro')){
     $first.language_count -ne 2 -or @($first.tab_order).Count -lt 8){
   throw "Welcome privacy, keyboard or language contract failed ($language)"
  }
+ $sameWindow=(& $welcome -SeamlessTest -Language $language -TestConnectionChoice connected|Out-String)|ConvertFrom-Json
+ if($sameWindow.seamless -ne 'PASS' -or -not $sameWindow.window_handle_preserved -or -not $sameWindow.detect_doxa_works -or $sameWindow.driver_changes){
+  throw "Welcome-to-main form continuity contract failed ($language)"
+ }
  $passed++
  foreach($width in @(0,440,480,522)){
   $argsForUi=@{Smoke=$true;Language=$language}
@@ -42,5 +46,5 @@ foreach($language in @('en','ro')){
 [ordered]@{
  status='PASS';cases=$passed;languages=@('en','ro')
  simulated_compact_widths=@(440,480,522)
- read_only=$true;remote_ai_calls=0;driver_changes=0;local_check_privacy_link=$true;detect_doxa_exact=$true
+ read_only=$true;remote_ai_calls=0;driver_changes=0;local_check_privacy_link=$true;detect_doxa_exact=$true;one_window_transition=$true
 }|ConvertTo-Json -Compress
