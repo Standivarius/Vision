@@ -12,7 +12,7 @@ try{
  New-Item -ItemType Directory -Path $testRoot -Force|Out-Null
  Expand-Archive -LiteralPath $BundlePath -DestinationPath $testRoot -Force
  $manifest=Get-Content -LiteralPath (Join-Path $testRoot 'manifest.json') -Raw -Encoding UTF8|ConvertFrom-Json
- if($manifest.product -ne 'Standivarius Doxa Setup' -or $manifest.preview_version -ne '0.4.0-preview.8'){throw 'Wrong product/version'}
+ if($manifest.product -ne 'Standivarius Doxa Setup' -or $manifest.preview_version -ne '0.4.0-preview.9'){throw 'Wrong product/version'}
  if($manifest.signing_status -notmatch '^UNSIGNED preview'){throw 'Unexpected signing status'}
  if(@($manifest.files).Count -ne 18){throw 'Unexpected packaged file count'}
  $checked=0
@@ -35,6 +35,11 @@ try{
  if($forbidden.Count){throw 'Forbidden driver or credential content in ZIP'}
  if($all.Count -ne 21){throw 'Unexpected extra content in personal bundle'}
  $wizard=Join-Path $testRoot 'app\packaging\doxa-setup\personal-ui\Start-DoxaGuidedSetup.ps1'
+ $sameWindow=(& $wizard -SeamlessTest -Language en -TestConnectionChoice connected|Out-String)|ConvertFrom-Json
+ if($sameWindow.seamless -ne 'PASS' -or -not $sameWindow.window_handle_preserved -or -not $sameWindow.detect_doxa_works -or
+    -not $sameWindow.main_controls_reuse_form -or $sameWindow.driver_changes -or $sameWindow.new_form_opened){throw 'Packaged Doxa one-window journey failed'}
+ $sameWindowRo=(& $wizard -SeamlessTest -Language ro -TestConnectionChoice without_doxa|Out-String)|ConvertFrom-Json
+ if($sameWindowRo.seamless -ne 'PASS' -or -not $sameWindowRo.window_handle_preserved -or -not $sameWindowRo.detect_doxa_works){throw 'Packaged Romanian one-window journey failed'}
  $welcome=(& $wizard -JourneyTest | Out-String)|ConvertFrom-Json
  if($welcome.journey -ne 'PASS' -or $welcome.hardware_scans_before_consent -ne 0){throw 'Packaged consent wizard failed'}
  $notice=Join-Path $testRoot 'app\packaging\doxa-setup\personal-ui\LOCAL-CHECK-NOTICE.txt'
@@ -42,8 +47,32 @@ try{
  $guide=Join-Path $testRoot 'app\packaging\doxa-setup\personal-ui\Show-DoxaConnectionGuide.ps1'
  $guideSmoke=(& $guide -Smoke|Out-String)|ConvertFrom-Json
  if($guideSmoke.status -ne 'PASS' -or $guideSmoke.tabs -ne 2 -or $guideSmoke.settings_uri -ne 'ms-settings:display' -or -not $guideSmoke.no_topology_changes){throw 'Extracted screen connection guide failed'}
+ # End-to-end same-form transition in the extracted *customer* files.
+ # Test without a visible window, driver writes, topology changes or network AI.
+ foreach($language in @('en','ro')){
+  $one=(& $wizard -SeamlessTest -Language $language -TestConnectionChoice connected | Out-String)|ConvertFrom-Json
+  if($one.seamless -ne 'PASS' -or -not $one.window_handle_preserved -or
+     -not $one.main_controls_reuse_form -or -not $one.detect_doxa_works -or
+     $one.new_form_opened -or $one.driver_changes -or
+     $one.initial_hardware_scans_before_consent -ne 0){
+   throw ('Packaged single-window flow FAILED: '+$language)
+  }
+ }
  $welcomeRo=(& $wizard -JourneyTest -Language ro -TestConnectionChoice without_doxa | Out-String)|ConvertFrom-Json
  if($welcomeRo.journey -ne 'PASS' -or $welcomeRo.language -ne 'ro' -or $welcomeRo.localized_step -notmatch 'Pasul 2' -or $welcomeRo.hardware_scans_before_consent -ne 0 -or $welcomeRo.remote_requests -ne 0){throw 'Packaged Romanian consent journey failed'}
+ # Customer must advance consent -> connection -> Detect Doxa in the SAME form;
+ # no second PowerShell/WinForms window may replace the original HWND.
+ foreach($lang in @('en','ro')){
+  $choice=if($lang -eq 'en'){'connected'}else{'without_doxa'}
+  $seamless=(& $wizard -SeamlessTest -Language $lang -TestConnectionChoice $choice | Out-String)|ConvertFrom-Json
+  if($seamless.seamless -ne 'PASS' -or -not $seamless.window_handle_preserved -or
+     -not $seamless.main_controls_reuse_form -or -not $seamless.detect_doxa_works -or
+     $seamless.initial_hardware_scans_before_consent -ne 0 -or
+     $seamless.cloud_ai_requests -ne 0 -or $seamless.driver_changes -or $seamless.new_form_opened){
+   throw "Packaged single-window customer transition failed ($lang)"
+  }
+ }
+
  $runner=Join-Path $testRoot 'app\packaging\doxa-setup\personal-ui\Start-DoxaSetup.ps1'
  $old=(Get-Location).Path
  Set-Location -LiteralPath $env:TEMP
@@ -83,7 +112,7 @@ try{
   $aiStatus=[string]$reply.status
   if($aiStatus -ne 'answered'){throw ('Extracted client did not reach live Doxa AI: '+$aiStatus)}
  }
- [ordered]@{status='PASS';file_integrity_verified=$checked;archive_total_files=$all.Count;driver_payload_bundled=$false;credentials_bundled=$false;extracted_away_from_repository=$true;journey=$result.journey;simulated_fault_did_not_call_ai=$result.fault_did_not_call_ai;driver_install_prevented_safely=$true;installation_button_result=$result.install_button;cloud_ai=$aiStatus;multidevice_identity_tested=$true;bilingual_ui_verified=$true;consent_before_diagnostics=$true}|ConvertTo-Json -Compress
+ [ordered]@{status='PASS';file_integrity_verified=$checked;archive_total_files=$all.Count;driver_payload_bundled=$false;credentials_bundled=$false;extracted_away_from_repository=$true;journey=$result.journey;simulated_fault_did_not_call_ai=$result.fault_did_not_call_ai;driver_install_prevented_safely=$true;installation_button_result=$result.install_button;cloud_ai=$aiStatus;multidevice_identity_tested=$true;bilingual_ui_verified=$true;consent_before_diagnostics=$true;same_window_navigation_passed=$true;single_window_transition=$true;single_window_transition_verified=$true}|ConvertTo-Json -Compress
 }finally{
  Set-Location -LiteralPath $before
  if(Test-Path -LiteralPath $testRoot){Remove-Item -LiteralPath $testRoot -Recurse -Force}

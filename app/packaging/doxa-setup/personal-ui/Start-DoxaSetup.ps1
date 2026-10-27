@@ -2,14 +2,15 @@ param(
  [switch]$Smoke,[switch]$JourneyTest,[switch]$DeveloperTests,[string]$SnapshotPath="",
  [switch]$DiagnosticsApproved,[switch]$AIApproved,
  [ValidateSet('connected','without_doxa')][string]$ConnectionPreference='without_doxa',
- [ValidateSet('en','ro')][string]$Language='en', [int]$CompactTestWidth=0
+ [ValidateSet('en','ro')][string]$Language='en', [int]$CompactTestWidth=0,
+ [object]$HostForm=$null,[switch]$EmbeddedSmoke
 )
 # Simulation flag only works in read-only UI smoke mode, never actual setup.
 if($CompactTestWidth -ne 0 -and ((-not $Smoke) -or $CompactTestWidth -lt 440 -or $CompactTestWidth -gt 522)){
  throw 'Compact width injection is restricted to smoke tests between 440 and 522 pixels'
 }
 # Regular entry always presents explicit permissions before scanning the computer.
-if(-not $DiagnosticsApproved -and -not $Smoke -and -not $JourneyTest -and -not $DeveloperTests){
+if(-not $DiagnosticsApproved -and -not $Smoke -and -not $JourneyTest -and -not $DeveloperTests -and -not $HostForm){
  & (Join-Path $PSScriptRoot 'Start-DoxaGuidedSetup.ps1') -Language $Language
  return
 }
@@ -28,8 +29,8 @@ $navy=[Drawing.Color]::FromArgb(17,35,59)
 $teal=[Drawing.Color]::FromArgb(16,140,137)
 $slate=[Drawing.Color]::FromArgb(67,82,99)
 $light=[Drawing.Color]::FromArgb(231,238,245)
-$form=New-Object Windows.Forms.Form
-$form.Text='Standivarius | Doxa Setup - TEST preview.8'
+$form=if($HostForm){$HostForm}else{New-Object Windows.Forms.Form}
+$form.Text='Standivarius | Doxa Setup - TEST preview.9'
 $script:developerMode=[bool]($DeveloperTests -or $JourneyTest)
 $form.StartPosition='CenterScreen'
 $form.ClientSize=New-Object Drawing.Size(1060,685)
@@ -373,7 +374,7 @@ function Answer([string]$q){
 }
 $guide.Add_Click({
  Say 'Doxa' (T 'Follow the illustrated guide for Doxa power, USB data, Windows Extend and four-screen layout. This is offline guidance; no settings have been changed.' 'Urmareste ghidul ilustrat pentru alimentare, USB, Extindere si cele patru ecrane. Ghid offline; setarile nu au fost modificate.')
- if($JourneyTest){return}
+ if($JourneyTest -or $EmbeddedSmoke){return}
  $helper=Join-Path $PSScriptRoot 'Show-DoxaConnectionGuide.ps1'
  if(Test-Path -LiteralPath $helper){& $helper -Owner $form -Language $script:lang}
  else{Say 'Doxa' (T 'Guide unavailable. Open Windows Settings > System > Display manually.' 'Ghid indisponibil. Deschide Setari Windows > Sistem > Ecran.')}
@@ -642,6 +643,14 @@ if($Smoke) {
  }finally{if($SnapshotPath){$form.Hide()};$snapshot.Dispose()}
  @{smoke=$(if($script:compactLayout -and ($reinstall.Width -lt 280 -or $side.Right -gt ($form.ClientSize.Width-17))){'FAIL'}else{'PASS'});reinstall_button_width=$reinstall.Width;compact_scrollbar_margin=($form.ClientSize.Width-$side.Right);window=$form.Text;layout_mode=$(if($script:compactLayout){'compact_stacked'}else{'wide_columns'});viewport_width=$form.ClientSize.Width;side_within_horizontal_bounds=($side.Right -le $form.ClientSize.Width);languages=@('English','Romana');form_width=$form.Width;form_height=$form.Height;fault_count=$faults.Items.Count;device_illustration_present=($deviceArt.Width -gt 300 -and $deviceArt.Height -gt 100);short_laptop_layout=$script:shortWide;resize_supported=($form.FormBorderStyle -eq 'Sizable');window_fits_work_area=($form.Height -le [Windows.Forms.Screen]::PrimaryScreen.WorkingArea.Height);critical_buttons_visible=($check.Bottom -le $form.ClientSize.Height -and $guide.Bottom -le $form.ClientSize.Height -and $reinstall.Bottom -le $form.ClientSize.Height -and $footer.Bottom -le $form.ClientSize.Height);exact_detect_button_text=$check.Text;connection_steps_wired=($guide.Parent -eq $form);device_illustration_accessible=([bool]$deviceArt.AccessibleName);artwork_render_pass=$artworkRenderPass;illustration_not_device_evidence=$true;initial_language=$script:lang;intro_text=$intro.Text;help_title=$helpHeading.Text;language_dropdown_count=$languageChoice.Items.Count;developer_controls_visible=[bool]$inject.Visible;reset_visible=[bool]$reset.Visible;advanced_visible=[bool]$advanced.Visible;chat_height=$chat.Height;driver_changes_without_user_action=$false;cloud_ai_connected=$false}|ConvertTo-Json -Compress
  $form.Dispose()
+ return
+}
+if($HostForm){
+ $form.Tag=[pscustomobject]@{
+  stage='main';checkButton=$check;guideButton=$guide
+  statusLabel=$stateLabel
+ }
+ if(-not $EmbeddedSmoke){RefreshState}
  return
 }
 RefreshState
