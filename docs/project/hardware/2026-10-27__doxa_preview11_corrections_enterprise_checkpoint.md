@@ -1,6 +1,6 @@
-# Doxa Setup Preview.11 — correction and enterprise compatibility checkpoint
+# Doxa Setup Preview.11 â€” correction and enterprise compatibility checkpoint
 
-27 October 2026 — Engineering-only unsigned app preview. No live tenant or driver changes.
+27 October 2026 â€” Engineering-only unsigned app preview. No live tenant or driver changes.
 
 ## Corrected from Preview.10 independent review
 - Real welcome -> consent -> branded main tab flow tested with the same native HWND, in English and Romanian.
@@ -24,11 +24,11 @@
 ## Evidence
 - Preview.11 real branded bilingual journey EN and RO: PASS.
 - BrandTest: layout, consent reversion, localised tabs and driver-action hidden: PASS.
-- Personal extracted ZIP integrity and safe installer tests: PASS on initial source snapshot; rebuild and rerun against final source before publication.
+- Final personal ZIP: PASS, 20 hashed sources/23 entries, SHA-256 96BF10D3F3FF6B7193142C898481CA5BFE80E442E8D3F27FBA7A97964233E781.
 - Enterprise Test-DoxaPilot.py: 18 temporary-directory lifecycle cases PASS.
 - Isolated source-verified upgrade tests Preview.10 -> Preview.11: PASS.
 - Isolated historical frozen ManageEngine 16-file payload -> Preview.11: PASS.
-- Managed app-only ZIP: LOCAL_PASS (20 source, 23 archive, two distribution files), with no OEM driver or credentials.
+- Final managed app-only ZIP: LOCAL_PASS (20 sources/23 archive entries, two distribution files), 18 lifecycle cases. SHA-256 22EA4F805620F4162EE9551D8CE31CC21ECF1500E6285543B09D8EEFB5439BEB. No OEM driver or credentials.
 - No real new Intune or ManageEngine assignment and no physical driver mutation was performed.
 
 ## Open before customer release
