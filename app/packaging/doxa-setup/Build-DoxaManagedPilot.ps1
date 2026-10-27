@@ -15,7 +15,7 @@ try{
  $created=(& (Join-Path $PSScriptRoot 'Build-DoxaPersonalBundle.ps1') -OutputDirectory $bundleOut -Reproducible:$Reproducible|Out-String)|ConvertFrom-Json
  if($created.status -ne 'created' -or $created.vendor_msi_included -or $created.credentials_included){throw 'Personal app-only builder refused'}
  $verified=(& (Join-Path $PSScriptRoot 'Test-DoxaPersonalBundle.ps1') -BundlePath $created.path|Out-String)|ConvertFrom-Json
- if($verified.status -ne 'PASS' -or $verified.archive_total_files -ne 19){throw 'Extracted personal payload failed verification'}
+ if($verified.status -ne 'PASS' -or $verified.archive_total_files -ne 23){throw 'Extracted personal payload failed verification'}
  Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'enterprise-intune-pilot\DoxaPilot.ps1') -Destination (Join-Path $src 'DoxaPilot.ps1')
  Copy-Item -LiteralPath ([string]$created.path) -Destination (Join-Path $src 'DoxaSetupPayload.zip')
  $py=Get-Command python.exe -ErrorAction Stop
@@ -46,8 +46,8 @@ try{
   artifact=$outFile
   sha256=(Get-FileHash -LiteralPath $outFile -Algorithm SHA256).Hash
   application_payload_sha256=(Get-FileHash -LiteralPath (Join-Path $src 'DoxaSetupPayload.zip') -Algorithm SHA256).Hash
-  source_file_count=16
-  archive_file_count=19
+  source_file_count=20
+  archive_file_count=23
   distribution_files=2
   local_lifecycle_cases=@($test.steps).Count
   vendor_driver_included=$false

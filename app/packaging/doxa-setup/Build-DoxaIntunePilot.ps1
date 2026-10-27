@@ -45,7 +45,7 @@ try{
   source_bundle_sha256=(Get-FileHash -LiteralPath (Join-Path $src 'DoxaSetupPayload.zip') -Algorithm SHA256).Hash
   package_path=$files[0].FullName
   package_sha256=(Get-FileHash -LiteralPath $files[0].FullName -Algorithm SHA256).Hash
-  file_count=16
+  file_count=20
   tool_sha256=(Get-FileHash -LiteralPath $tool -Algorithm SHA256).Hash
   sign_status='Doxa app UNSIGNED; only Microsoft content prep tool is signed'
   local_tests='PASS'

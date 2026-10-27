@@ -30,7 +30,7 @@ $teal=[Drawing.Color]::FromArgb(16,140,137)
 $slate=[Drawing.Color]::FromArgb(67,82,99)
 $light=[Drawing.Color]::FromArgb(231,238,245)
 $form=if($HostForm){$HostForm}else{New-Object Windows.Forms.Form}
-$form.Text='Standivarius | Doxa Setup - TEST preview.10'
+$form.Text='Standivarius | Doxa Setup - TEST preview.11'
 $script:developerMode=[bool]($DeveloperTests -or $JourneyTest)
 $form.StartPosition='CenterScreen'
 $form.ClientSize=New-Object Drawing.Size(1060,685)
@@ -293,7 +293,7 @@ function RefreshState {
   $stateChanged=($stateKey -ne $script:lastDetectionKey)
   $script:lastDetectionKey=$stateKey
   # Never conflate decorative illustration with verified physical device presence.
-  $connectionBadge.Text=if($result.test_only){'TEST DATA'}elseif($d.hardware_ready){T 'DEVICE DETECTED' 'DOXA DETECTAT'}elseif($result.code -eq 'doxa_not_detected'){T 'NOT CONNECTED' 'DECONECTAT'}else{T 'CHECK REQUIRED' 'VERIFICA'}
+  $connectionBadge.Text=if($result.test_only){'TEST DATA'}elseif($d.hardware_ready){T '3 PANELS IDENTIFIED' '3 PANOURI DETECTATE'}elseif($result.code -eq 'doxa_not_detected'){T 'NOT CONNECTED' 'DECONECTAT'}else{T 'CHECK REQUIRED' 'VERIFICA'}
   $connectionBadge.ForeColor=if($d.hardware_ready){$teal}else{[Drawing.Color]::FromArgb(151,86,40)}
   $rows[0].Text=if($d.signed_driver_present){
    "OK   Signed Silicon Motion driver, version "+$d.driver_version
@@ -313,8 +313,8 @@ function RefreshState {
    'DEVELOPER SIMULATION   '+$result.code
   }elseif($result.code -eq 'doxa_not_detected'){
    T 'CHECK   No Doxa panels detected. Check power and USB.' 'VERIFICA   Panourile Doxa nu sunt detectate. Verifica alimentarea si USB.'
-  }elseif($d.hardware_ready){
-   T 'OK   Doxa driver and three panels detected' 'OK   Driverul si cele trei panouri Doxa detectate'
+   }elseif($d.hardware_ready){
+    T 'PNP   Three Doxa monitor identities present; physical mapping unverified' 'PNP   Trei identitati de monitor Doxa; pozitiile nu sunt verificate'
   }else{
    'CHECK   '+$result.code
   }
@@ -322,7 +322,9 @@ function RefreshState {
    T 'NEXT: Connect Doxa power and USB, then click Detect Doxa.' 'URMATORUL PAS: Conecteaza alimentarea si USB, apoi Detecteaza Doxa.'
   }else{$result.message+$(if($result.test_only){'  [SIMULATION ONLY]'}else{''})}
   if(-not $stateChanged -and -not $result.test_only){$stateLabel.Text+=(T '  Refreshed ' '  Actualizat ')+(Get-Date -Format 'HH:mm:ss')}
-  $stateLabel.ForeColor=if($result.code -eq 'ready' -or $d.hardware_ready){$teal}else{[Drawing.Color]::FromArgb(166,87,25)}
+   if($d.hardware_ready -and -not $d.physical_display_topology_verified){$stateLabel.Text=T 'Three Doxa PnP identities found. Four extended physical desktops have NOT been verified.' 'Trei identitati Doxa PnP gasite. Cele patru ecrane extinse fizic NU sunt confirmate.'}
+   if($d.hardware_ready -and $d.physical_display_topology_verified){$stateLabel.Text=T 'Four Windows desktops observed; physical Doxa-to-Windows mapping remains unverified.' 'Patru ecrane Windows detectate; corespondenta fizica Doxa-Windows ramane neconfirmata.'}
+   $stateLabel.ForeColor=if($d.hardware_ready){$slate}else{[Drawing.Color]::FromArgb(166,87,25)}
   $advice=$result.message
   if(-not $result.test_only -and $result.code -eq 'doxa_not_detected' -and $d.driver_package_in_store){
    $advice+=' '+(T 'The Silicon Motion driver package is still installed in Windows. Do not reinstall it; reconnect Doxa and check again.' 'Pachetul driver Silicon Motion este inca instalat in Windows. Nu il reinstala; reconecteaza Doxa si verifica din nou.')
@@ -338,11 +340,7 @@ function RefreshState {
    $summary+=' '+(T 'Physical USB-C port and real screen behavior still require hardware verification.' 'Portul USB-C fizic si functionarea ecranelor trebuie verificate cu hardware-ul conectat.')
     Say 'Doxa' $summary
    }
-   if($script:connectionChoice -eq 'without_doxa'){
-    $sub.Text=T 'Step 4 of 4: PC checked. Doxa can be connected later.' 'Pasul 4 din 4: PC verificat. Doxa poate fi conectat ulterior.'
-   }else{
-    $sub.Text=T 'Step 4 of 4: check the connected Doxa screens.' 'Pasul 4 din 4: verificarea ecranelor Doxa conectate.'
-   }
+    $sub.Text=T 'Detect Doxa and check the Windows screens.' 'Detecteaza Doxa si verifica ecranele Windows.'
    $assistantStatus.Text=if($script:cloudConsent){T 'Online AI requested; device approval may be required' 'AI online solicitat; aprobarea dispozitivului poate fi necesara'}else{T 'Offline Doxa help is ready' 'Asistenta Doxa offline este disponibila'}
   }
  }catch{
@@ -393,6 +391,21 @@ $aiTimer=New-Object System.Windows.Forms.Timer
 $aiTimer.Interval=350
 $aiTimer.Add_Tick({
  if($null -eq $script:aiJob){$aiTimer.Stop();return}
+ if(-not $script:cloudConsent){
+  $aiTimer.Stop(); Stop-Job -Job $script:aiJob -ErrorAction SilentlyContinue
+  Remove-Job -Job $script:aiJob -Force -ErrorAction SilentlyContinue
+  $script:aiJob=$null;$script:queuedQuestion='';$script:quickAdviceShown=$false;$send.Enabled=$true
+  return
+ }
+ $policyNow=(& $script:cloudPolicyScript | Out-String)|ConvertFrom-Json
+ if(-not [bool]$policyNow.cloud_ai_allowed){
+  $script:cloudConsent=$false
+  $aiTimer.Stop();Stop-Job -Job $script:aiJob -ErrorAction SilentlyContinue
+  Remove-Job -Job $script:aiJob -Force -ErrorAction SilentlyContinue
+  $script:aiJob=$null;$script:queuedQuestion='';$script:quickAdviceShown=$false;$send.Enabled=$true
+  Say 'Doxa' (T 'IT policy now blocks online help; any already-sent request cannot be recalled.' 'Politica IT blocheaza acum AI online; cererea deja trimisa nu poate fi retrasa.')
+  return
+ }
  if($script:aiJob.State -notin @('Completed','Failed','Stopped')){return}
  $aiTimer.Stop()
  try{
@@ -590,7 +603,7 @@ $reinstall.Add_Click({
   Say 'Doxa' (T 'The installation could not start or Windows approval was declined.' 'Instalarea nu a putut porni sau aprobarea Windows a fost refuzata.')
  }finally{$dialog.Dispose()}
 })
-if(-not ($Smoke -or $JourneyTest -or $EmbeddedSmoke)){
+if(-not ($Smoke -or $JourneyTest)){
  . (Join-Path $PSScriptRoot 'Doxa-BrandTabs.ps1')
 }
 if($BrandTest){
@@ -607,7 +620,27 @@ if($BrandTest){
  [void]$click.Invoke($tabs[0],@([EventArgs]::Empty))
  if(-not $detect.Visible -or $form.Handle -ne $oldHandle){throw 'Window transition broke'}
  if($form.Tag.upper_port -ne 'power' -or $form.Tag.lower_port -ne 'data'){throw 'Power/data order incorrect'}
- $result=[ordered]@{status='PASS';version='preview.10';single_form=$true;right_column_inside_frame=$true;tab_switching=$true;setup_subtabs=$true;upper_port='power';lower_port='data';help_mode_toggle=$true;no_driver_mutation=$true;no_network=$true;window_fits_height=($form.Height -le [Windows.Forms.Screen]::PrimaryScreen.WorkingArea.Height)}
+ if($reinstall.Visible){throw 'Unsigned elevated driver action must not be visible'}
+ if($modeOff.Visible -ne $true -or -not $privacyDetails.Visible){throw 'Help mode/privacy notice not available'}
+ $languageChoice.SelectedIndex=1
+ if($tabs[0].Text -ne 'Detecteaza Doxa' -or $modeOff.Text -ne 'Ajutor offline'){throw 'Shipped Romanian tab/help translation absent'}
+ $languageChoice.SelectedIndex=0
+ if($tabs[0].Text -ne 'Detect Doxa' -or $modeOff.Text -ne 'Offline help'){throw 'Reversible language switch broken'}
+ $script:previousAIApproval=$true
+ $script:queuedQuestion='pending question'
+ $script:quickAdviceShown=$true
+ # Local delayed mock: prove offline suppresses a pending reply without any network call.
+ $script:aiJob=Start-Job -ScriptBlock {Start-Sleep -Seconds 12;'late reply'}
+ $modeOff.Checked=$false
+ $modeOff.Checked=$true
+ if($script:previousAIApproval -or $script:queuedQuestion -or $script:quickAdviceShown -or $null -ne $script:aiJob){throw 'Online consent revocation did not clear job and session state'}
+ if($tabs[0].AccessibleRole -ne [Windows.Forms.AccessibleRole]::PageTab){throw 'Tabbed controls lack accessibility role'}
+ foreach($size in @(@(780,600),@(1060,615))){
+  $form.ClientSize=New-Object Drawing.Size([int]$size[0],[int]$size[1])
+  [Windows.Forms.Application]::DoEvents()
+  if($frame.Right -gt $form.ClientSize.Width+1 -or $tabs[2].Right -gt $form.ClientSize.Width+1 -or $right.Right -gt $frame.Width+2){throw 'Preview11 clipped horizontally at '+$size[0]}
+ }
+ $result=[ordered]@{status='PASS';version='preview.11';single_form=$true;right_column_inside_frame=$true;tab_switching=$true;setup_subtabs=$true;upper_port='power';lower_port='data';help_mode_toggle=$true;no_driver_mutation=$true;no_network=$true;real_shipped_tabs_tested=$true;online_revocation_tested=$true;romanian_tabs_tested=$true;horizontal_reflow_tested=$true;driver_action_hidden=$true;window_fits_height=($form.Height -le [Windows.Forms.Screen]::PrimaryScreen.WorkingArea.Height)}
  $form.Dispose()
  $result|ConvertTo-Json -Compress
  return
@@ -668,11 +701,13 @@ if($Smoke) {
  return
 }
 if($HostForm){
- $form.Tag=[pscustomobject]@{
+ if(-not $form.Tag -or -not ($form.Tag.PSObject.Properties.Name -contains 'tabs')){
+  $form.Tag=[pscustomobject]@{
   stage='main';checkButton=$check;guideButton=$guide
-  statusLabel=$stateLabel
+   statusLabel=$stateLabel
+  }
  }
- if(-not $EmbeddedSmoke){RefreshState}
+  if(-not $EmbeddedSmoke){RefreshState}
  return
 }
 RefreshState
