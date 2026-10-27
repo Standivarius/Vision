@@ -1,4 +1,4 @@
-﻿param(
+param(
  [string]$OutputDirectory='',
  [switch]$TestOnly,
  [switch]$Reproducible
@@ -19,6 +19,8 @@ $items=@(
  'app/packaging/doxa-setup/personal-ui/Start-DoxaGuidedSetup.ps1',
  'app/packaging/doxa-setup/personal-ui/Get-DoxaCloudAIPolicy.ps1',
  'app/packaging/doxa-setup/personal-ui/AI-PRIVACY-NOTICE.txt',
+ 'app/packaging/doxa-setup/personal-ui/LOCAL-CHECK-NOTICE.txt',
+ 'app/packaging/doxa-setup/personal-ui/Show-DoxaConnectionGuide.ps1',
  'app/packaging/doxa-setup/personal-ui/Get-DoxaCompatibility.ps1',
  'app/packaging/doxa-setup/personal-ui/Get-DoxaSetupExperience.ps1',
  'app/packaging/doxa-setup/personal-ui/Get-DoxaKnowledgeAnswer.ps1',
@@ -49,6 +51,7 @@ try {
  $manifest=[ordered]@{
   product='Standivarius Doxa Setup'
   channel='personal-preview'
+  preview_version='0.4.0-preview.8'
   schema_version=1
   bundle_created_utc=$buildStamp
   no_silicon_motion_driver_bundled=$true
@@ -71,15 +74,15 @@ endlocal
 '@
  [IO.File]::WriteAllText((Join-Path $stage 'Open Doxa Setup.cmd'),$launcher,[Text.Encoding]::ASCII)
  $readme=@'
-STANDIVARIUS DOXA SETUP v0.4 - GUIDED PERSONAL PREVIEW
+STANDIVARIUS DOXA SETUP v0.4 - GUIDED PERSONAL REVIEW PREVIEW
 
 1. Extract the ZIP to a folder on Windows and double-click "Open Doxa Setup.cmd".
 2. Review local diagnostic permissions. Cloud AI is OPTIONAL; declining it does not block setup.
 3. Choose to connect Doxa now or to continue checking the computer without Doxa.
-4. The wizard examines supported Windows build, visible USB controllers, the signed driver package and (when connected) detected Doxa panels.
-5. Read the progress and next steps. You can ask setup-only questions in the chat. The remote AI is used only with your consent.
+4. The wizard explains which PC data is read, then checks Windows, USB, the signed driver package and connected Doxa panels with your consent.
+5. Select Detect Doxa to refresh the connection. Select Set up screens for illustrated cable help, a four-screen preview and a direct link to Windows Display settings. The offline help answers setup-only questions; optional remote AI requires separate consent.
 6. If the required official signed MSI is actually missing AND the connected Doxa can be qualified, choose it and confirm Windows administrator approval.
-7. Pre-connection installation using the hardware-dependent vendor MSI has not yet been qualified and is NOT performed automatically. If the driver package is already stored in Windows, simply connect Doxa and re-check.
+7. Pre-connection installation with the hardware-dependent vendor MSI has NOT been physically qualified and is not automatic. This preview is not a full customer install acceptance. For an existing signed driver, connect Doxa and use Detect Doxa.
 
 LIMITS:
 - USB-C port shape, real transfer speed and reliable Doxa screen operation cannot be guaranteed from a controller scan alone.

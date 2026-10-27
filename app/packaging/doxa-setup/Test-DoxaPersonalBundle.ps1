@@ -1,4 +1,4 @@
-﻿param(
+param(
  [Parameter(Mandatory=$true)][string]$BundlePath,
  [switch]$LiveAI
 )
@@ -12,9 +12,9 @@ try{
  New-Item -ItemType Directory -Path $testRoot -Force|Out-Null
  Expand-Archive -LiteralPath $BundlePath -DestinationPath $testRoot -Force
  $manifest=Get-Content -LiteralPath (Join-Path $testRoot 'manifest.json') -Raw -Encoding UTF8|ConvertFrom-Json
- if($manifest.product -ne 'Standivarius Doxa Setup'){throw 'Wrong product'}
+ if($manifest.product -ne 'Standivarius Doxa Setup' -or $manifest.preview_version -ne '0.4.0-preview.8'){throw 'Wrong product/version'}
  if($manifest.signing_status -notmatch '^UNSIGNED preview'){throw 'Unexpected signing status'}
- if(@($manifest.files).Count -ne 16){throw 'Unexpected packaged file count'}
+ if(@($manifest.files).Count -ne 18){throw 'Unexpected packaged file count'}
  $checked=0
  foreach($item in $manifest.files){
   $path=Join-Path $testRoot ($item.file.Replace('/','\'))
@@ -33,10 +33,15 @@ try{
  $all=@(Get-ChildItem -LiteralPath $testRoot -Recurse -File)
  $forbidden=@($all|Where-Object {$_.Name -like '*.env' -or $_.Extension -in @('.msi','.dll','.cat','.sys','.dpapi','.pfx','.pem','.key') -or $_.Name -match '(token|secret|private.?key)'})
  if($forbidden.Count){throw 'Forbidden driver or credential content in ZIP'}
- if($all.Count -ne 19){throw 'Unexpected extra content in personal bundle'}
+ if($all.Count -ne 21){throw 'Unexpected extra content in personal bundle'}
  $wizard=Join-Path $testRoot 'app\packaging\doxa-setup\personal-ui\Start-DoxaGuidedSetup.ps1'
  $welcome=(& $wizard -JourneyTest | Out-String)|ConvertFrom-Json
  if($welcome.journey -ne 'PASS' -or $welcome.hardware_scans_before_consent -ne 0){throw 'Packaged consent wizard failed'}
+ $notice=Join-Path $testRoot 'app\packaging\doxa-setup\personal-ui\LOCAL-CHECK-NOTICE.txt'
+ if(-not(Test-Path $notice) -or (Get-Content $notice -Raw) -notmatch 'What it inspects'){throw 'Missing local-data inspection notice'}
+ $guide=Join-Path $testRoot 'app\packaging\doxa-setup\personal-ui\Show-DoxaConnectionGuide.ps1'
+ $guideSmoke=(& $guide -Smoke|Out-String)|ConvertFrom-Json
+ if($guideSmoke.status -ne 'PASS' -or $guideSmoke.tabs -ne 2 -or $guideSmoke.settings_uri -ne 'ms-settings:display' -or -not $guideSmoke.no_topology_changes){throw 'Extracted screen connection guide failed'}
  $welcomeRo=(& $wizard -JourneyTest -Language ro -TestConnectionChoice without_doxa | Out-String)|ConvertFrom-Json
  if($welcomeRo.journey -ne 'PASS' -or $welcomeRo.language -ne 'ro' -or $welcomeRo.localized_step -notmatch 'Pasul 2' -or $welcomeRo.hardware_scans_before_consent -ne 0 -or $welcomeRo.remote_requests -ne 0){throw 'Packaged Romanian consent journey failed'}
  $runner=Join-Path $testRoot 'app\packaging\doxa-setup\personal-ui\Start-DoxaSetup.ps1'
