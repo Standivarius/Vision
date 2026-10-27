@@ -8,7 +8,7 @@ Add-Type -AssemblyName System.Drawing
 $form=New-Object Windows.Forms.Form
 $script:lang=$Language
 function T([string]$en,[string]$ro){if($script:lang -eq 'ro'){$ro}else{$en}}
-$form.Text='Standivarius Doxa Setup - TEST preview.10'
+$form.Text='Standivarius Doxa Setup - TEST preview.11'
 $form.StartPosition='CenterScreen'
 $form.ClientSize=New-Object Drawing.Size(750,510)
 $form.FormBorderStyle='FixedDialog'
@@ -137,7 +137,7 @@ $script:aiAllowed=$false
 $script:finished=$false
 function ShowStep {
  $first=$script:page -eq 1
- $form.Text=T 'Doxa Setup - TEST preview.10' 'Doxa - TEST preview.10'
+ $form.Text=T 'Doxa Setup - TEST preview.11' 'Doxa - TEST preview.11'
  $title.Text=T 'Welcome to Doxa Setup' 'Bine ai venit la Doxa'
  $step.Text=if($first){T 'Step 1 - permissions' 'Pasul 1 - permisiuni'}else{T 'Step 2 - connect Doxa or continue' 'Pasul 2 - conecteaza Doxa sau continua'}
  $explanation.Text=if($first){
@@ -234,7 +234,7 @@ if(-not ($Smoke -or $JourneyTest -or $SeamlessTest)){
 }
 ShowStep
 if($SeamlessTest){
- $form.CreateControl()
+ $form.Show()
  $originalHandle=$form.Handle
  $click=[Windows.Forms.Button].GetMethod('OnClick',[Reflection.BindingFlags]'Instance,NonPublic')
  [void]$click.Invoke($next,@([EventArgs]::Empty))
@@ -249,12 +249,18 @@ if($SeamlessTest){
   throw 'Same-window transition did not create the main installer UI'
  }
  if($form.Handle -ne $originalHandle){throw 'New window handle created instead of reusing the welcome window'}
- if($state.checkButton.Parent -ne $form -or $state.guideButton.Parent -ne $form){throw 'Main installer controls are not in the existing window'}
+ if(-not ($state.PSObject.Properties.Name -contains 'tabs') -or @($state.tabs).Count -ne 3){throw 'Shipped BrandTabs not reached via consent journey'}
+  if(-not $state.checkButton.IsHandleCreated -and $null -eq $state.checkButton.Parent){throw 'Detect is orphaned'}
+  if($state.guideButton.Parent -eq $null){throw 'Screen guide entry is orphaned'}
+  [void]$click.Invoke($state.tabs[1],@([EventArgs]::Empty))
+  if(-not $state.context.Visible){throw 'Setup contextual panel absent in shipped customer journey'}
+  [void]$click.Invoke($state.tabs[0],@([EventArgs]::Empty))
+  if($Language -eq 'ro' -and $state.tabs[0].Text -notmatch 'Detecteaza'){throw 'Shipped tab lacks Romanian localisation'}
  [void]$click.Invoke($state.checkButton,@([EventArgs]::Empty))
  if(-not $state.statusLabel.Text){throw 'The in-place main Detect Doxa action did not work'}
  [ordered]@{
   seamless='PASS';window_handle_preserved=$true
-  main_controls_reuse_form=$true;detect_doxa_works=$true
+  main_controls_reuse_form=$true;real_branded_tabs_exercised=$true;detect_doxa_works=$true
   initial_hardware_scans_before_consent=0;cloud_ai_requests=0
   owner_choice=$TestConnectionChoice;language=$Language
   driver_changes=$false;new_form_opened=$false

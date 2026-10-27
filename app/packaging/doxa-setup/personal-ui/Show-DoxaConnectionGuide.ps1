@@ -1,4 +1,4 @@
-﻿param([ValidateSet('en','ro')][string]$Language='en',[System.Windows.Forms.Form]$Owner=$null,[switch]$Smoke)
+param([ValidateSet('en','ro')][string]$Language='en',[System.Windows.Forms.Form]$Owner=$null,[switch]$Smoke)
 # An offline guide. No automatic screen topology or driver changes.
 $ErrorActionPreference='Stop'
 Add-Type -AssemblyName System.Windows.Forms
@@ -37,9 +37,9 @@ $instructions.ScrollBars='Vertical';$instructions.WordWrap=$true
 $instructions.SetBounds(20,54,685,327)
 $instructions.Anchor='Top,Bottom,Left,Right'
 $en=@(
-'1. Connect Doxa to its supplied power adapter. Check that the power plug is secure.',
+'1. Connect Doxa power to the UPPER USB-C port on the REAR of the central screen. Check that the supplied adapter is secure.',
 '',
-'2. Connect its USB-C DATA cable to a compatible USB port on your computer. Not every USB-C cable or port supports display data.',
+'2. Connect the USB-C DATA cable to the LOWER USB-C port on the REAR of the central screen, then to a compatible computer USB port. Not every cable or port supports display data.',
 '',
 '3. Wait for Windows to recognise Silicon Motion USB Display. Do not reinstall a working signed driver.',
 '',
@@ -56,9 +56,9 @@ $en=@(
 'If a display is black: check power, the USB data connection and Extend before considering a driver change.'
 )
 $roLines=@(
-'1. Conecteaza Doxa la alimentarea din pachet. Verifica mufa.',
+'1. Conecteaza alimentarea Doxa la portul USB-C SUPERIOR din SPATELE ecranului central. Verifica adaptorul.',
 '',
-'2. Conecteaza cablul USB-C DE DATE la portul USB compatibil. Nu orice cablu USB-C transmite date pentru ecrane.',
+'2. Conecteaza cablul USB-C DE DATE la portul USB-C INFERIOR din SPATELE ecranului central, apoi la calculator. Nu orice cablu sau port transmite date video.',
 '',
 '3. Asteapta ca Windows sa recunoasca dispozitivul Silicon Motion USB Display. Nu reinstala un driver semnat functional.',
 '',
@@ -106,13 +106,12 @@ $preview.Add_Paint({
  $font=New-Object Drawing.Font('Segoe UI',16,[Drawing.FontStyle]::Bold)
  $small=New-Object Drawing.Font('Segoe UI',10)
  try{
-  foreach($a in @(@(17,16,137,70,'1','Laptop'),@(182,8,142,81,'2',$(if($ro){'Stanga'}else{'Left'})),@(352,8,142,81,'3',$(if($ro){'Centru'}else{'Centre'})),@(522,8,142,81,'4',$(if($ro){'Dreapta'}else{'Right'})))){
+  foreach($a in @(@(34,5,182,72,'2',$(if($ro){'Stanga'}else{'Left'})),@(253,5,182,72,'3',$(if($ro){'Centru'}else{'Centre'})),@(472,5,182,72,'4',$(if($ro){'Dreapta'}else{'Right'})),@(276,87,140,33,'1','Laptop'))){
    $x=[int]$a[0];$y=[int]$a[1];$w=[int]$a[2];$h=[int]$a[3]
    $g.FillRectangle($glass,$x,$y,$w,$h)
    $g.DrawRectangle($pen,$x,$y,$w,$h)
-   $g.DrawString([string]$a[4],$font,$ink,$x+($w/2)-9,$y+18)
-   $g.DrawString([string]$a[5],$small,$ink,$x+12,100)
-   if($a[4] -eq '1'){$g.DrawLine($pen,$x-8,92,$x+$w+8,92)}
+   $g.DrawString([string]$a[4],$font,$ink,$x+10,$y+6)
+   $g.DrawString([string]$a[5],$small,$ink,$x+51,$y+8)
   }
  }finally{foreach($x in @($pen,$glass,$ink,$font,$small)){$x.Dispose()}}
 })
