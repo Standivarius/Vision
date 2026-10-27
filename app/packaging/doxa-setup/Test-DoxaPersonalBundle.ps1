@@ -12,9 +12,9 @@ try{
  New-Item -ItemType Directory -Path $testRoot -Force|Out-Null
  Expand-Archive -LiteralPath $BundlePath -DestinationPath $testRoot -Force
  $manifest=Get-Content -LiteralPath (Join-Path $testRoot 'manifest.json') -Raw -Encoding UTF8|ConvertFrom-Json
- if($manifest.product -ne 'Standivarius Doxa Setup' -or $manifest.preview_version -ne '0.4.0-preview.9'){throw 'Wrong product/version'}
+ if($manifest.product -ne 'Standivarius Doxa Setup' -or $manifest.preview_version -ne '0.4.0-preview.10'){throw 'Wrong product/version'}
  if($manifest.signing_status -notmatch '^UNSIGNED preview'){throw 'Unexpected signing status'}
- if(@($manifest.files).Count -ne 18){throw 'Unexpected packaged file count'}
+ if(@($manifest.files).Count -ne 20){throw 'Unexpected packaged file count'}
  $checked=0
  foreach($item in $manifest.files){
   $path=Join-Path $testRoot ($item.file.Replace('/','\'))
@@ -33,7 +33,12 @@ try{
  $all=@(Get-ChildItem -LiteralPath $testRoot -Recurse -File)
  $forbidden=@($all|Where-Object {$_.Name -like '*.env' -or $_.Extension -in @('.msi','.dll','.cat','.sys','.dpapi','.pfx','.pem','.key') -or $_.Name -match '(token|secret|private.?key)'})
  if($forbidden.Count){throw 'Forbidden driver or credential content in ZIP'}
- if($all.Count -ne 21){throw 'Unexpected extra content in personal bundle'}
+ if($all.Count -ne 23){throw 'Unexpected extra content in personal bundle'}
+ $logo=Join-Path $testRoot 'app\packaging\doxa-setup\personal-ui\assets\standivarius-official-logo.png'
+ if(-not(Test-Path -LiteralPath $logo)){throw 'Official Standivarius logo missing from bundle'}
+ $mainBrand=Join-Path $testRoot 'app\packaging\doxa-setup\personal-ui\Start-DoxaSetup.ps1'
+ $brandCheck=(& $mainBrand -BrandTest | Out-String)|ConvertFrom-Json
+ if($brandCheck.status -ne 'PASS' -or -not $brandCheck.single_form -or $brandCheck.upper_port -ne 'power' -or $brandCheck.lower_port -ne 'data'){throw 'Packaged brand/tab contract failed'}
  $wizard=Join-Path $testRoot 'app\packaging\doxa-setup\personal-ui\Start-DoxaGuidedSetup.ps1'
  $sameWindow=(& $wizard -SeamlessTest -Language en -TestConnectionChoice connected|Out-String)|ConvertFrom-Json
  if($sameWindow.seamless -ne 'PASS' -or -not $sameWindow.window_handle_preserved -or -not $sameWindow.detect_doxa_works -or

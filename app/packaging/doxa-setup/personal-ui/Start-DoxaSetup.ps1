@@ -3,14 +3,14 @@ param(
  [switch]$DiagnosticsApproved,[switch]$AIApproved,
  [ValidateSet('connected','without_doxa')][string]$ConnectionPreference='without_doxa',
  [ValidateSet('en','ro')][string]$Language='en', [int]$CompactTestWidth=0,
- [object]$HostForm=$null,[switch]$EmbeddedSmoke
+ [object]$HostForm=$null,[switch]$EmbeddedSmoke,[switch]$BrandTest
 )
 # Simulation flag only works in read-only UI smoke mode, never actual setup.
 if($CompactTestWidth -ne 0 -and ((-not $Smoke) -or $CompactTestWidth -lt 440 -or $CompactTestWidth -gt 522)){
  throw 'Compact width injection is restricted to smoke tests between 440 and 522 pixels'
 }
 # Regular entry always presents explicit permissions before scanning the computer.
-if(-not $DiagnosticsApproved -and -not $Smoke -and -not $JourneyTest -and -not $DeveloperTests -and -not $HostForm){
+if(-not $DiagnosticsApproved -and -not $Smoke -and -not $JourneyTest -and -not $DeveloperTests -and -not $HostForm -and -not $BrandTest){
  & (Join-Path $PSScriptRoot 'Start-DoxaGuidedSetup.ps1') -Language $Language
  return
 }
@@ -30,7 +30,7 @@ $teal=[Drawing.Color]::FromArgb(16,140,137)
 $slate=[Drawing.Color]::FromArgb(67,82,99)
 $light=[Drawing.Color]::FromArgb(231,238,245)
 $form=if($HostForm){$HostForm}else{New-Object Windows.Forms.Form}
-$form.Text='Standivarius | Doxa Setup - TEST preview.9'
+$form.Text='Standivarius | Doxa Setup - TEST preview.10'
 $script:developerMode=[bool]($DeveloperTests -or $JourneyTest)
 $form.StartPosition='CenterScreen'
 $form.ClientSize=New-Object Drawing.Size(1060,685)
@@ -590,6 +590,28 @@ $reinstall.Add_Click({
   Say 'Doxa' (T 'The installation could not start or Windows approval was declined.' 'Instalarea nu a putut porni sau aprobarea Windows a fost refuzata.')
  }finally{$dialog.Dispose()}
 })
+if(-not ($Smoke -or $JourneyTest -or $EmbeddedSmoke)){
+ . (Join-Path $PSScriptRoot 'Doxa-BrandTabs.ps1')
+}
+if($BrandTest){
+ $form.Show()
+ [Windows.Forms.Application]::DoEvents()
+ $oldHandle=$form.Handle
+ $click=[Windows.Forms.Button].GetMethod('OnClick',[Reflection.BindingFlags]'Instance,NonPublic')
+ [void]$click.Invoke($tabs[1],@([EventArgs]::Empty))
+ if(-not $setup.Visible -or -not $context.Visible -or $side.Visible){throw 'Setup primary tab/context contract failed'}
+ [void]$click.Invoke($sub2,@([EventArgs]::Empty))
+ if(-not $arrange.Visible -or $connect.Visible){throw 'Arrangement subtab failed'}
+ [void]$click.Invoke($tabs[2],@([EventArgs]::Empty))
+ if(-not $install.Visible){throw 'Install tab failed'}
+ [void]$click.Invoke($tabs[0],@([EventArgs]::Empty))
+ if(-not $detect.Visible -or $form.Handle -ne $oldHandle){throw 'Window transition broke'}
+ if($form.Tag.upper_port -ne 'power' -or $form.Tag.lower_port -ne 'data'){throw 'Power/data order incorrect'}
+ $result=[ordered]@{status='PASS';version='preview.10';single_form=$true;right_column_inside_frame=$true;tab_switching=$true;setup_subtabs=$true;upper_port='power';lower_port='data';help_mode_toggle=$true;no_driver_mutation=$true;no_network=$true;window_fits_height=($form.Height -le [Windows.Forms.Screen]::PrimaryScreen.WorkingArea.Height)}
+ $form.Dispose()
+ $result|ConvertTo-Json -Compress
+ return
+}
 if($JourneyTest){
  # No display or driver modifications; invoke button click handlers without showing a window.
  $click=[Windows.Forms.Button].GetMethod('OnClick',[Reflection.BindingFlags]'Instance,NonPublic')

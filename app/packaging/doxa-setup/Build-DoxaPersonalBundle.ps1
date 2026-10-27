@@ -16,6 +16,8 @@ $items=@(
  'app/packaging/doxa-setup/knowledge/scope-policy.json',
  'app/packaging/doxa-setup/assistant/client-public-key.json',
  'app/packaging/doxa-setup/personal-ui/Start-DoxaSetup.ps1',
+ 'app/packaging/doxa-setup/personal-ui/Doxa-BrandTabs.ps1',
+ 'app/packaging/doxa-setup/personal-ui/assets/standivarius-official-logo.png',
  'app/packaging/doxa-setup/personal-ui/Start-DoxaGuidedSetup.ps1',
  'app/packaging/doxa-setup/personal-ui/Get-DoxaCloudAIPolicy.ps1',
  'app/packaging/doxa-setup/personal-ui/AI-PRIVACY-NOTICE.txt',
@@ -51,7 +53,7 @@ try {
  $manifest=[ordered]@{
   product='Standivarius Doxa Setup'
   channel='personal-preview'
-  preview_version='0.4.0-preview.9'
+  preview_version='0.4.0-preview.10'
   schema_version=1
   bundle_created_utc=$buildStamp
   no_silicon_motion_driver_bundled=$true
@@ -80,7 +82,7 @@ STANDIVARIUS DOXA SETUP v0.4 - GUIDED PERSONAL REVIEW PREVIEW
 2. Review local diagnostic permissions. Cloud AI is OPTIONAL; declining it does not block setup.
 3. Choose to connect Doxa now or to continue checking the computer without Doxa.
 4. The wizard explains which PC data is read, then checks Windows, USB, the signed driver package and connected Doxa panels with your consent.
-5. Select Detect Doxa to refresh the connection. Select Set up screens for illustrated cable help, a four-screen preview and a direct link to Windows Display settings. The offline help answers setup-only questions; optional remote AI requires separate consent.
+5. Use the three customer tabs: Detect Doxa, Set up screens (Connect / Arrange), and Install signed driver. The active tab highlights one framed work area including contextual help. Connector drawing: UPPER USB-C = power, LOWER USB-C = data/signal. Online AI requires separate permission and can be switched off again.
 6. If the required official signed MSI is actually missing AND the connected Doxa can be qualified, choose it and confirm Windows administrator approval.
 7. Pre-connection installation with the hardware-dependent vendor MSI has NOT been physically qualified and is not automatic. This preview is not a full customer install acceptance. For an existing signed driver, connect Doxa and use Detect Doxa.
 
@@ -93,7 +95,7 @@ LIMITS:
 - Doxa hardware Setup is independent of the Standivarius Vision low-vision software.
 '@
  [IO.File]::WriteAllText((Join-Path $stage 'README-FIRST.txt'),$readme,[Text.UTF8Encoding]::new($false))
- # The launcher and first-use readme are generated content, not part of the 16 source files.
+ # The launcher and first-use readme are generated content, not part of the source manifest.
  # Include their digests so installer detection cannot accept edited or added executables.
  $manifest['generated_files']=@(
   [ordered]@{file='Open Doxa Setup.cmd';sha256=(Get-FileHash -LiteralPath (Join-Path $stage 'Open Doxa Setup.cmd') -Algorithm SHA256).Hash.ToLowerInvariant()},
