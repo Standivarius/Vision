@@ -8,7 +8,7 @@ Add-Type -AssemblyName System.Drawing
 $form=New-Object Windows.Forms.Form
 $script:lang=$Language
 function T([string]$en,[string]$ro){if($script:lang -eq 'ro'){$ro}else{$en}}
-$form.Text='Standivarius Doxa Setup - TEST preview.9'
+$form.Text='Standivarius Doxa Setup - TEST preview.10'
 $form.StartPosition='CenterScreen'
 $form.ClientSize=New-Object Drawing.Size(750,510)
 $form.FormBorderStyle='FixedDialog'
@@ -137,9 +137,9 @@ $script:aiAllowed=$false
 $script:finished=$false
 function ShowStep {
  $first=$script:page -eq 1
- $form.Text=T 'Doxa Setup - TEST preview.9' 'Doxa - TEST preview.9'
+ $form.Text=T 'Doxa Setup - TEST preview.10' 'Doxa - TEST preview.10'
  $title.Text=T 'Welcome to Doxa Setup' 'Bine ai venit la Doxa'
- $step.Text=if($first){T 'Step 1 of 4 - permissions' 'Pasul 1 din 4 - permisiuni'}else{T 'Step 2 of 4 - connect Doxa or continue' 'Pasul 2 din 4 - conecteaza Doxa sau continua'}
+ $step.Text=if($first){T 'Step 1 - permissions' 'Pasul 1 - permisiuni'}else{T 'Step 2 - connect Doxa or continue' 'Pasul 2 - conecteaza Doxa sau continua'}
  $explanation.Text=if($first){
   T 'Before checking this PC, Doxa asks permission for local read-only diagnostics. Remote AI assistance is separate and optional. Driver installation will request its own Windows approval later.' 'Doxa cere acordul pentru verificari locale fara modificari. Asistenta AI online este separata si optionala. Instalarea driverului necesita ulterior aprobare Windows.'
  }else{
@@ -212,6 +212,26 @@ $next.Add_Click({
   throw
  }finally{$form.ResumeLayout($true)}
 })
+if(-not ($Smoke -or $JourneyTest -or $SeamlessTest)){
+ # Keep the same outer window size/position before and after the main screen.
+ $height=[Math]::Min(615,[Math]::Max(510,[Windows.Forms.Screen]::PrimaryScreen.WorkingArea.Height-48))
+ $form.ClientSize=New-Object Drawing.Size(1060,$height)
+ $form.BackColor=[Drawing.Color]::White
+ foreach($ctl in @($title,$step,$explanation,$local,$localDetails,$cloud,$privacy,$connect,$without,$back,$next,$languageChoice)){
+  $ctl.Left+=155;$ctl.Top+=42
+ }
+ $logoFile=Join-Path $PSScriptRoot 'assets\standivarius-official-logo.png'
+ if(Test-Path -LiteralPath $logoFile){
+  $p=New-Object Windows.Forms.PictureBox
+  $logoStream=New-Object IO.MemoryStream(,[IO.File]::ReadAllBytes($logoFile))
+  $rawLogo=[Drawing.Image]::FromStream($logoStream)
+  $p.Image=New-Object Drawing.Bitmap($rawLogo)
+  $rawLogo.Dispose();$logoStream.Dispose()
+  $p.SizeMode='Zoom'
+  $p.SetBounds(22,13,235,36);$p.AccessibleName='Standivarius official logo'
+  $form.Controls.Add($p)
+ }
+}
 ShowStep
 if($SeamlessTest){
  $form.CreateControl()
