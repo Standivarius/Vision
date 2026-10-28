@@ -28,3 +28,13 @@ Use current `Test-DoxaNativeRelease.ps1`, `Test-DoxaReleaseConsistency.py` and t
 ## Safety
 
 No deletion/reinstall of Dell's working display driver, no display topology change, no reboot, no branch merge. Existing dirty master checkout and other worktrees preserved. Gemini review snapshot read-only; primary engineer retains implementation decisions.
+
+## Updated real-agent evidence on corrected binaries
+
+Following the Gemini fixes, a new standalone Windows binary and independent Intune/ManageEngine packages were rebuilt. The native fixture and encrypted package parity tests passed.
+
+The corrected Doxa deployment executable was **published to a Dell-only Intune test application**. Dell's genuine Intune Management Extension downloaded and executed it under the system installation workflow. Logs report successful enforcement and detection, and read-only Windows inspection confirmed the protected maintenance executable, app directory and Apps & Features registration. The pre-existing signed display driver was unchanged. This is **real Intune install and detection PASS for the Gemini-corrected binary**.
+
+After testing, a late-arriving assignment had installed the application while cleanup was in progress. A one-device **Uninstall** policy was therefore safely re-assigned to remove this exact application. At the last observation, the application remained installed and the agent had not yet executed that uninstall. **Do not claim corrected-binary Intune uninstall PASS until its agent log and post-removal Windows checks confirm it.** The earlier native build had a complete real install/uninstall PASS, but that evidence is not interchangeable.
+
+Managed ManageEngine deployment of this corrected exact binary, a clean driver-free physical installation, and publisher signing remain unperformed. The source fixes and package are reviewable without overstating those acceptance gates.
