@@ -195,9 +195,31 @@ $install.Controls.Add((UXLabel 'Signed driver: only if needed' 14 15 615 43 18 $
 $install.Controls.Add((UXLabel 'Check Doxa first. When the signed Silicon Motion driver is healthy, no installation is needed.' 14 84 615 60 11))
 $driverStatus=UXLabel 'Driver status: run Detect Doxa to verify.' 14 164 600 62 12 $true
 $install.Controls.Add($driverStatus)
-$install.Controls.Add((UXLabel 'For now, driver installation is disabled in this unsigned preview. Use your IT administrator or the official vendor source.' 14 249 613 78 11))
+$install.Controls.Add((UXLabel 'If the signed driver is missing, choose Install / check driver below. Windows will ask for administrator approval. A working driver is never replaced.' 14 249 613 78 11))
+$driverAction=UXButton 'Install / check driver' 14 339 286 45
+$driverAction.AccessibleName='Install or verify the signed Doxa Windows display driver'
+$driverAction.AccessibleDescription='Uses the protected Doxa Windows installer and asks for administrator approval only if installation is needed.'
+$install.Controls.Add($driverAction)
+$driverAction.Add_Click({
+ $native=Join-Path $env:ProgramFiles 'Standivarius\DoxaMaintenance\DoxaMaintenance.exe'
+ if(-not(Test-Path -LiteralPath $native -PathType Leaf)){
+  Say 'Doxa' (T 'Open the original Standivarius Doxa Windows installer to install the driver.' 'Deschide instalatorul Doxa pentru Windows ca sa instalezi driverul.')
+  return
+ }
+ try {
+  $process=Start-Process -FilePath $native -ArgumentList '/install' -Verb RunAs -PassThru -Wait
+  if($process.ExitCode -in @(0,3010)){
+   RefreshState
+   Say 'Doxa' (T 'Windows has completed its driver check. Verify all external screens. If requested, restart at a convenient time.' 'Windows a incheiat verificarea driverului. Verifica ecranele externe. Daca este necesar, reporneste cand este convenabil.')
+  }else{
+   Say 'Doxa' (T 'Windows driver setup was not completed. Ask IT to check the Doxa installer logs.' 'Instalarea driverului nu s-a incheiat. Solicita IT sa verifice jurnalul instalatorului Doxa.')
+  }
+ }catch{
+  Say 'Doxa' (T 'Administrator approval was declined or setup could not start.' 'Aprobarea administratorului a fost refuzata sau instalarea nu a pornit.')
+ }
+})
 $reinstall.Visible=$false
-$official.SetBounds(14,351,450,30);$official.LinkColor=$red;$install.Controls.Add($official)
+$official.SetBounds(14,401,450,30);$official.LinkColor=$red;$install.Controls.Add($official)
 
 # Doxa Help stays present on the RIGHT for every task, not an interchangeable guide.
 $side.BorderStyle='None';$side.BackColor=$white
@@ -262,6 +284,7 @@ function SelectDoxaPage([string]$page) {
   $tabs[$i].AccessibleDescription=if($selected){T 'Selected task' 'Sarcina selectata'}else{T 'Other task' 'Alta sarcina'}
  }
  if($page -eq 'install'){
+  $driverAction.Visible=(-not ($script:current -and $script:current.observed.signed_driver_present))
   $driverStatus.Text=if($script:current -and $script:current.observed.signed_driver_present){
    T 'Signed Silicon Motion driver detected. No reinstall needed.' 'Driver Silicon Motion semnat detectat. Nu este necesara reinstalarea.'
   }else{
@@ -331,7 +354,7 @@ $brandTranslations=@{
  'Signed driver: only if needed'='Driver semnat: doar la nevoie'
  'Check Doxa first. When the signed Silicon Motion driver is healthy, no installation is needed.'='Verifica Doxa mai intai. Daca driverul Silicon Motion semnat functioneaza, nu instala nimic.'
  'Driver status: run Detect Doxa to verify.'='Starea driverului: apasa Detecteaza Doxa pentru verificare.'
- 'For now, driver installation is disabled in this unsigned preview. Use your IT administrator or the official vendor source.'='Instalarea driverului este dezactivata in aceasta versiune nesemnata. Contacteaza IT sau furnizorul oficial.'
+ 'If the signed driver is missing, choose Install / check driver below. Windows will ask for administrator approval. A working driver is never replaced.'='Daca driverul semnat lipseste, apasa Instaleaza / verifica driverul. Windows va solicita aprobarea administratorului. Driverul functional nu este inlocuit.'
  'Offline help'='Ajutor offline'
  'Online AI'='AI online'
  'Privacy details for online AI'='Confidentialitate AI online'

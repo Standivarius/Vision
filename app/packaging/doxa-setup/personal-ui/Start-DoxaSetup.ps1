@@ -200,7 +200,7 @@ $official.Add_LinkClicked({
  try{Start-Process 'https://www.siliconmotion.com/downloads/SM770-drivers.html'|Out-Null}
  catch{Say 'Doxa' (T 'Open siliconmotion.com and find the official SM770 driver.' 'Deschide siliconmotion.com pentru driverul oficial SM770.')}
 })
-$footer=Label 'Doxa Setup personal preview -- Driver changes require your approval' 29 648 995 22 9
+$footer=Label 'Doxa Setup | Windows administrator approval is required for driver changes' 29 648 995 22 9
 $form.Controls.Add($footer)
 # In a portrait/remote Windows desktop, stack device and help instead of losing
 # half the application off-screen. On full-size desktops retain the two-column view.

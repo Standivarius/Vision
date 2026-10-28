@@ -21,6 +21,17 @@ $toolSig=Get-AuthenticodeSignature $ContentPrepTool
 if($toolSig.Status -ne 'Valid' -or $toolSig.SignerCertificate.Subject -notmatch 'Microsoft Corporation'){throw 'Microsoft utility signature not valid'}
 $old=Get-Content (Join-Path $ReviewBuildDirectory 'RELEASE-MANIFEST.json') -Raw|ConvertFrom-Json
 if($old.product -ne 'Standivarius Doxa Setup' -or -not $old.validated_standalone){throw 'Review baseline not verified'}
+# Compare Authenticode-neutral PE bytes so signing cannot substitute changed code.
+# Only the Windows certificate table, certificate directory and PE checksum
+# may differ between the reviewed EXE and the final signed EXE.
+$verifier=Join-Path $PSScriptRoot 'Verify-DoxaPeSigningOnly.py'
+$baselinePersonal=Join-Path $ReviewBuildDirectory 'Personal\DoxaSetup.exe'
+$baselineManaged=Join-Path $ReviewBuildDirectory 'ManageEngine\DoxaDeploy.exe'
+if(-not(Test-Path $verifier -PathType Leaf) -or
+ -not(Test-Path $baselinePersonal -PathType Leaf) -or
+ -not(Test-Path $baselineManaged -PathType Leaf)){throw 'Missing reviewed unsigned sources or PE verifier'}
+& python $verifier --unsigned-personal $baselinePersonal --signed-personal $SignedPersonalExe --unsigned-managed $baselineManaged --signed-managed $SignedManagedExe
+if($LASTEXITCODE -ne 0){throw 'Signing changed Doxa executable code or embedded resources'}
 $personal=Join-Path $OutputDirectory 'Personal'
 $managed=Join-Path $OutputDirectory 'ManageEngine'
 $intune=Join-Path $OutputDirectory 'Intune'

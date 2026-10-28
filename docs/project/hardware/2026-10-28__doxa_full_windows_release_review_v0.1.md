@@ -1,4 +1,4 @@
-# Doxa Setup — full Windows installer release-candidate review
+# Doxa Setup Ã¢â‚¬â€ full Windows installer release-candidate review
 
 **Status:** full Windows installer **engineering candidate**, with executable software completed for the planned personal and IT routes. Not a claim of completed public signing, clean-PC physical acceptance or live current-version endpoint-manager delivery. Source branch: `doxa/review-package-20261028`; code review PR #106.
 
@@ -45,7 +45,7 @@ The managed `/uninstall` removes the Doxa app only and deliberately retains the 
 - Modified sidecar files cannot override embedded resources: positive and negative isolation checks pass.
 - Existing Preview.12 bilingual extracted-package tests passed; isolated managed app-only lifecycle tests passed before this native release layer.
 - The authentic Microsoft Win32 Content Prep Tool produced the new Intune package. ManageEngine ZIP derives from the same embedded deployment binary.
-- No new actual driver installation, machine-level retail install/uninstall, reboot or Windows display change occurred on working Dell. No new Intune or ManageEngine agent assignment has been run against these exact native binaries.
+- No physical vendor-driver reinstall, reboot or Windows display change occurred on the working Dell. **An actual Dell-only Intune install and uninstall of the new native executable subsequently PASSED**, as documented below; no new ManageEngine agent run on the exact binary has yet been observed.
 
 ## Reviewer work order
 
@@ -62,3 +62,40 @@ Review the new C# host, full-source builders, signed-finalisation script and **t
 **Files:** `app/packaging/doxa-setup/full-release/DoxaSetupHost.cs`, `Build-DoxaCompleteRelease.ps1`, `Build-DoxaRetailRelease.ps1` and `Finalize-DoxaSignedRelease.ps1`.
 
 **Latest local distribution:** `C:\wt\doxa-review-package-20261028\artifacts\releases\retail-go-live-candidate`. The consolidated ZIP and checksum manifest are in the review output folder.
+
+## Implementation corrections after the first review build
+
+- Completed native setup installation and managed detection in a shared Windows engine. The Windows UI checks hardware only after a customer action; no scan is forced before the first-use disclosure.
+- Native setup and management now register an entry in Windows installed apps and maintain a protected Start-menu/uninstall executable. Normal customer uninstall requests Windows administrator approval; automated IT installation/uninstall is silent. Driver removal is **not** part of an app uninstall.
+- The native engine returns a clear *deferred driver* status for a computer without connected Doxa hardware. For connected Doxa, detection refuses a missing or untrusted driver. Windows will not claim successful hardware readiness because the app folder exists alone.
+- Added installed-app integrity checks, repeat-install handling, refusal to remove changed files, protected Windows Installer staging/logging, normal signed-driver no-op handling and explicit non-reboot exit codes.
+- The branded bilingual driver screen now has a direct **Install / check driver** action using the protected native Windows installer. The previous preview-only disabled-driver instruction has been removed.
+- Fixed a build integration fault that omitted embedded resources from an intermediate EXE. The builder now embeds both release payloads and requires the executable to pass extraction and integrity testing. Intune's encrypted content was independently decrypted and compared byte-for-byte with the ManageEngine deployment EXE.
+- Added verification that Windows signing may change only the PE checksum and certificate table, not the executable code or embedded resources. Packaging is rebuilt from the signed originals.
+- The local Windows test covers the embedded payload, an app-only install in a disposable folder, repeat installation, a modified file that blocks removal, invalid commands, detection of driver gaps and filesystem state preservation.
+
+## Real Intune Dell qualification Ã¢â‚¬â€ observed result
+
+On 28 October 2026, the obsolete Dell-only Doxa test **Uninstall** assignments were first checked against absent original app directories and then cleared, leaving other Intune apps and groups untouched.
+
+A new isolated **Dell-only** Win32 application was published using the full native Doxa deployment EXE and the actual Microsoft Win32 Content Prep Tool. The Intune Management Extension on Dell downloaded the encrypted content, executed the SYSTEM install and independently ran detection. **Real install PASS; post-install detection PASS.** Doxa app files, protected maintenance host and Windows Apps & Features registration were confirmed. The native `/detect` and `/verify` returned success while the existing signed display driver remained unchanged.
+
+The Dell-only cloud assignment was then switched to **Uninstall**, strictly in the same Dell-only group. The actual Intune Management Extension then executed the SYSTEM uninstall with success and re-detected the application as NotInstalled. The Program Files application directory and Windows Apps & Features registration were absent; the original signed display driver stayed unchanged. The temporary test assignment was cleared after verification so future installations cannot be affected by it.
+
+ManageEngine: prior real ASUS Endpoint Central app-only lifecycle success remains historical. The current native package passes local encrypted-content equivalence/fixture tests, but its new exact-binary deployment through a running ManageEngine agent has **not** yet been observed. The ASUS Windows development bridge is connected but the endpoint-management agent is currently uninstalled.
+
+## Exact status for reviewers
+
+| Step | Result |
+| --- | --- |
+| Windows personal and SYSTEM deployment executables | Built, standalone integrity PASS |
+| Branded EN/RO interface, narrow layout, privacy and tab navigation | PASS |
+| Initial/duplicate/tampered app fixture tests | PASS |
+| Intune encrypted package vs ManageEngine executable | Exact binary equivalence PASS |
+| Real managed Intune install and detection | PASS |
+| Real managed Intune uninstall | PASS â€” SYSTEM uninstall, app and registration absent, driver preserved; old test assignment cleared |
+| Real managed ManageEngine deployment of current executable | Not performed |
+| Driver-first installation on driver-free hardware | Not performed |
+| Public publisher-signing and post-sign rebuild | No local publisher signing identity available; script prepared and PE-code-preservation verification implemented |
+
+These are evidence boundaries, not software features to imitate or bypass. No destructive change to the working Dell driver, reboot or Windows display topology occurred during this qualification.

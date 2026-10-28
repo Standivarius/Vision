@@ -46,13 +46,13 @@ try{
  $refs=@('/nologo','/platform:x64','/reference:System.Windows.Forms.dll','/reference:System.Drawing.dll','/reference:Microsoft.CSharp.dll','/reference:System.Management.dll','/reference:System.Web.Extensions.dll','/reference:System.IO.Compression.dll','/reference:System.IO.Compression.FileSystem.dll')
  foreach($name in @('DoxaSetup.exe','DoxaDeploy.exe')){
   $kind=if($name -eq 'DoxaSetup.exe'){'winexe'}else{'exe'}
-  & $csc @refs ("/target:$kind") ("/out:$(Join-Path $src $name)") $source
+  & $csc @refs ("/target:$kind") ("/out:$(Join-Path $src $name)") ("/resource:$(Join-Path $src 'SMIUSBDisplaySW770.msi'),Doxa.Driver") ("/resource:$(Join-Path $src 'DoxaSetupPayload.zip'),Doxa.App") $source
   if($LASTEXITCODE -ne 0){throw "Windows executable compilation failed: $name"}
  }
  $testRun=(& (Join-Path $src 'DoxaDeploy.exe') '/selftest'|Out-String).Trim()
  if($LASTEXITCODE -ne 0 -or $testRun -notmatch '^PASS:'){throw 'Release candidate self test failed: '+$testRun}
  $readme=@'
-Standivarius â€” Doxa Setup for Windows
+Standivarius Ã¢â‚¬â€ Doxa Setup for Windows
 PERSONAL:
   Extract Personal/Doxa-Complete-Windows-Setup.zip and launch DoxaSetup.exe.
   Connect Doxa USB power and DATA cable. Click Install / check Doxa and approve Windows UAC.
