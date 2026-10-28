@@ -46,3 +46,7 @@ Contains `Personal\DoxaSetup.exe`, `Intune\DoxaDeploy.intunewin`, `ManageEngine\
 ## Release decision
 
 **Private reviewed installer candidate. Do not distribute publicly or mark GitHub PR ready to merge.** Obtain publisher signing, a recoverable first-use driver-free machine, live endpoint-agent acceptance, interactive retail/repair/uninstall tests, and restricted enterprise-policy validation. The source-level defects from the Muse review have been addressed and locally retested.
+
+## Previous candidate Intune cleanup verified after this build
+
+After the Muse-corrected package was frozen, the Windows Intune Management Extension completed removal of the **earlier Gemini High** Dell-only test installation. Read-only verification confirmed the previous application folder and uninstall registry entry were absent, with signed Silicon Motion driver version `4.7.6.8001` preserved. The Dell-only Intune uninstall assignment was then cleared successfully (`FULL_DOXA_TEST_ASSIGNMENT_CLEARED=true`). This is closure of the prior candidate's lifecycle, **not** a live Intune deployment test of the newly Muse-corrected binaries.
