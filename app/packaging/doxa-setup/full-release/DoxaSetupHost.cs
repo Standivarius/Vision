@@ -17,6 +17,7 @@ using System.Security.Cryptography;
 using System.Security.Principal;
 using System.Web.Script.Serialization;
 using System.Windows.Forms;
+using System.ComponentModel;
 using Microsoft.Win32;
 
 internal class DoxaHost {
@@ -30,6 +31,7 @@ internal class DoxaHost {
  static readonly string AppRoot=Path.Combine(ProgramFiles,"Standivarius","DoxaSetup");
  static readonly string MaintenanceRoot=Path.Combine(ProgramFiles,"Standivarius","DoxaMaintenance");
  static readonly string MaintenanceExe=Path.Combine(MaintenanceRoot,"DoxaMaintenance-v2.exe");
+ static readonly string LegacyMaintenanceExe=Path.Combine(MaintenanceRoot,"DoxaMaintenance.exe");
  static readonly string Logs=Path.Combine(MaintenanceRoot,"Logs");
  static readonly string Shortcut=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonStartMenu),"Programs","Standivarius Doxa Setup.lnk");
  static readonly string RegKey=@"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\StandivariusDoxaSetup";
@@ -41,6 +43,8 @@ internal class DoxaHost {
  static extern int LocateDevice(out uint device,string id,uint flags);
  [DllImport("kernel32.dll",EntryPoint="MoveFileExW",CharSet=CharSet.Unicode,SetLastError=true)]
  static extern bool MoveFileEx(string existing,string replacement,uint flags);
+ // Delete-on-reboot is ONLY used for a random one-shot cleanup helper,
+ // never for a stable executable name that a later installation may reuse.
  static void Require(bool okay,string reason){if(!okay)throw new InvalidOperationException(reason);}
  static void Trace(string message){
   try{Directory.CreateDirectory(Logs);File.AppendAllText(Path.Combine(Logs,"Doxa-Installer.log"),DateTime.UtcNow.ToString("o")+" "+message+Environment.NewLine);}
@@ -68,7 +72,9 @@ internal class DoxaHost {
   if(String.IsNullOrWhiteSpace(provider) ||
      provider.Equals("Microsoft",StringComparison.OrdinalIgnoreCase) ||
      provider.Equals("Microsoft Windows",StringComparison.OrdinalIgnoreCase))return 0;
-  if(provider.Equals("SiliconMotion",StringComparison.OrdinalIgnoreCase)&&
+  // Normalize documented vendor display names, but require valid WHQL signer.
+  string vendor=new string(provider.Where(char.IsLetterOrDigit).ToArray());
+  if(vendor.StartsWith("SiliconMotion",StringComparison.OrdinalIgnoreCase) &&
      signed && signer.Equals("Microsoft Windows Hardware Compatibility Publisher",StringComparison.OrdinalIgnoreCase))return 1;
   return 2; // Unknown third-party display binding or untrusted vendor signature.
  }
@@ -95,16 +101,27 @@ internal class DoxaHost {
    (driver==1?"DriverValid":driver==2?"DriverUntrusted":"DriverMissing")+" "+
    (usb?"USBDetected":"USBAbsent");
  }
+ static bool RecognizedRegisteredMaintenance(string uninstall){
+  string current=((char)34)+MaintenanceExe+((char)34)+" /uninstall";
+  string legacy=((char)34)+LegacyMaintenanceExe+((char)34)+" /uninstall";
+  return uninstall==current || uninstall==legacy;
+ }
+ static RegistryKey MachineHive(){
+  return RegistryKey.OpenBaseKey(RegistryHive.LocalMachine,RegistryView.Registry64);
+ }
  static bool IsRegistered(){
   try{
-   if(!File.Exists(MaintenanceExe))return false;
-   using(var key=Registry.LocalMachine.OpenSubKey(RegKey,false)){
-    return key!=null && Convert.ToString(key.GetValue("DisplayName"))==Product
-     && Convert.ToString(key.GetValue("DisplayVersion"))==Version
-     && Convert.ToString(key.GetValue("UninstallString"))=="\""+MaintenanceExe+"\" /uninstall";
+   using(var hive=MachineHive())
+   using(var key=hive.OpenSubKey(RegKey,false)){
+    if(key==null || Convert.ToString(key.GetValue("DisplayName"))!=Product ||
+       Convert.ToString(key.GetValue("DisplayVersion"))!=Version)return false;
+    string cmd=Convert.ToString(key.GetValue("UninstallString"))??"";
+    return RecognizedRegisteredMaintenance(cmd) &&
+           (cmd.Contains("DoxaMaintenance-v2.exe")?File.Exists(MaintenanceExe):File.Exists(LegacyMaintenanceExe));
    }
   }catch{return false;}
- } static bool DetectDecision(bool appValid,bool registered){
+ }
+ static bool DetectDecision(bool appValid,bool registered){
   // Endpoint managers detect software installation only. Hardware connection
   // and driver health belong to /verify; USB hotplug must never flap /detect.
   return appValid && registered;
@@ -180,10 +197,12 @@ internal class DoxaHost {
  }
  static string InstallAppTo(string root,string payload){
   Directory.CreateDirectory(Path.GetDirectoryName(root));
-  if(Directory.Exists(root)){
-   Require(IsValidApp(root),"Existing application changed: refusing overwrite");
-   return "AppAlreadyInstalled";
-  }
+   if(Directory.Exists(root)){
+    if(IsValidApp(root))return "AppAlreadyInstalled";
+    // Preserve unexpected customer data; do not overwrite or remove it.
+    RemoveAppFrom(root);
+    Require(!Directory.Exists(root),"Modified application could not be retained for recovery");
+   }
   string staged=Path.Combine(Path.GetDirectoryName(root),"doxa-staging-"+Guid.NewGuid().ToString("N"));
   try{
    ExtractApplication(payload,staged);
@@ -205,35 +224,56 @@ internal class DoxaHost {
   // subsequent reinstall can finish without destroying third-party content.
   string parent=Path.GetDirectoryName(root);
   string retained=Path.Combine(parent,"DoxaRetained-"+Guid.NewGuid().ToString("N"));
-  Directory.Move(root,retained);
-  Trace("Modified application retained for administrator inspection at "+retained);
+   try{Directory.Move(root,retained);}
+   catch(IOException ex){
+    Trace("Application is in use; recovery can be retried after closing Doxa: "+ex.Message);
+    throw new InvalidOperationException("Doxa setup files are in use. Close Doxa and retry the install or uninstall. The existing files were not removed.",ex);
+   }
+   catch(UnauthorizedAccessException ex){
+    Trace("Recovery access denied: "+ex.Message);
+    throw new InvalidOperationException("Windows denied recovery of Doxa setup files. Retry as administrator; existing files were preserved.",ex);
+   }
+   Trace("Modified application retained for administrator inspection at "+retained);
   return "AppRetainedForRecovery";
  }
  // Driver changes only after validated hardware, elevated Windows privilege
  // and pinned source. MSI 3010 is returned to IT; Doxa never restarts Windows.
- static string InstallDriver(string package){
+ static string InstallDriver(string package,bool hardwareConnected){
   int state=DriverState();
   if(state==1)return "DriverAlreadyHealthy";
   Require(state!=2,"Different or untrusted display driver present");
-  Require(PresentUsb(),"Doxa is not connected");
   Require(Environment.OSVersion.Version.Build>=19041&&Environment.Is64BitOperatingSystem,"Unsupported Windows version");
+  // Enterprise SYSTEM installation must prepare the signed driver before a
+  // standard user first connects Doxa. Do not depend on live USB presence.
   string log=Path.Combine(Logs,"VendorDriver-"+DateTime.UtcNow.ToString("yyyyMMdd-HHmmss")+".log");
   Directory.CreateDirectory(Logs);
   var info=new ProcessStartInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows),"System32","msiexec.exe"),
    "/i \""+package+"\" /qn /norestart /L*v \""+log+"\""){UseShellExecute=false,CreateNoWindow=true};
-  int exit;using(var p=Process.Start(info)){p.WaitForExit();exit=p.ExitCode;}
-  Trace("Windows Installer returned "+exit);
-  Require(exit==0||exit==RebootCode,"Driver installation failed; Windows Installer code "+exit+" (see log)");
-  if(exit==RebootCode)return "RestartRequired";
-  Require(DriverState()==1,"Driver MSI finished but signed Windows driver was not verified");
-  return "DriverInstalledVerified";
+  using(var process=Process.Start(info)){
+   Require(process!=null,"Could not launch Windows Installer");
+   process.WaitForExit();
+   int exit=process.ExitCode;
+   Trace("Windows Installer returned "+exit+" for "+(hardwareConnected?"connected":"disconnected")+" Doxa");
+   Require(exit==0||exit==RebootCode,"Driver installer failed (code "+exit+", see Doxa installation log)");
+   if(exit==RebootCode)return "RestartRequired";
+  }
+  if(!hardwareConnected)return "DriverMSIPreparedForFirstConnection";
+  // Windows PnP may bind the just-installed display driver asynchronously.
+  for(int attempt=0;attempt<15;attempt++){
+   int observed=DriverState();
+   if(observed==1)return "DriverInstalledVerified";
+   Require(observed!=2,"Unexpected driver binding appeared after installer");
+   System.Threading.Thread.Sleep(1000);
+  }
+  throw new InvalidOperationException("Driver installed but Doxa screen binding was not verified; check Windows Device Manager and the installation log.");
  }
  static void InstallMaintenance(){
   Directory.CreateDirectory(MaintenanceRoot);
   if(!Path.GetFullPath(SourceExe).Equals(Path.GetFullPath(MaintenanceExe),StringComparison.OrdinalIgnoreCase))
    File.Copy(SourceExe,MaintenanceExe,true);
   // If app registration fails, installer reports failure, never a fake PASS.
-  using(var key=Registry.LocalMachine.CreateSubKey(RegKey)){
+   using(var hive=MachineHive())
+   using(var key=hive.CreateSubKey(RegKey)){
    Require(key!=null,"Windows uninstall registration unavailable");
    key.SetValue("DisplayName",Product,RegistryValueKind.String);
    key.SetValue("DisplayVersion",Version,RegistryValueKind.String);
@@ -243,7 +283,8 @@ internal class DoxaHost {
    key.SetValue("QuietUninstallString","\""+MaintenanceExe+"\" /uninstall",RegistryValueKind.String);
    key.SetValue("DisplayIcon",MaintenanceExe,RegistryValueKind.String);
    key.SetValue("NoModify",1,RegistryValueKind.DWord);
-   key.SetValue("NoRepair",1,RegistryValueKind.DWord);
+    key.SetValue("NoRepair",0,RegistryValueKind.DWord);
+    key.SetValue("ModifyPath","\\\""+MaintenanceExe+"\\\" /repair",RegistryValueKind.String);
   }
   try{
    Directory.CreateDirectory(Path.GetDirectoryName(Shortcut));
@@ -263,23 +304,59 @@ internal class DoxaHost {
   bool plugged=PresentUsb();
   int current=DriverState();
   Require(current!=2,"Unexpected driver identity: installation refused");
-  string driver=plugged?InstallDriver(driverPackage):"DriverDeferredUntilConnection";
+   string driver=InstallDriver(driverPackage,plugged);
   string app=InstallAppTo(AppRoot,appPayload);
   InstallMaintenance();
   string result=app+"; "+driver;
   Trace(result);return result;
  }
+ static void CleanupMaintenanceAfterParent(int parentPid){
+  Require(Elevated,"Cleanup requires administrator permission");
+  Require(Path.GetFileName(SourceExe).StartsWith("DoxaCleanup-",StringComparison.OrdinalIgnoreCase) &&
+          Path.GetDirectoryName(SourceExe).Equals(MaintenanceRoot,StringComparison.OrdinalIgnoreCase),
+          "Unrecognized cleanup helper");
+  Require(parentPid>0,"Missing maintenance process ID");
+  try{using(var parent=Process.GetProcessById(parentPid)){parent.WaitForExit(20000);}}catch(ArgumentException){}
+  // A reinstall racing with cleanup must never lose its new maintenance host.
+  using(var hive=MachineHive())
+  using(var key=hive.OpenSubKey(RegKey,false)){
+   if(Directory.Exists(AppRoot)||key!=null)return;
+  }
+  try{
+   if(File.Exists(MaintenanceExe))File.Delete(MaintenanceExe);
+   if(File.Exists(LegacyMaintenanceExe))File.Delete(LegacyMaintenanceExe);
+   Trace("Orphaned interactive maintenance executables removed");
+  }catch(Exception e){Trace("Cleanup retained protected maintenance host: "+e.GetType().Name);}
+  // Never queue deletion of DoxaMaintenance-v2.exe or legacy stable names.
+  // This uniquely named, one-shot executable is never reused by an installer.
+  if(!MoveFileEx(SourceExe,null,4))Trace("One-shot cleanup helper could not schedule its own removal");
+ }
+ static void ScheduleInteractiveMaintenanceCleanup(){
+  string helper=Path.Combine(MaintenanceRoot,"DoxaCleanup-"+Guid.NewGuid().ToString("N")+".exe");
+  File.Copy(SourceExe,helper);
+  try{
+   using(var process=Process.Start(new ProcessStartInfo(helper,"/cleanup-maintenance "+Process.GetCurrentProcess().Id){
+    UseShellExecute=false,CreateNoWindow=true,WorkingDirectory=MaintenanceRoot})){
+     Require(process!=null,"Could not start Windows maintenance cleanup");
+   }
+  }catch{
+   try{File.Delete(helper);}catch{}
+   throw;
+  }
+ }
  static string Remove(){
   Require(Elevated,"Windows administrator permission required");
   string result=RemoveAppFrom(AppRoot);
   try{if(File.Exists(Shortcut))File.Delete(Shortcut);}catch(Exception e){Trace("Shortcut cleanup: "+e.GetType().Name);}
-  Registry.LocalMachine.DeleteSubKey(RegKey,false);
-  // Never queue delete-on-reboot: a reinstall could lose this executable.
-  // Delete immediately from SYSTEM deployments; when invoked as Windows
-  // Apps & Features, retain the running maintenance executable instead.
-  if(File.Exists(MaintenanceExe) &&
-     !Path.GetFullPath(SourceExe).Equals(Path.GetFullPath(MaintenanceExe),StringComparison.OrdinalIgnoreCase))
-    File.Delete(MaintenanceExe);
+  using(var hive=MachineHive())hive.DeleteSubKey(RegKey,false);
+  if(Path.GetFullPath(SourceExe).Equals(Path.GetFullPath(MaintenanceExe),StringComparison.OrdinalIgnoreCase) ||
+     Path.GetFullPath(SourceExe).Equals(Path.GetFullPath(LegacyMaintenanceExe),StringComparison.OrdinalIgnoreCase))
+   ScheduleInteractiveMaintenanceCleanup();
+  else {
+   // SYSTEM managed uninstall: maintenance host is not the running process.
+   try{if(File.Exists(MaintenanceExe))File.Delete(MaintenanceExe);}catch(IOException e){Trace("Maintenance still running: "+e.Message);}
+   try{if(File.Exists(LegacyMaintenanceExe))File.Delete(LegacyMaintenanceExe);}catch(IOException e){Trace("Legacy maintenance still running: "+e.Message);}
+  }
   Trace(result+"; signed display driver preserved");
   return result+"; DisplayDriverRetained";
  }
@@ -288,8 +365,15 @@ internal class DoxaHost {
   string script=Path.Combine(AppRoot,"app","packaging","doxa-setup","personal-ui","Start-DoxaGuidedSetup.ps1");
   Require(File.Exists(script),"Guided setup is absent");
   string exe=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows),"System32","WindowsPowerShell","v1.0","powershell.exe");
-  Process.Start(new ProcessStartInfo(exe,"-NoProfile -ExecutionPolicy Bypass -File \""+script+"\""){
-   UseShellExecute=false,CreateNoWindow=true,WorkingDirectory=AppRoot});
+  // Enterprise GPO/WDAC can override -ExecutionPolicy. Report an early failure
+  // rather than silently doing nothing in a hidden window.
+  var info=new ProcessStartInfo(exe,"-NoProfile -ExecutionPolicy Bypass -File \""+script+"\""){
+   UseShellExecute=false,CreateNoWindow=true,WorkingDirectory=AppRoot};
+  using(var process=Process.Start(info)){
+   Require(process!=null,"Windows could not launch Doxa guided setup");
+   if(process.WaitForExit(3000) && process.ExitCode!=0)
+    throw new InvalidOperationException("Doxa guided setup could not start (Windows exit "+process.ExitCode+"). Your administrator may need to allow its signed scripts or adjust enterprise application policy.");
+  }
  }
  static string SelfTest(){
   string folder=Path.Combine(Path.GetTempPath(),"Doxa-Validation-"+Guid.NewGuid().ToString("N"));
@@ -302,6 +386,10 @@ internal class DoxaHost {
    Require(InstallAppTo(testRoot,testPayload)=="AppInstalled","Fresh app installation failed");
    Require(IsValidApp(testRoot),"Installed app invalid");
    Require(InstallAppTo(testRoot,testPayload)=="AppAlreadyInstalled","Repeat install should be idempotent");
+   Require(RecognizedRegisteredMaintenance(((char)34)+MaintenanceExe+((char)34)+" /uninstall"),"Current registered maintenance path unrecognized");
+   Require(RecognizedRegisteredMaintenance(((char)34)+LegacyMaintenanceExe+((char)34)+" /uninstall"),"Legacy registered maintenance path unrecognized");
+   // Legacy path classification only accepts installed versioned executable.
+   Require(!RecognizedRegisteredMaintenance("untrusted /uninstall"),"Arbitrary uninstall path accepted");
    Require(DetectDecision(true,true),"Registered valid app should detect regardless of USB/driver");
    Require(!DetectDecision(true,false),"Missing uninstall registration must fail detection");
    Require(!DetectDecision(false,true),"App missing must fail detection");
@@ -310,7 +398,8 @@ internal class DoxaHost {
    Require(ClassifyDriver("SiliconMotion","Microsoft Windows Hardware Compatibility Publisher",true)==1,
            "Healthy signed driver must be preserved");
    Require(ClassifyDriver("Unapproved vendor","Some signer",true)==2,"Foreign driver must block replacement");
-   Require(ClassifyDriver("SiliconMotion","",false)==2,"Unsigned vendor driver must block replacement");   string writable=Directory.GetFiles(testRoot,"*.ps1",SearchOption.AllDirectories).FirstOrDefault();
+   Require(ClassifyDriver("SiliconMotion","",false)==2,"Unsigned vendor driver must block replacement");
+   string writable=Directory.GetFiles(testRoot,"*.ps1",SearchOption.AllDirectories).FirstOrDefault();
    Require(writable!=null,"Fixture has no script for tamper test");
    File.AppendAllText(writable,"\n# altered");
    Require(!IsValidApp(testRoot),"Modified app not rejected");
@@ -321,19 +410,32 @@ internal class DoxaHost {
            "Modified application was not preserved for recovery");
    Require(InstallAppTo(testRoot,testPayload)=="AppInstalled","Fresh reinstall after recovery must succeed");
    Require(IsValidApp(testRoot),"Freshly reinstalled application must verify");
-   Require(RemoveAppFrom(testRoot)=="AppRemoved","Clean uninstall must remove owned files");   // Only a disposable folder; no driver install, registry, Start menu or display changes.
+   Require(RemoveAppFrom(testRoot)=="AppRemoved","Clean uninstall must remove owned files");
+   // Only a disposable folder; no driver install, registry, Start menu or display changes.
    return "PASS: signed driver classification, software detection, safe retained-file recovery, reinstall and clean uninstall fixtures";
   }finally{
    try{if(Directory.Exists(folder))Directory.Delete(folder,true);}catch{}
    try{if(Directory.Exists(WorkingDirectory))Directory.Delete(WorkingDirectory,true);}catch{}
   }
  }
- static int Run(string arg){
+ static int Run(string arg,string[] args){
   if(arg=="/selftest"){Console.WriteLine(SelfTest());return 0;}
   if(arg=="/detect"){Console.WriteLine(State());return DetectApp()?0:1;}
   if(arg=="/verify"){Console.WriteLine(State());return IsValidApp(AppRoot)&&PresentUsb()&&DriverState()==1?0:1;}
-  if(arg=="/install"){string result=Apply();Console.WriteLine(result);return result.Contains("RestartRequired")?RebootCode:0;}
-  if(arg=="/uninstall"){
+   if(arg=="/install" || arg=="/repair"){
+    if(!Elevated && Environment.UserInteractive && Process.GetCurrentProcess().SessionId!=0){
+     using(var elevated=Process.Start(new ProcessStartInfo(SourceExe,arg){UseShellExecute=true,Verb="runas"})){
+      elevated.WaitForExit();return elevated.ExitCode;
+     }
+    }
+    string result=Apply();Console.WriteLine(result);return result.Contains("RestartRequired")?RebootCode:0;
+   }
+   if(arg=="/cleanup-maintenance"){
+    Require(args.Length==2,"Cleanup requires the exact parent process ID");
+    int parentPid;Require(Int32.TryParse(args[1],out parentPid),"Invalid parent process ID");
+    CleanupMaintenanceAfterParent(parentPid);return 0;
+   }
+   if(arg=="/uninstall"){
    if(!Elevated && Environment.UserInteractive){
     using(var elevated=Process.Start(new ProcessStartInfo(SourceExe,"/uninstall"){UseShellExecute=true,Verb="runas"})){
      elevated.WaitForExit();return elevated.ExitCode;
@@ -348,39 +450,72 @@ internal class DoxaHost {
   Application.EnableVisualStyles();
   var form=new Form{Text="Standivarius | Doxa Setup",ClientSize=new Size(650,365),MinimumSize=new Size(570,345),StartPosition=FormStartPosition.CenterScreen,
    BackColor=Color.White,Font=new Font("Segoe UI",11),AutoScaleMode=AutoScaleMode.Dpi};
-  var title=new Label{Text="Doxa Setup",Font=new Font("Segoe UI",24,FontStyle.Bold),Location=new Point(30,22),Size=new Size(580,52)};
-  var help=new Label{Text="Connect Doxa to power and the laptop's USB data port.\nInstall the Windows components, then arrange your screens.",Location=new Point(30,90),Size=new Size(580,60)};
-  var status=new Label{Text=State(),Location=new Point(30,171),Size=new Size(580,45),ForeColor=Color.FromArgb(45,63,80)};
-  var install=new Button{Text="Install / check Doxa",Location=new Point(30,245),Size=new Size(197,44)};
-  var launch=new Button{Text="Open Doxa setup",Location=new Point(240,245),Size=new Size(175,44)};
-  var refresh=new Button{Text="Refresh status",Location=new Point(430,245),Size=new Size(155,44)};
-  install.Click+=(s,e)=>{
+  var title=new Label{Text="Doxa Setup",Font=new Font("Segoe UI",24,FontStyle.Bold),Location=new Point(30,22),Size=new Size(440,52),Anchor=AnchorStyles.Top|AnchorStyles.Left};
+  var help=new Label{Location=new Point(30,90),Size=new Size(575,75),Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right};
+  var status=new Label{Text="Checking Doxa...",Location=new Point(30,171),Size=new Size(575,45),ForeColor=Color.FromArgb(45,63,80),Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right};
+  var install=new Button{Location=new Point(30,245),Size=new Size(197,46),Anchor=AnchorStyles.Bottom|AnchorStyles.Left,TabIndex=1};
+  var launch=new Button{Location=new Point(240,245),Size=new Size(175,46),Anchor=AnchorStyles.Bottom|AnchorStyles.Left,TabIndex=2};
+  var refresh=new Button{Location=new Point(430,245),Size=new Size(170,46),Anchor=AnchorStyles.Bottom|AnchorStyles.Left,TabIndex=3};
+  var language=new Button{Location=new Point(501,24),Size=new Size(119,36),Anchor=AnchorStyles.Top|AnchorStyles.Right,TabIndex=0};
+  bool ro=false;
+  string lastState=null;
+  Action updateText=()=>{
+   form.Text=ro?"Standivarius | Configurare Doxa":"Standivarius | Doxa Setup";
+   help.Text=ro?"Conecteaza alimentarea Doxa si apoi cablul USB de date. Instaleaza componentele Windows si configureaza ecranele.":"Connect Doxa power, then the USB data cable. Install Windows components and configure your screens.";
+   install.Text=ro?"Instaleaza / verifica":"Install / check Doxa";
+   launch.Text=ro?"Deschide configurarea":"Open Doxa setup";
+   refresh.Text=ro?"Actualizeaza":"Refresh status";
+   language.Text=ro?"English":"Romana";
+   install.AccessibleName=ro?"Instaleaza sau verifica Doxa si driverul Windows":"Install or check Doxa software and Windows display driver";
+   launch.AccessibleName=ro?"Deschide configurarea asistata Doxa":"Open Doxa guided setup";
+   refresh.AccessibleName=ro?"Verifica din nou starea Doxa":"Refresh Doxa Windows status";
+   language.AccessibleName=ro?"Schimba limba in engleza":"Change language to Romanian";
+   status.Text=lastState==null?(ro?"Se verifica Doxa...":"Checking Doxa..."):lastState;
+  };
+  language.Click+=(sender,e)=>{ro=!ro;updateText();};
+  install.Click+=(sender,e)=>{
    try{
     bool successful=false;
     if(!Elevated){
      using(var p=Process.Start(new ProcessStartInfo(SourceExe,"/install"){UseShellExecute=true,Verb="runas"})){
       p.WaitForExit();
       successful=p.ExitCode==0||p.ExitCode==RebootCode;
-      if(!successful)MessageBox.Show("Installation did not complete. See Doxa installation logs.","Doxa Setup");
+      if(!successful)MessageBox.Show(ro?"Instalarea nu s-a incheiat. Verifica jurnalul Doxa.":"Installation did not complete. Check Doxa installation logs.","Doxa Setup");
      }
     }else{Apply();successful=true;}
     status.Text=State();
     if(successful&&IsValidApp(AppRoot))Open();
    }catch(Exception ex){MessageBox.Show(ex.Message,"Doxa Setup");}
   };
-  launch.Click+=(s,e)=>{try{Open();}catch(Exception ex){MessageBox.Show(ex.Message,"Doxa Setup");}};
-  refresh.Click+=(s,e)=>status.Text=State();
-  form.Controls.AddRange(new Control[]{title,help,status,install,launch,refresh});
+  launch.Click+=(sender,e)=>{try{Open();}catch(Exception ex){MessageBox.Show(ex.Message,"Doxa Setup");}};
+  Action checkState=()=>{
+   status.Text=ro?"Se verifica Doxa...":"Checking Doxa...";
+   var work=new BackgroundWorker();
+   work.DoWork+=(sender,e)=>{e.Result=State();};
+   work.RunWorkerCompleted+=(sender,e)=>{
+    if(!status.IsDisposed)status.Text=e.Error==null?Convert.ToString(e.Result):(ro?"Verificare indisponibila":"Status unavailable");
+    if(e.Error==null)lastState=Convert.ToString(e.Result);
+    work.Dispose();
+   };
+   work.RunWorkerAsync();
+  };
+  refresh.Click+=(sender,e)=>checkState();
+  form.Shown+=(sender,e)=>checkState();
+  form.Controls.AddRange(new Control[]{title,help,status,install,launch,refresh,language});
+  updateText();
   Application.Run(form);
  }
  [STAThread] public static int Main(string[] args){
   string arg=args.Length>0?args[0].ToLowerInvariant():"";
   try{
    if(arg==""){UI();return 0;}
-   return Run(arg);
+   return Run(arg,args);
   }catch(Exception ex){
    Trace("Error "+ex.GetType().Name+": "+ex.Message);
    Console.Error.WriteLine(ex.Message);
+   if(Environment.UserInteractive && Process.GetCurrentProcess().SessionId!=0 &&
+     (arg=="/open" || arg=="/install" || arg=="/repair"))
+    MessageBox.Show(ex.Message,"Doxa Setup",MessageBoxButtons.OK,MessageBoxIcon.Warning);
 
    return 30;
   }finally{
