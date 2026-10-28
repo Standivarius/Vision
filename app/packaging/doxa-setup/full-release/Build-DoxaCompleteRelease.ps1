@@ -86,8 +86,41 @@ STATUS:
  foreach($file in $srcFiles){if($file.Name -match '(\.env|\.pfx|\.key|token|secret)'){throw 'Secret-like file in release'}}
  $personalZip=Join-Path $personalDist 'Doxa-Complete-Windows-Setup.zip'
  $managedZip=Join-Path $managedDist 'Doxa-Complete-Managed.zip'
- Compress-Archive -LiteralPath @($srcFiles.FullName) -DestinationPath $personalZip -CompressionLevel Optimal
- Compress-Archive -LiteralPath @($srcFiles.FullName) -DestinationPath $managedZip -CompressionLevel Optimal
+  # Virus scanning and the just-finished host self-test can briefly retain an EXE
+  # file handle. Keep the full verified source set intact and retry with bounded
+  # backoff; a partial ZIP must never be accepted as a release artifact.
+  function Write-RetryArchive([string]$target,[string[]]$paths){
+   $lastError=$null
+   for($attempt=1;$attempt -le 8;$attempt++){
+    try{
+     foreach($file in $paths){
+      $stream=[IO.File]::Open($file,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
+      $stream.Dispose()
+     }
+     if(Test-Path $target){Remove-Item -LiteralPath $target -Force}
+     Compress-Archive -LiteralPath $paths -DestinationPath $target -CompressionLevel Optimal -ErrorAction Stop
+     Add-Type -AssemblyName System.IO.Compression.FileSystem
+     $archive=[IO.Compression.ZipFile]::OpenRead($target)
+     try{
+      $actual=@($archive.Entries|ForEach-Object{$_.Name}|Sort-Object)
+      $expected=@($paths|ForEach-Object{[IO.Path]::GetFileName($_)}|Sort-Object)
+      if($actual.Count -ne $expected.Count -or (Compare-Object $actual $expected)){
+       throw 'ZIP contents differ from verified source-file list'
+      }
+     }finally{$archive.Dispose()}
+     return
+    }catch{
+     $lastError=$_.Exception.Message
+     if(Test-Path $target){Remove-Item -LiteralPath $target -Force -ErrorAction SilentlyContinue}
+     if($attempt -ge 8){break}
+     Write-Warning ("Temporary ZIP file lock (attempt "+$attempt+" of 8): "+$lastError)
+     Start-Sleep -Seconds ([Math]::Min(3*$attempt,15))
+    }
+   }
+   throw ("Could not safely archive Doxa release after bounded retries: "+$lastError)
+  }
+  Write-RetryArchive -target $personalZip -paths ([string[]]$srcFiles.FullName)
+  Write-RetryArchive -target $managedZip -paths ([string[]]$srcFiles.FullName)
  $intunePath=''
  if(-not $SkipIntune){
   New-Item $intuneDist -ItemType Directory -Force|Out-Null
