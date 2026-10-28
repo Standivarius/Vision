@@ -111,6 +111,7 @@ $detect.Controls.Add($connectionBadge)
 # Decorative screen positions, but checks come EXCLUSIVELY from live PnP identities.
 $script:doxaScreenChecks=@($false,$false,$false)
 $screenDiagram=New-Object Windows.Forms.Panel
+$screenDiagram.Tag=$script:doxaScreenChecks # Captured live result array survives New-Module event callback
 $screenDiagram.SetBounds(8,188,627,145)
 $screenDiagram.BackColor=[Drawing.Color]::FromArgb(249,250,252)
 $screenDiagram.AccessibleName='Illustration: Screens 2, 3, 4 above laptop Screen 1. A green tick means Windows identified that Doxa PnP monitor, not verified Extend mode.'
@@ -129,7 +130,7 @@ $screenDiagram.Add_Paint({
    $x=11+($i*209)
    $g.FillRectangle($fill,$x,8,195,73);$g.DrawRectangle($displayPen,$x,8,195,73)
    $g.DrawString((T ('Screen '+($i+2)) ('Ecran '+($i+2))),$font,$txt,$x+39,30)
-   $checked=[bool]$script:doxaScreenChecks[$i]
+   $checked=[bool](@($s.Tag)[$i])
    $p=if($checked){$good}else{$none}
    if($checked){
     $g.DrawLines($p,[Drawing.PointF[]]@([Drawing.PointF]::new([float]($x+153),[float]44),[Drawing.PointF]::new([float]($x+160),[float]50),[Drawing.PointF]::new([float]($x+173),[float]34)))

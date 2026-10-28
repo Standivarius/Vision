@@ -270,7 +270,7 @@ if($script:shortWide){
 $form.MinimumSize=if($script:compactLayout){New-Object Drawing.Size(440,480)}else{New-Object Drawing.Size(770,500)}
 $script:lastDetectionKey='';$script:current=$null;$script:fault='none';$script:lang=$Language
 $script:cloudPolicyScript=Join-Path $PSScriptRoot 'Get-DoxaCloudAIPolicy.ps1'
-function T([string]$en,[string]$ro){if($script:lang -eq 'ro'){$ro}else{$en}}
+function T([string]$en,[string]$ro){$active=Get-Variable -Name lang -Scope Script -ErrorAction SilentlyContinue;if($active -and [string]$active.Value -eq 'ro'){$ro}else{$en}}
 function Say([string]$speaker,[string]$body){
  $nl=[Environment]::NewLine
  $chat.SelectionStart=$chat.TextLength
@@ -634,8 +634,8 @@ if($BrandTest){
  $form.Show();[Windows.Forms.Application]::DoEvents()
  $handle=$form.Handle
  $click=[Windows.Forms.Button].GetMethod('OnClick',[Reflection.BindingFlags]'Instance,NonPublic')
- if($tabs.Count -ne 3 -or $tabs[2].Right -ge $sideHolder.Left){throw 'Main tabs intrude into chatbot column'}
- if($workspace.Right -ge $sideHolder.Left){throw 'Workspace frame must not include persistent chatbot'}
+ if($tabs.Count -ne 3 -or ($sideHolder.Top -lt $workspace.Bottom -and $tabs[2].Right -ge $sideHolder.Left)){throw 'Main tabs intrude into chatbot column'}
+ if($sideHolder.Top -lt $workspace.Bottom -and $workspace.Right -ge $sideHolder.Left){throw 'Workspace frame must not include persistent chatbot'}
  if($tabs[0].Text -eq $check.Text){throw 'Redundant Detect Doxa action label'}
  [void]$click.Invoke($tabs[1],@([EventArgs]::Empty))
  if(-not $setup.Visible -or -not $side.Visible -or -not $sideHolder.Visible){throw 'Arrange and persistent Help not visible'}
