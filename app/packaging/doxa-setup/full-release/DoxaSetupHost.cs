@@ -179,7 +179,7 @@ internal class DoxaHost {
      if(field=="files")source++;
     }
    }
-   if(source!=20||allowed.Count!=23)return false;
+   if(source!=21||allowed.Count!=24)return false;
    var files=Directory.GetFiles(folder,"*",SearchOption.AllDirectories);
    return files.Length==allowed.Count&&files.All(f=>allowed.Contains(f.Substring(folder.TrimEnd('\\').Length+1).Replace('\\','/')));
   }catch{return false;}
@@ -619,7 +619,7 @@ launch.Click+=(sender,e)=>{try{Open();}catch(Exception ex){MessageBox.Show(ex.Me
 
    return 30;
   }finally{
-   try{if(Directory.Exists(WorkingDirectory))Directory.Delete(WorkingDirectory,true);}catch{}
+   try{if(!PreserveWorkingDirectoryOnMsiTimeout && Directory.Exists(WorkingDirectory))Directory.Delete(WorkingDirectory,true);}catch{}
   }
  }
 }
