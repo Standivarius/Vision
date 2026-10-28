@@ -39,3 +39,9 @@ The exact revised package was separately published as a **Dell-only Microsoft In
 ## Release boundary
 
 **Private engineering candidate, not a public signed installer.** Keep the GitHub pull request in draft until publisher signing and relevant environment qualifications have been completed. Do not attribute unperformed physical hardware or ManagedEngine agent tests to the independently reviewed source.
+
+## Exact post-review build on Dell
+
+The exact native binaries in `artifacts/releases/gemini-high-fix-build-20261028` passed the standalone executable fixture and personal EXE `/selftest`. The Intune encrypted package was independently decrypted and verified to match the ManageEngine EXE byte-for-byte. This very build then passed real Dell-only Intune SYSTEM installation and app detection; Windows registered the app and native hardware verification returned success while the pre-existing signed display driver remained unchanged.
+
+A one-device Intune Uninstall assignment has been issued to close the qualification. Its result must be confirmed from agent logs and Windows app/registry state rather than assumed from the assignment. Earlier build variants passed uninstall, but their evidence is not automatically transferable. The unsigned user EXE remains an engineering candidate pending publisher signing and the physical driver-free/ManageEngine/enterprise policy tests noted above.
