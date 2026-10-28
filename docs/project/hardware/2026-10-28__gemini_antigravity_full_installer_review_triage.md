@@ -38,3 +38,9 @@ The corrected Doxa deployment executable was **published to a Dell-only Intune t
 After testing, a late-arriving assignment had installed the application while cleanup was in progress. A one-device **Uninstall** policy was therefore safely re-assigned to remove this exact application. At the last observation, the application remained installed and the agent had not yet executed that uninstall. **Do not claim corrected-binary Intune uninstall PASS until its agent log and post-removal Windows checks confirm it.** The earlier native build had a complete real install/uninstall PASS, but that evidence is not interchangeable.
 
 Managed ManageEngine deployment of this corrected exact binary, a clean driver-free physical installation, and publisher signing remain unperformed. The source fixes and package are reviewable without overstating those acceptance gates.
+
+## Final corrected-binary Intune lifecycle — verified complete
+
+The Dell-only Intune Management Extension subsequently **completed the corrected-binary uninstall with success** and then reported the app **NotInstalled**. Independent Windows checks found no Doxa application directory, no v2 maintenance executable, and no Apps & Features Doxa uninstall entry. The existing SMI770 driver remained Microsoft hardware-signed and unchanged at version 4.7.6.8001. The corrected application's Dell-only Uninstall assignment was removed after that result was confirmed, leaving **no active test assignment**. This upgrades the precise corrected-binary Intune lifecycle to **real install, detection, uninstall and post-uninstall detection PASS**.
+
+The ManageEngine exact-binary cloud agent qualification, clean first-time driver installation on a recoverable device, and publisher signing remain separate open acceptance gates. No claim of production release is made.
