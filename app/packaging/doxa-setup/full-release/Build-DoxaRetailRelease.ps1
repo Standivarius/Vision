@@ -65,7 +65,7 @@ try {
  $intuneFile=@(Get-ChildItem $intune -File -Filter '*.intunewin')
  if($intuneFile.Count -ne 1){throw 'Expected exactly one Intune package'}
  $how=@'
-DOXA SETUP â€” WINDOWS RELEASE CANDIDATE
+STANDIVARIUS DOXA SETUP - WINDOWS RELEASE CANDIDATE
 
 PERSONAL: Deliver Personal\DoxaSetup.exe. It already embeds the hardware
 driver package and the bilingual application. Customer connects power and USB

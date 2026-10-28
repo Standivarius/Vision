@@ -29,7 +29,7 @@ CHECK_RECORD=ROOT/"artifacts"/"releases"/"doxa-full-intune-deployment-record.jso
 pub.APP_NAME=APP_NAME
 pub.PILOT_ID_FILE=CHECK_RECORD
 DETECTION=r'''
-$path=Join-Path $env:ProgramW6432 'Standivarius\DoxaMaintenance\DoxaMaintenance.exe'
+$path=Join-Path $env:ProgramW6432 'Standivarius\DoxaMaintenance\DoxaMaintenance-v2.exe'
 if(-not(Test-Path -LiteralPath $path -PathType Leaf)){exit 1}
 $output=& $path /detect 2>$null
 if($LASTEXITCODE -eq 0 -and [string]$output -like 'AppInstalled*'){

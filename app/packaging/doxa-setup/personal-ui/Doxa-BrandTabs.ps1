@@ -201,7 +201,7 @@ $driverAction.AccessibleName='Install or verify the signed Doxa Windows display 
 $driverAction.AccessibleDescription='Uses the protected Doxa Windows installer and asks for administrator approval only if installation is needed.'
 $install.Controls.Add($driverAction)
 $driverAction.Add_Click({
- $native=Join-Path $env:ProgramFiles 'Standivarius\DoxaMaintenance\DoxaMaintenance.exe'
+ $native=Join-Path $env:ProgramFiles 'Standivarius\DoxaMaintenance\DoxaMaintenance-v2.exe'
  if(-not(Test-Path -LiteralPath $native -PathType Leaf)){
   Say 'Doxa' (T 'Open the original Standivarius Doxa Windows installer to install the driver.' 'Deschide instalatorul Doxa pentru Windows ca sa instalezi driverul.')
   return

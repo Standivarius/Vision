@@ -29,7 +29,7 @@ internal class DoxaHost {
  static readonly string ProgramFiles=Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
  static readonly string AppRoot=Path.Combine(ProgramFiles,"Standivarius","DoxaSetup");
  static readonly string MaintenanceRoot=Path.Combine(ProgramFiles,"Standivarius","DoxaMaintenance");
- static readonly string MaintenanceExe=Path.Combine(MaintenanceRoot,"DoxaMaintenance.exe");
+ static readonly string MaintenanceExe=Path.Combine(MaintenanceRoot,"DoxaMaintenance-v2.exe");
  static readonly string Logs=Path.Combine(MaintenanceRoot,"Logs");
  static readonly string Shortcut=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonStartMenu),"Programs","Standivarius Doxa Setup.lnk");
  static readonly string RegKey=@"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\StandivariusDoxaSetup";
@@ -62,20 +62,30 @@ internal class DoxaHost {
  }
  // 0: no driver bound to matching hardware; 1: verified vendor + MS HW signer;
  // 2: matching identity bound to a different/untrusted package. Do not replace.
+ static int ClassifyDriver(string provider,string signer,bool signed){
+  // Microsoft USB composite/generic bindings and unconfigured PnP instances
+  // are NOT foreign display drivers. They are legitimate first-install states.
+  if(String.IsNullOrWhiteSpace(provider) ||
+     provider.Equals("Microsoft",StringComparison.OrdinalIgnoreCase) ||
+     provider.Equals("Microsoft Windows",StringComparison.OrdinalIgnoreCase))return 0;
+  if(provider.Equals("SiliconMotion",StringComparison.OrdinalIgnoreCase)&&
+     signed && signer.Equals("Microsoft Windows Hardware Compatibility Publisher",StringComparison.OrdinalIgnoreCase))return 1;
+  return 2; // Unknown third-party display binding or untrusted vendor signature.
+ }
  static int DriverState(){
   bool trusted=false;
   try{
    using(var q=new ManagementObjectSearcher("SELECT DeviceID,IsSigned,DriverProviderName,Signer FROM Win32_PnPSignedDriver"))
    foreach(ManagementObject m in q.Get()){
     if(!(Convert.ToString(m["DeviceID"])??"").StartsWith(UsbPrefix,StringComparison.OrdinalIgnoreCase))continue;
-    string provider=Convert.ToString(m["DriverProviderName"])??"";
-    string signer=Convert.ToString(m["Signer"])??"";
-    bool signed=Convert.ToBoolean(m["IsSigned"]);
-    if(!signed || !provider.Equals("SiliconMotion",StringComparison.OrdinalIgnoreCase) ||
-       !signer.Equals("Microsoft Windows Hardware Compatibility Publisher",StringComparison.OrdinalIgnoreCase))return 2;
-    trusted=true;
+    var provider=Convert.ToString(m["DriverProviderName"])??"";
+    var signer=Convert.ToString(m["Signer"])??"";
+    var signed=m["IsSigned"]!=null && Convert.ToBoolean(m["IsSigned"]);
+    int state=ClassifyDriver(provider,signer,signed);
+    if(state==2)return 2;
+    if(state==1)trusted=true;
    }
-  }catch{return 2;} // Unknown provider state is not permission to install over it.
+  }catch{return 2;} // A driver-query failure never authorizes replacing a driver.
   return trusted?1:0;
  }
  static string State(){
@@ -94,13 +104,13 @@ internal class DoxaHost {
      && Convert.ToString(key.GetValue("UninstallString"))=="\""+MaintenanceExe+"\" /uninstall";
    }
   }catch{return false;}
- } static bool DetectDecision(bool appValid,bool registered,bool usb,int driver){
-  // A pre-deployment app may be installed without Doxa connected. Once Doxa
-  // is connected, missing or untrusted hardware driver makes /detect FAIL.
-  return appValid && registered && (!usb || driver==1);
+ } static bool DetectDecision(bool appValid,bool registered){
+  // Endpoint managers detect software installation only. Hardware connection
+  // and driver health belong to /verify; USB hotplug must never flap /detect.
+  return appValid && registered;
  }
  static bool DetectApp(){
-  return DetectDecision(IsValidApp(AppRoot),IsRegistered(),PresentUsb(),DriverState());
+  return DetectDecision(IsValidApp(AppRoot),IsRegistered());
  }
  static string AllowedPath(string root,string rel){
   Require(!Path.IsPathRooted(rel)&&rel.Length>1&&!rel.Contains(":")&&!rel.Contains("..")&&!rel.Contains("\\\\"),
@@ -183,9 +193,21 @@ internal class DoxaHost {
  }
  static string RemoveAppFrom(string root){
   if(!Directory.Exists(root))return "AppAlreadyRemoved";
-  Require(IsValidApp(root),"Unknown or modified application folder: refusing to delete");
-  Directory.Delete(root,true);
-  return "AppRemoved";
+  var folder=new DirectoryInfo(root);
+  Require((folder.Attributes & FileAttributes.ReparsePoint)==0,
+    "Doxa application folder is redirected; refusing unsafe removal");
+  if(IsValidApp(root)){
+   Directory.Delete(root,true);
+   return "AppRemoved";
+  }
+  // Do not delete unknown or modified files. Atomically move the whole
+  // application directory aside on the same volume so uninstall and a clean
+  // subsequent reinstall can finish without destroying third-party content.
+  string parent=Path.GetDirectoryName(root);
+  string retained=Path.Combine(parent,"DoxaRetained-"+Guid.NewGuid().ToString("N"));
+  Directory.Move(root,retained);
+  Trace("Modified application retained for administrator inspection at "+retained);
+  return "AppRetainedForRecovery";
  }
  // Driver changes only after validated hardware, elevated Windows privilege
  // and pinned source. MSI 3010 is returned to IT; Doxa never restarts Windows.
@@ -252,9 +274,12 @@ internal class DoxaHost {
   string result=RemoveAppFrom(AppRoot);
   try{if(File.Exists(Shortcut))File.Delete(Shortcut);}catch(Exception e){Trace("Shortcut cleanup: "+e.GetType().Name);}
   Registry.LocalMachine.DeleteSubKey(RegKey,false);
-  // Windows does not let an EXE remove itself while it is running; schedule
-  // only the exact maintenance EXE for deletion on a later normal reboot.
-  if(File.Exists(MaintenanceExe))MoveFileEx(MaintenanceExe,null,4);
+  // Never queue delete-on-reboot: a reinstall could lose this executable.
+  // Delete immediately from SYSTEM deployments; when invoked as Windows
+  // Apps & Features, retain the running maintenance executable instead.
+  if(File.Exists(MaintenanceExe) &&
+     !Path.GetFullPath(SourceExe).Equals(Path.GetFullPath(MaintenanceExe),StringComparison.OrdinalIgnoreCase))
+    File.Delete(MaintenanceExe);
   Trace(result+"; signed display driver preserved");
   return result+"; DisplayDriverRetained";
  }
@@ -277,20 +302,27 @@ internal class DoxaHost {
    Require(InstallAppTo(testRoot,testPayload)=="AppInstalled","Fresh app installation failed");
    Require(IsValidApp(testRoot),"Installed app invalid");
    Require(InstallAppTo(testRoot,testPayload)=="AppAlreadyInstalled","Repeat install should be idempotent");
-   Require(DetectDecision(true,true,false,0),"Offline managed staging must detect installed app");
-   Require(DetectDecision(true,true,true,1),"Connected healthy Doxa should detect");
-   Require(!DetectDecision(true,true,true,0),"Connected device without driver must not be a false success");
-   Require(!DetectDecision(true,true,true,2),"Untrusted driver must not be a false success");
-   Require(!DetectDecision(true,false,false,0),"Missing Windows uninstall registration must not pass");
-   Require(!DetectDecision(false,true,false,0),"Uninstalled app must not pass");
-   string writable=Directory.GetFiles(testRoot,"*.ps1",SearchOption.AllDirectories).FirstOrDefault();
+   Require(DetectDecision(true,true),"Registered valid app should detect regardless of USB/driver");
+   Require(!DetectDecision(true,false),"Missing uninstall registration must fail detection");
+   Require(!DetectDecision(false,true),"App missing must fail detection");
+   Require(ClassifyDriver("Microsoft","Microsoft Windows",true)==0,"Generic first-use USB driver must be installable");
+   Require(ClassifyDriver("", "",false)==0,"Unconfigured USB device must be installable");
+   Require(ClassifyDriver("SiliconMotion","Microsoft Windows Hardware Compatibility Publisher",true)==1,
+           "Healthy signed driver must be preserved");
+   Require(ClassifyDriver("Unapproved vendor","Some signer",true)==2,"Foreign driver must block replacement");
+   Require(ClassifyDriver("SiliconMotion","",false)==2,"Unsigned vendor driver must block replacement");   string writable=Directory.GetFiles(testRoot,"*.ps1",SearchOption.AllDirectories).FirstOrDefault();
    Require(writable!=null,"Fixture has no script for tamper test");
    File.AppendAllText(writable,"\n# altered");
    Require(!IsValidApp(testRoot),"Modified app not rejected");
-   bool refused=false;try{RemoveAppFrom(testRoot);}catch(InvalidOperationException){refused=true;}
-   Require(refused && Directory.Exists(testRoot),"Unknown files were deleted or not refused");
-   // Only a disposable folder; no driver install, registry, Start menu or display changes.
-   return "PASS: embedded payload, install/retry/tamper, managed detection decisions; no system change";
+   Require(RemoveAppFrom(testRoot)=="AppRetainedForRecovery","Modified installation must be safely retained");
+   Require(!Directory.Exists(testRoot),"Modified installation must no longer block reinstall");
+   var retained=Directory.GetDirectories(folder,"DoxaRetained-*");
+   Require(retained.Length==1 && File.Exists(Path.Combine(retained[0],"manifest.json")),
+           "Modified application was not preserved for recovery");
+   Require(InstallAppTo(testRoot,testPayload)=="AppInstalled","Fresh reinstall after recovery must succeed");
+   Require(IsValidApp(testRoot),"Freshly reinstalled application must verify");
+   Require(RemoveAppFrom(testRoot)=="AppRemoved","Clean uninstall must remove owned files");   // Only a disposable folder; no driver install, registry, Start menu or display changes.
+   return "PASS: signed driver classification, software detection, safe retained-file recovery, reinstall and clean uninstall fixtures";
   }finally{
    try{if(Directory.Exists(folder))Directory.Delete(folder,true);}catch{}
    try{if(Directory.Exists(WorkingDirectory))Directory.Delete(WorkingDirectory,true);}catch{}
