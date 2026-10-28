@@ -1,4 +1,4 @@
-# Doxa Setup Preview.12 — owner feedback / logical task-flow correction
+# Doxa Setup Preview.12 â€” owner feedback / logical task-flow correction
 
 28 October 2026. Engineering candidate. Read-only hardware UI; no vendor driver change, Windows display-topology write or tenant deployment.
 
@@ -26,3 +26,7 @@ Preview.11 repeated primary navigation as bottom buttons and a second Connect Do
 
 ## Security/operational limits
 This remains an unsigned app-only preview. It has NO OEM MSI, complete elevated vendor-driver installation, rollback/recovery mechanism or production release signature. The earlier Preview.11 enterprise app-only wrapper versioned install/detect/upgrade contract remains the underlying deployment mechanism. No real Intune/ManageEngine deployment in this correction.
+## Verified final candidate artifacts (28 October 2026)
+- Personal app-only Preview.12: extracted package PASS, 20 hashed source files and 23 total archive entries; English/Romanian genuine same-window navigation PASS; no vendor driver or credentials. SHA-256 `C88DFEF2700D18C6E82F6144474E2DDDDBF41DC8306F2F8599C0FAE7F79E60A7`.
+- ManageEngine-ready app-only package: LOCAL_PASS, 18 isolated managed lifecycle checks, 20 source files and 23 application entries, 2 distribution files; no device/tenant deployment. SHA-256 `1B9868B0A87EA4DEAFCAC1D64A090CD4C2514B3B66B069EF49A35646E1825DA9`.
+- A rendered image of the actual Preview.12 Forms controls was inspected locally. No user hardware driver removal/reinstallation or display changes occurred.
