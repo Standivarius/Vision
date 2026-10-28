@@ -21,6 +21,10 @@ $toolSig=Get-AuthenticodeSignature $ContentPrepTool
 if($toolSig.Status -ne 'Valid' -or $toolSig.SignerCertificate.Subject -notmatch 'Microsoft Corporation'){throw 'Microsoft utility signature not valid'}
 $old=Get-Content (Join-Path $ReviewBuildDirectory 'RELEASE-MANIFEST.json') -Raw|ConvertFrom-Json
 if($old.product -ne 'Standivarius Doxa Setup' -or -not $old.validated_standalone){throw 'Review baseline not verified'}
+foreach($field in @('source_commit','native_host_source_sha256','retail_builder_source_sha256','embedded_application_payload_sha256','embedded_vendor_msi_sha256','embedded_package_source_sha256')){
+ if(-not $old.$field){throw ('Review baseline missing source provenance: '+$field)}
+}
+
 # Compare Authenticode-neutral PE bytes so signing cannot substitute changed code.
 # Only the Windows certificate table, certificate directory and PE checksum
 # may differ between the reviewed EXE and the final signed EXE.
@@ -64,7 +68,21 @@ $proof=[ordered]@{
 }
 $proof|ConvertTo-Json|Set-Content (Join-Path $evidence 'signed-packaging-test.json')
 $files=@(Get-ChildItem $OutputDirectory -File -Recurse|Sort-Object FullName|ForEach-Object {
- [ordered]@{relative=$_.FullName.Substring($OutputDirectory.Length+1).Replace('\','/');sha256=(Get-FileHash $_.FullName -Algorithm SHA256).Hash;bytes=$_.Length}
+ [ordered]@{path=$_.FullName.Substring($OutputDirectory.Length+1).Replace('\','/');sha256=(Get-FileHash $_.FullName -Algorithm SHA256).Hash;bytes=$_.Length}
 })
-[ordered]@{product='Standivarius Doxa Setup';status=$proof.status;signing=$proof;files=$files}|ConvertTo-Json -Depth 8|Set-Content (Join-Path $OutputDirectory 'RELEASE-MANIFEST.json')
+[ordered]@{
+ product='Standivarius Doxa Setup'
+ status=$proof.status
+ signing=$proof
+ source_commit=$old.source_commit
+ source_branch=$old.source_branch
+ native_host_source_sha256=$old.native_host_source_sha256
+ retail_builder_source_sha256=$old.retail_builder_source_sha256
+ embedded_application_payload_sha256=$old.embedded_application_payload_sha256
+ embedded_vendor_msi_sha256=$old.embedded_vendor_msi_sha256
+ embedded_package_source_sha256=$old.embedded_package_source_sha256
+ validated_standalone=$true
+ machine_install_and_signatures=@{ 'DoxaSetup.exe'=$proof.personal_signature;'DoxaDeploy.exe'=$proof.managed_signature }
+ files=$files
+}|ConvertTo-Json -Depth 8|Set-Content (Join-Path $OutputDirectory 'RELEASE-MANIFEST.json')
 $proof|ConvertTo-Json -Depth 4

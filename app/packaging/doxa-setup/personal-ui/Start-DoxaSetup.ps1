@@ -378,8 +378,8 @@ $guide.Add_Click({
  if(Test-Path -LiteralPath $helper){& $helper -Owner $form -Language $script:lang}
  else{Say 'Doxa' (T 'Guide unavailable. Open Windows Settings > System > Display manually.' 'Ghid indisponibil. Deschide Setari Windows > Sistem > Ecran.')}
 })
-$check.Add_Click({$script:fault='none';RefreshState})
-$reset.Add_Click({$script:fault='none';RefreshState})
+$check.Add_Click({$script:fault='none';$script:recoveryLabUnlocked=$false;RefreshState})
+$reset.Add_Click({$script:fault='none';$script:recoveryLabUnlocked=$false;RefreshState})
 $inject.Add_Click({
  if(-not $script:developerMode){return}
  $script:fault=@('driver_missing','display_missing','policy_blocked','package_mismatch','support_offline')[$faults.SelectedIndex]
@@ -454,7 +454,15 @@ $send.Add_Click({
   $assistantStatus.Text=T 'Doxa installation support only' 'Doar asistenta pentru instalarea Doxa'
   return
  }
- # Fault overlays are clearly simulations and must not send any simulated claims to AI.
+   # Ordinary developer fixture overlays stay offline. Only the locally code-
+  # unlocked recovery exercise may query AI, with the fault clearly described
+  # as hypothetical; it cannot send the unlock phrase or run AI commands.
+  $cloudQuestion=$q
+  if($script:fault -ne 'none' -and $script:recoveryLabUnlocked){
+   $cloudQuestion='DOXA DIAGNOSTIC EXERCISE: Simulated missing external Doxa screen. Actual Windows hardware and topology are unchanged. Describe safe recovery steps and how to verify power, USB data, Windows Extend and the Doxa panels. Do not imply that the fault is real. User question: '+$q.Substring(0,[Math]::Min(1100,$q.Length))
+   Say 'Doxa' (T 'This is a simulated failure, not an actual Windows display change. The online AI response will be guidance only.' 'Aceasta este o simulare; nu s-a modificat niciun ecran Windows. AI online ofera doar recomandari.')
+  }
+# Fault overlays are clearly simulations and must not send any simulated claims to AI.
  if($script:fault -ne 'none'){
   Say 'Doxa' (Answer $q)
   $assistantStatus.Text=T 'Test mode -- Local explanation' 'Mod de test -- Explicatie locala'
@@ -487,7 +495,7 @@ $send.Add_Click({
  $send.Enabled=$false
  $assistantStatus.Text=T 'Checking with Doxa AI... offline steps above are ready' 'Consultam Doxa AI... recomandarile offline sunt gata'
  try{
-  $script:aiJob=Start-Job -ScriptBlock {param($path,$question,$languageChoice) & $path -Question $question -Language $languageChoice -AIConsentGranted} -ArgumentList @($assistantScript,$q,$script:lang)
+  $script:aiJob=Start-Job -ScriptBlock {param($path,$question,$languageChoice) & $path -Question $question -Language $languageChoice -AIConsentGranted} -ArgumentList @($assistantScript,$cloudQuestion,$script:lang)
   $aiTimer.Start()
  }catch{
   $send.Enabled=$true

@@ -16,6 +16,7 @@ $items=@(
  'app/packaging/doxa-setup/knowledge/scope-policy.json',
  'app/packaging/doxa-setup/assistant/client-public-key.json',
  'app/packaging/doxa-setup/personal-ui/Start-DoxaSetup.ps1',
+ 'app/packaging/doxa-setup/personal-ui/Doxa-RecoveryLab.ps1',
  'app/packaging/doxa-setup/personal-ui/Doxa-BrandTabs.ps1',
  'app/packaging/doxa-setup/personal-ui/assets/standivarius-official-logo.png',
  'app/packaging/doxa-setup/personal-ui/Start-DoxaGuidedSetup.ps1',

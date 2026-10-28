@@ -235,7 +235,7 @@ $side.Controls.AddRange(@($modeOff,$modeOn))
 $chat.SetBounds(14,105,309,292)
 $ask.SetBounds(14,404,203,32);$send.SetBounds(228,404,95,32);$send.BackColor=$red
 $privacy=New-Object Windows.Forms.LinkLabel
-$privacy.Text='Privacy details for online AI';$privacy.SetBounds(14,440,302,31)
+$privacy.Text='Privacy details for online AI';$privacy.SetBounds(14,440,183,31)
 $privacy.LinkColor=$red
 $privacy.Add_LinkClicked({
  $f=Join-Path $PSScriptRoot 'AI-PRIVACY-NOTICE.txt'
@@ -248,6 +248,59 @@ $privacy.Add_LinkClicked({
  }catch{[Windows.Forms.MessageBox]::Show((T 'Privacy notice unavailable.' 'Informarea nu este disponibila.'),'Doxa')|Out-Null}
 })
 $side.Controls.Add($privacy)
+# Authorized recovery lab is OFF unless a local operator explicitly configures
+# a per-session password hash; an LLM cannot enable it or execute commands.
+. (Join-Path $PSScriptRoot 'Doxa-RecoveryLab.ps1')
+$script:recoveryLabUnlocked=$false
+$recoveryLab=New-Object Windows.Forms.LinkLabel
+$recoveryLab.Text='Recovery lab'
+$recoveryLab.SetBounds(205,440,125,31)
+$recoveryLab.LinkColor=$red
+$recoveryLab.Visible=[bool](Get-DoxaRecoveryLabEnabled)
+$recoveryLab.AccessibleName='Recovery lab - simulated missing screen only'
+$side.Controls.Add($recoveryLab)
+$recoveryLab.Add_LinkClicked({
+ if($script:recoveryLabUnlocked){
+  $script:recoveryLabUnlocked=$false;$script:fault='none'
+  $recoveryLab.Text=T 'Recovery lab' 'Test recuperare'
+  RefreshState
+  Say 'Doxa' (T 'Recovery test ended. Actual Windows state restored to view; no display setting was changed.' 'Testul s-a incheiat. Afisam din nou starea reala; nicio setare Windows nu a fost schimbata.')
+  return
+ }
+ if(-not(Get-DoxaRecoveryLabEnabled)){return}
+ $dlg=New-Object Windows.Forms.Form
+ $dlg.Text=T 'Unlock recovery lab' 'Deblocheaza testul de recuperare'
+ $dlg.ClientSize=New-Object Drawing.Size(480,190)
+ $dlg.StartPosition='CenterParent'
+ $lbl=New-Object Windows.Forms.Label
+ $lbl.Text=T 'Local test code (never sent online):' 'Cod local de test (nu este trimis online):'
+ $lbl.SetBounds(18,14,440,43)
+ $code=New-Object Windows.Forms.TextBox
+ $code.UseSystemPasswordChar=$true
+ $code.SetBounds(18,65,440,30)
+ $code.AccessibleName=T 'Recovery test unlock code' 'Cod de deblocare test'
+ $ok=New-Object Windows.Forms.Button
+ $ok.Text=T 'Unlock simulated fault' 'Deblocheaza simularea'
+ $ok.SetBounds(248,125,210,40)
+ $ok.DialogResult=[Windows.Forms.DialogResult]::OK
+ $dlg.Controls.AddRange(@($lbl,$code,$ok))
+ $dlg.AcceptButton=$ok
+ try{
+  if($dlg.ShowDialog($form) -ne [Windows.Forms.DialogResult]::OK){return}
+  $accepted=Test-DoxaRecoveryLabUnlock ([string]$code.Text)
+  $code.Clear()
+  if(-not $accepted){
+   [Windows.Forms.MessageBox]::Show((T 'Wrong test code; no changes made.' 'Cod incorect; nu s-a schimbat nimic.'),'Doxa')|Out-Null
+   return
+  }
+ }finally{$code.Clear();$dlg.Dispose()}
+ $script:recoveryLabUnlocked=$true
+ $script:fault='display_missing' # in-memory diagnostic fixture only
+ $recoveryLab.Text=T 'End recovery test' 'Inchide testul'
+ RefreshState
+ Say 'Doxa' (T 'TEST: One Doxa screen is reported missing for recovery practice. Your actual Windows screens are unchanged. You can ask Doxa online AI about this explicitly simulated fault if online AI is enabled.' 'TEST: Simulam lipsa unui ecran Doxa, fara sa modificam ecranele Windows. Poti intreba AI online despre aceasta simulare daca ai activat asistenta AI.')
+})
+
 $script:previousAIApproval=[bool]$script:cloudConsent
 $modeOff.Add_CheckedChanged({
  if(-not $modeOff.Checked){return}
@@ -325,6 +378,7 @@ function LayoutDoxa {
   $side.SetBounds(0,0,661,473)
   $chat.Width=628;$ask.Width=520;$send.Left=548;$send.Width=96
   $privacy.Top=440
+  $recoveryLab.Left=[Math]::Max(205,$side.Width-135)
  }else{
   $workspace.SetBounds(19,119,663,478)
   $sideHolder.SetBounds(699,119,($width-719),478)
@@ -358,6 +412,9 @@ $brandTranslations=@{
  'Offline help'='Ajutor offline'
  'Online AI'='AI online'
  'Privacy details for online AI'='Confidentialitate AI online'
+  'Install / check driver'='Instaleaza / verifica driverul'
+  'Recovery lab'='Test recuperare'
+  'End recovery test'='Inchide testul'
  'Doxa Help'='Asistenta Doxa'
 }
 function TranslateDoxa {
@@ -379,7 +436,10 @@ function TranslateDoxa {
  }
  Walk $form
  $check.Text=T 'Check connection' 'Verifica conexiunea'
- $check.AccessibleName=$check.Text
+   $check.AccessibleName=$check.Text
+  $driverAction.AccessibleDescription=T 'Checks the original signed embedded Windows driver; approval required if needed.' 'Verifica driverul Windows semnat inclus; daca este necesar, se solicita aprobarea.'
+  $settingsButton.AccessibleDescription=T 'Opens Windows display settings without changing them.' 'Deschide setarile ecranelor Windows fara sa le modifice.'
+  if($recoveryLab.Visible){$recoveryLab.Text=if($script:recoveryLabUnlocked){T 'End recovery test' 'Inchide testul'}else{T 'Recovery lab' 'Test recuperare'}}
  SelectDoxaPage $script:doxaCurrentPage
  $screenDiagram.Invalidate();$layoutDiagram.Invalidate();$ports.Invalidate()
 }
