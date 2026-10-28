@@ -117,6 +117,21 @@ function Open-Gui([switch]$Smoke) {
  $log.ReadOnly=$true;$log.Multiline=$true;$log.ScrollBars='Vertical';$log.SetBounds(18,331,723,160)
  $log.AccessibleName='Lab status and rollback instructions'
  $form.Controls.AddRange(@($description,$devices,$refresh,$dry,$owner,$laptop,$seconds,$secLabel,$run,$guide,$log))
+ $script:pendingFaultLabSnapshot=''
+ $restoreTimer=New-Object Windows.Forms.Timer
+ $restoreTimer.Interval=1000
+ $restoreTimer.Add_Tick({
+  $f=$script:pendingFaultLabSnapshot
+  if($f -and (Test-Path -LiteralPath ($f+'.done'))){
+   $outcome=(Get-Content -LiteralPath ($f+'.done') -Raw -ErrorAction SilentlyContinue).Trim()
+   $restoreTimer.Stop()
+   $log.AppendText('WATCHDOG RESULT: '+$outcome+[Environment]::NewLine)
+   $script:pendingFaultLabSnapshot=''
+   $run.Enabled=$outcome.StartsWith('RESTORED')
+   if(-not $run.Enabled){$log.AppendText('Restore NOT confirmed. Recheck the laptop and restore manually before another test.'+[Environment]::NewLine)}
+  }
+ })
+ $form.Add_FormClosing({$restoreTimer.Stop()})
  $listScreens={
   $devices.Items.Clear()
   foreach($name in @(Get-ActiveNames)){[void]$devices.Items.Add($name)}
@@ -139,17 +154,29 @@ function Open-Gui([switch]$Smoke) {
    $name=[string]$devices.SelectedItem
    $question='Temporarily disable '+$name+' for '+$seconds.Value+' seconds? A separate process will automatically restore the saved topology. The primary laptop display stays active.'
    if([Windows.Forms.MessageBox]::Show($question,'Confirm physical display test','YesNo','Warning') -ne [Windows.Forms.DialogResult]::Yes){return}
+   $run.Enabled=$false
    $log.AppendText('Preparing isolated rollback watchdog...'+[Environment]::NewLine)
    [Windows.Forms.Application]::DoEvents()
    $output=(& $native --trial $name ([int]$seconds.Value) ('DISABLE '+$name) 2>&1|Out-String)
    if($LASTEXITCODE -ne 0){throw $output}
    $log.AppendText($output+[Environment]::NewLine)
-   $log.AppendText('Do not unplug the laptop or close Windows during the test. Automatic restore is armed.'+[Environment]::NewLine)
-  }catch{$log.AppendText("NOT STARTED / ERROR: "+$_.Exception.Message+[Environment]::NewLine)}
+   if($output -match '(?m)^RESTORE_BACKUP=(.+)$'){
+    $script:pendingFaultLabSnapshot=$matches[1].Trim()
+    $restoreTimer.Start()
+   }else{throw 'No rollback backup location returned'}
+   $log.AppendText('Do not unplug the laptop or close Windows during the test. The Run button stays locked until the watchdog confirms restore.'+[Environment]::NewLine)
+  }catch{
+   $log.AppendText("NOT STARTED / ERROR: "+$_.Exception.Message+[Environment]::NewLine)
+   if(-not $script:pendingFaultLabSnapshot){
+    $checkPending=(& $native --pending 2>&1|Out-String)
+    if($LASTEXITCODE -eq 0){$run.Enabled=$true}
+    else{$log.AppendText('Another recovery is pending. Close this window, restore the original topology, then retry.'+[Environment]::NewLine)}
+   }
+  }
  })
  & $listScreens
  if($Smoke){
-  if($devices.Items.Count -lt 1){throw 'No external screen choices in the GUI'}
+  if($devices.Items.Count -lt 1){$run.Enabled=$false;$log.AppendText('No external Windows display is active. No real trial is available.'+[Environment]::NewLine)}
   $fields=@($owner,$laptop,$run,$dry,$devices,$seconds,$log)
   if(@($fields|Where-Object{$null -eq $_}).Count){throw 'Missing GUI controls'}
   $screenCount=$devices.Items.Count
@@ -182,9 +209,15 @@ if($SelfTest){
   $output=(& $native --preflight $name|Out-String)
   $tests+= [pscustomobject]@{display=$name;dry_run_status=if($LASTEXITCODE -eq 0){'PASS'}else{'UNSUPPORTED_SAFE_BLOCK'}}
  }
+ if($tests.Count -gt 0 -and @($tests|Where-Object {$_.dry_run_status -ne 'PASS'}).Count -gt 0){
+  throw 'An external path did not pass Windows read-only validation'
+ }
+ $liveDisplayStatus=if($tests.Count -eq 0){'NOT_AVAILABLE_NO_EXTERNAL_SCREENS'}else{'PASS'}
+ & $native --guard-test | Out-Null
+ if($LASTEXITCODE -ne 0){throw 'Overlapping-trial guard failed'}
  $sim=@('screen-missing-simulation','driver-missing-simulation','blocked-policy-simulation','package-mismatch-simulation','assistant-unavailable-simulation')
  foreach($scenario in $sim){$result=Perform-Simulation $scenario;if(!$result.test_only -or $result.display_changed){throw 'Simulated scenario escaped its guard'}}
- [pscustomobject]@{status='PASS';primary_protected=$true;external_dry_run=$tests;simulations_passed=$sim.Count;windows_mutations=0;driver_changes=0}|ConvertTo-Json -Depth 5
+ [pscustomobject]@{status='PASS';external_display_validation=$liveDisplayStatus;primary_protected=$true;external_dry_run=$tests;simulations_passed=$sim.Count;windows_mutations=0;driver_changes=0}|ConvertTo-Json -Depth 5
  return
 }
 if($RestoreSnapshot){

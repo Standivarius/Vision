@@ -23,15 +23,17 @@ $before=@([Windows.Forms.Screen]::AllScreens).Count
 $list=(& $native --list|Out-String)
 $after=@([Windows.Forms.Screen]::AllScreens).Count
 if($before -ne $after){throw 'Read-only test changed display count'}
-if($list -notmatch 'primary=True internal=True'){throw 'Internal laptop path not protected'}
+if($check.external_display_validation -eq 'PASS' -and $list -notmatch 'primary=True internal=True'){throw 'Internal laptop path not protected'}
 [pscustomobject]@{
- status='PASS'
+ status=if($check.external_display_validation -eq 'PASS'){'PASS'}else{'PASS_SOURCE_ONLY_LIVE_EXTERNAL_UNAVAILABLE'}
+ external_display_validation=$check.external_display_validation
  catalog_items=$ids.Count
  simulated_faults=$check.simulations_passed
  external_displays_validated=@($check.external_dry_run).Count
  primary_protected=$check.primary_protected
  snapshot_serialization='PASS'
  gui_smoke='PASS'
+ overlap_guard='PASS_READONLY_MARKER_TEST'
  auto_rollback_design='INSPECTED_NOT_PHYSICALLY_EXECUTED'
  visible_displays_unchanged=($before -eq $after)
  mutations=0

@@ -127,7 +127,7 @@ $brandCheck=(& $mainBrand -BrandTest | Out-String)|ConvertFrom-Json
   $aiStatus=[string]$reply.status
   if($aiStatus -ne 'answered'){throw ('Extracted client did not reach live Doxa AI: '+$aiStatus)}
  }
- [ordered]@{status='PASS';file_integrity_verified=$checked;archive_total_files=$all.Count;driver_payload_bundled=$false;credentials_bundled=$false;extracted_away_from_repository=$true;journey=$result.journey;simulated_fault_did_not_call_ai=$result.fault_did_not_call_ai;driver_install_prevented_safely=$true;installation_button_result=$result.install_button;cloud_ai=$aiStatus;multidevice_identity_tested=$true;bilingual_ui_verified=$true;consent_before_diagnostics=$true;same_window_navigation_passed=$true;single_window_transition=$true;single_window_transition_verified=$true}|ConvertTo-Json -Compress
+ [ordered]@{status='PASS';file_integrity_verified=$checked;archive_total_files=$all.Count;driver_payload_bundled=$false;credentials_bundled=$false;extracted_away_from_repository=$true;journey=$result.journey;simulated_fault_did_not_call_ai=$result.fault_did_not_call_ai;driver_install_prevented_safely='NOT_PHYSICALLY_TESTED';installation_button_result=$result.install_button;cloud_ai=$aiStatus;multidevice_identity_tested='PNP_FIXTURE_ONLY';bilingual_ui_verified='UI_FIXTURE_ONLY';consent_before_diagnostics=$true;same_window_navigation_passed=$true;single_window_transition=$true;single_window_transition_verified=$true}|ConvertTo-Json -Compress
 }finally{
  Set-Location -LiteralPath $before
  if(Test-Path -LiteralPath $testRoot){Remove-Item -LiteralPath $testRoot -Recurse -Force}

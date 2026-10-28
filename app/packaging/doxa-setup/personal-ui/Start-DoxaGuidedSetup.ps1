@@ -1,4 +1,4 @@
-param([switch]$Smoke,[switch]$JourneyTest,[switch]$SeamlessTest,[ValidateSet('connected','without_doxa')][string]$TestConnectionChoice='without_doxa',[switch]$TestAIAllowed,[ValidateSet('en','ro')][string]$Language='en')
+param([switch]$Smoke,[switch]$JourneyTest,[switch]$SeamlessTest,[ValidateSet('connected','without_doxa')][string]$TestConnectionChoice='without_doxa',[switch]$TestAIAllowed,[switch]$LocalConsentAlreadyGranted,[ValidateSet('en','ro')][string]$Language='en')
 # Consent-first welcome. No hardware enumeration or remote AI call occurs before consent.
 # Reading the organization cloud-AI prohibition is a local policy check only.
 $ErrorActionPreference='Stop'
@@ -45,6 +45,9 @@ $local.Text='I allow local read-only checks of Windows version, USB controllers,
 $local.CheckAlign='TopLeft'
 $local.TabIndex=1
 $local.AccessibleName='Local read-only diagnostics permission'
+# Native host already asked for this exact permission. Keep visible for
+# transparency, but do not ask the person to approve it twice.
+if($LocalConsentAlreadyGranted){$local.Checked=$true;$local.Enabled=$false}
 $form.Controls.Add($local)
 $localDetails=New-Object System.Windows.Forms.LinkLabel
 $localDetails.SetBounds(35,277,671,26)
@@ -73,10 +76,12 @@ $cloud.AccessibleName='Optional online AI permission'
 $form.Controls.Add($cloud)
 $policyScript=Join-Path $PSScriptRoot 'Get-DoxaCloudAIPolicy.ps1'
 $policy=(& $policyScript|Out-String)|ConvertFrom-Json
-if(-not [bool]$policy.cloud_ai_allowed){
+if(-not [bool]$policy.online_ai_selectable){
  $cloud.Checked=$false
  $cloud.Enabled=$false
- $cloud.Text='Cloud AI is disabled by your organization. Offline Doxa setup is available.'
+ $cloud.Text=if([bool]$policy.online_ai_selectable){
+  'Online AI requires an approved Doxa support device. Use offline help; this setup cannot self-enroll.'
+ }else{'Cloud AI is disabled by your organization. Offline Doxa setup is available.'}
 }
 $privacy=New-Object System.Windows.Forms.LinkLabel
 $privacy.Text='What is sent to cloud AI? Privacy and AI details'
@@ -145,10 +150,11 @@ function ShowStep {
  }else{
   T 'Choose your starting point. You can check Windows and USB capabilities without Doxa, but connection quality and the external screens need actual hardware.' 'Alege cum incepi. Poti verifica Windows si USB fara Doxa, dar conexiunea si ecranele externe necesita dispozitivul real.'
  }
- $local.Text=T 'I allow local read-only checks of Windows version, USB controllers, display devices and installed driver packages.' 'Permit verificari locale, fara modificari, ale Windows, USB, ecranelor si driverelor instalate.'
- $cloud.Text=if([bool]$policy.cloud_ai_allowed){
+ $local.Text=if($LocalConsentAlreadyGranted){T 'Local read-only checks already approved in Doxa Setup.' 'Verificarile locale au fost deja aprobate in configurarea Doxa.'}else{T 'I allow local read-only checks of Windows version, USB controllers, display devices and installed driver packages.' 'Permit verificari locale, fara modificari, ale Windows, USB, ecranelor si driverelor instalate.'}
+ $cloud.Text=if([bool]$policy.online_ai_selectable){
    T 'Optional remote AI: send the question you type and limited Windows/Doxa diagnostic facts over HTTPS to a Cloudflare-hosted AI service. No screenshots, raw USB identifiers or passwords. You can continue without AI.' 'AI online optional: intrebarea si date limitate despre Windows/Doxa sunt trimise prin HTTPS catre Cloudflare. Nu trimitem capturi de ecran, identificatori USB completi sau parole. Poti continua fara AI.'
- }else{T 'Cloud AI is disabled by your organization. Offline Doxa setup is available.' 'Organizatia a dezactivat AI online. Poti utiliza Doxa offline.'}
+ }elseif(-not [bool]$policy.cloud_ai_allowed){T 'Cloud AI is disabled by your organization. Offline Doxa setup is available.' 'Organizatia a dezactivat AI online. Poti utiliza Doxa offline.'}
+ else{T 'Online AI needs approved device enrollment. Continue with offline Doxa help.' 'AI online necesita inregistrarea dispozitivului. Continua cu asistenta Doxa offline.'}
  $privacy.Text=T 'What is sent to cloud AI? Privacy and AI details' 'Ce date trimite AI online? Confidentialitate si detalii'
  $localDetails.Text=T 'What does this local check read?' 'Ce citeste verificarea locala?'
  $connect.Text=T 'I will connect Doxa now (or it is already connected)' 'Conectez Doxa acum (sau este deja conectat)'
@@ -172,7 +178,7 @@ $next.Add_Click({
    return
   }
   $script:localAllowed=$true
-  $script:aiAllowed=([bool]$cloud.Checked -and [bool]$policy.cloud_ai_allowed)
+   $script:aiAllowed=([bool]$cloud.Checked -and [bool]$policy.online_ai_selectable)
   $script:page=2
   ShowStep
   return

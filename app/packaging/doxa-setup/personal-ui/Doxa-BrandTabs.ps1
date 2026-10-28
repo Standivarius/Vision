@@ -206,17 +206,26 @@ $driverAction.Add_Click({
   Say 'Doxa' (T 'Open the original Standivarius Doxa Windows installer to install the driver.' 'Deschide instalatorul Doxa pentru Windows ca sa instalezi driverul.')
   return
  }
- try {
-  $process=Start-Process -FilePath $native -ArgumentList '/install' -Verb RunAs -PassThru -Wait
-  if($process.ExitCode -in @(0,3010)){
-   RefreshState
-   Say 'Doxa' (T 'Windows has completed its driver check. Verify all external screens. If requested, restart at a convenient time.' 'Windows a incheiat verificarea driverului. Verifica ecranele externe. Daca este necesar, reporneste cand este convenabil.')
-  }else{
+  if(-not($script:current -and $script:current.observed.doxa_hardware_detected)){
+   Say 'Doxa' (T 'Connect Doxa power first and USB data second, then select Detect Doxa before installing the signed driver.' 'Conecteaza intai alimentarea Doxa, apoi cablul USB de date. Apasa Detecteaza Doxa inainte de instalarea driverului.')
+   return
+  }
+  try {
+   $driverAction.Enabled=$false
+   $process=Start-Process -FilePath $native -ArgumentList '/install' -Verb RunAs -PassThru -Wait
+   if($process.ExitCode -in @(0,3010)){
+    RefreshState
+    if($process.ExitCode -eq 3010){
+     Say 'Doxa' (T 'The signed driver installer requests a Windows restart. Save your work and restart when convenient; Doxa never restarts automatically.' 'Instalatorul driverului semnat solicita repornirea Windows. Salveaza lucrul si reporneste cand poti; Doxa nu reporneste automat.')
+    }else{
+     Say 'Doxa' (T 'The installer finished. Select Detect Doxa to verify driver binding and all three screens; installation success alone does not prove the displays work.' 'Instalarea s-a incheiat. Apasa Detecteaza Doxa pentru a verifica driverul si cele trei ecrane; succesul instalarii nu confirma ecranele.')
+    }
+   }else{
    Say 'Doxa' (T 'Windows driver setup was not completed. Ask IT to check the Doxa installer logs.' 'Instalarea driverului nu s-a incheiat. Solicita IT sa verifice jurnalul instalatorului Doxa.')
   }
- }catch{
-  Say 'Doxa' (T 'Administrator approval was declined or setup could not start.' 'Aprobarea administratorului a fost refuzata sau instalarea nu a pornit.')
- }
+  }catch{
+   Say 'Doxa' (T 'Administrator approval was declined or setup could not start.' 'Aprobarea administratorului a fost refuzata sau instalarea nu a pornit.')
+  }finally{$driverAction.Enabled=$true}
 })
 $reinstall.Visible=$false
 $official.SetBounds(14,401,450,30);$official.LinkColor=$red;$install.Controls.Add($official)
@@ -231,11 +240,19 @@ $modeOff=New-Object Windows.Forms.RadioButton
 $modeOff.SetBounds(14,70,143,28);$modeOff.Text='Offline help';$modeOff.Checked=(-not $script:cloudConsent)
 $modeOn=New-Object Windows.Forms.RadioButton
 $modeOn.SetBounds(169,70,146,28);$modeOn.Text='Online AI';$modeOn.Checked=[bool]$script:cloudConsent
+$initialOnlinePolicy=(& $script:cloudPolicyScript|Out-String)|ConvertFrom-Json
+if(-not [bool]$initialOnlinePolicy.online_ai_selectable){
+ $modeOn.Enabled=$false
+ $modeOn.Checked=$false
+ $modeOff.Checked=$true
+ $script:cloudConsent=$false
+ $modeOn.AccessibleDescription=if([bool]$initialOnlinePolicy.cloud_ai_allowed){'Requires approved Doxa device enrollment. Offline help remains available.'}else{'Disabled by organization policy.'}
+}
 $side.Controls.AddRange(@($modeOff,$modeOn))
 $chat.SetBounds(14,105,309,292)
 $ask.SetBounds(14,404,203,32);$send.SetBounds(228,404,95,32);$send.BackColor=$red
 $privacy=New-Object Windows.Forms.LinkLabel
-$privacy.Text='Privacy details for online AI';$privacy.SetBounds(14,440,183,31)
+$privacy.Text='Privacy details for online AI';$privacy.SetBounds(14,440,188,31)
 $privacy.LinkColor=$red
 $privacy.Add_LinkClicked({
  $f=Join-Path $PSScriptRoot 'AI-PRIVACY-NOTICE.txt'
@@ -315,7 +332,10 @@ $modeOff.Add_CheckedChanged({
 $modeOn.Add_CheckedChanged({
  if(-not $modeOn.Checked){return}
  $policy=(& $script:cloudPolicyScript | Out-String)|ConvertFrom-Json
- if(-not [bool]$policy.cloud_ai_allowed){$modeOff.Checked=$true;return}
+  if(-not [bool]$policy.online_ai_selectable){
+   $assistantStatus.Text=T 'Online AI requires approved device enrollment. Offline help is available.' 'AI online necesita inregistrarea dispozitivului. Asistenta offline este disponibila.'
+   $modeOff.Checked=$true;return
+  }
  if(-not $script:previousAIApproval){
   $msg=T 'Online AI sends your typed question and limited Doxa/Windows diagnostics over HTTPS. No screenshots. Allow online AI this session?' 'AI online trimite intrebarea si diagnostice limitate Doxa/Windows prin HTTPS. Fara capturi de ecran. Permiti AI online in aceasta sesiune?'
   $answer=[Windows.Forms.MessageBox]::Show($msg,'Doxa online AI',[Windows.Forms.MessageBoxButtons]::YesNo,[Windows.Forms.MessageBoxIcon]::Question,[Windows.Forms.MessageBoxDefaultButton]::Button2)

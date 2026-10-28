@@ -3,6 +3,7 @@ param(
  [Parameter(Mandatory=$true)][string]$SignedPersonalExe,
  [Parameter(Mandatory=$true)][string]$SignedManagedExe,
  [Parameter(Mandatory=$true)][string]$ExpectedPublisherSubject,
+ [Parameter(Mandatory=$true)][string]$ExpectedPublisherThumbprint,
  [Parameter(Mandatory=$true)][string]$OutputDirectory,
  [string]$ContentPrepTool='C:\dev\Vision\tools\intune-win32-content-prep-v1.8.7\IntuneWinAppUtil.exe'
 )
@@ -11,16 +12,25 @@ param(
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
 if(Test-Path $OutputDirectory){throw 'Refusing to overwrite a release'}
+if($ExpectedPublisherThumbprint -notmatch '^[A-Fa-f0-9]{40}$'){throw 'Provide exact trusted publisher certificate thumbprint, 40 hexadecimal characters'}
 foreach($f in @($SignedPersonalExe,$SignedManagedExe)){
  if(-not(Test-Path $f -PathType Leaf)){throw 'Missing signed executable'}
  $s=Get-AuthenticodeSignature $f
  if($s.Status -ne 'Valid' -or -not $s.SignerCertificate){throw 'Publisher signature not valid'}
  if($s.SignerCertificate.Subject -notmatch [regex]::Escape($ExpectedPublisherSubject)){throw 'Wrong publisher identity'}
+ if($s.SignerCertificate.Thumbprint -ine $ExpectedPublisherThumbprint){throw 'Wrong publisher certificate thumbprint'}
+ if(-not $s.TimeStamperCertificate){throw 'Timestamped Authenticode signature required for production'}
 }
 $toolSig=Get-AuthenticodeSignature $ContentPrepTool
 if($toolSig.Status -ne 'Valid' -or $toolSig.SignerCertificate.Subject -notmatch 'Microsoft Corporation'){throw 'Microsoft utility signature not valid'}
 $old=Get-Content (Join-Path $ReviewBuildDirectory 'RELEASE-MANIFEST.json') -Raw|ConvertFrom-Json
 if($old.product -ne 'Standivarius Doxa Setup' -or -not $old.validated_standalone){throw 'Review baseline not verified'}
+foreach($pair in @(@('Personal/DoxaSetup.exe','Personal\DoxaSetup.exe'),@('ManageEngine/DoxaDeploy.exe','ManageEngine\DoxaDeploy.exe'))){
+ $record=@($old.files|Where-Object{$_.path -eq $pair[0]})
+ if($record.Count -ne 1 -or [string]$record[0].sha256 -notmatch '^[A-Fa-f0-9]{64}$'){throw ('Reviewed executable digest missing: '+$pair[0])}
+ $unsigned=Join-Path $ReviewBuildDirectory $pair[1]
+ if(-not(Test-Path -LiteralPath $unsigned) -or (Get-FileHash $unsigned -Algorithm SHA256).Hash -ine [string]$record[0].sha256){throw ('Review baseline executable modified: '+$pair[0])}
+}
 foreach($field in @('source_commit','native_host_source_sha256','retail_builder_source_sha256','embedded_application_payload_sha256','embedded_vendor_msi_sha256','embedded_package_source_sha256')){
  if(-not $old.$field){throw ('Review baseline missing source provenance: '+$field)}
 }
@@ -60,6 +70,8 @@ Copy-Item (Join-Path $ReviewBuildDirectory 'README-FIRST.txt') (Join-Path $Outpu
 $proof=[ordered]@{
  status='SIGNED_PACKAGING_PASS_PENDING_PHYSICAL_AND_MANAGED_QUALIFICATION'
  publisher_subject=$ExpectedPublisherSubject
+ publisher_thumbprint=$ExpectedPublisherThumbprint.ToUpperInvariant()
+ timestamped_signatures_verified=$true
  personal_signature=(Get-AuthenticodeSignature (Join-Path $personal 'DoxaSetup.exe')).Status.ToString()
  managed_signature=(Get-AuthenticodeSignature (Join-Path $managed 'DoxaDeploy.exe')).Status.ToString()
  embedded_test=$test

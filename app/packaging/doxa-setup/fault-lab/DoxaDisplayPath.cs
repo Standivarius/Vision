@@ -124,6 +124,9 @@ public class DoxaDisplayPath {
   if(String.IsNullOrWhiteSpace(snap.originalPrimary))throw new InvalidOperationException("Cannot identify primary monitor");
   if(String.Equals(device,snap.originalPrimary,StringComparison.OrdinalIgnoreCase))throw new InvalidOperationException("Primary display cannot be disabled");
   if(IsEmbedded(selected.targetInfo.outputTechnology))throw new InvalidOperationException("Internal laptop panel cannot be disabled");
+  string panelIdentity=TargetName(selected.targetInfo);
+  if(!new[]{"L","T","R"}.Contains(panelIdentity,StringComparer.OrdinalIgnoreCase))
+   throw new InvalidOperationException("Only a recognized Doxa L/T/R panel can be selected; generic external monitors are not eligible");
   if(!selected.targetInfo.targetAvailable)throw new InvalidOperationException("Selected display target unavailable");
   // Fail closed for clone paths or virtual modes that cannot be uniquely attributed.
   if(names.Count(n=>String.Equals(n,device,StringComparison.OrdinalIgnoreCase))!=1)throw new InvalidOperationException("Cloned display not supported");
@@ -145,6 +148,29 @@ public class DoxaDisplayPath {
  static DoxaSavedTopology ReadSnapshot(string file){
   if(!File.Exists(file)||new FileInfo(file).Length>1000000)throw new InvalidOperationException("Invalid saved topology");
   using(var stream=File.OpenRead(file))return (DoxaSavedTopology)new XmlSerializer(typeof(DoxaSavedTopology)).Deserialize(stream);
+ }
+
+ static string RunsRoot {
+  get {return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+   "Standivarius","DoxaFaultLab","runs");}
+ }
+ static string[] PendingSnapshots(){
+  if(!Directory.Exists(RunsRoot))return new string[0];
+  return Directory.GetFiles(RunsRoot,"topology.xml.armed",SearchOption.AllDirectories)
+   .Where(a=>!File.Exists(a.Substring(0,a.Length-".armed".Length)+".done") ||
+      !File.ReadAllText(a.Substring(0,a.Length-".armed".Length)+".done").StartsWith("RESTORED"))
+   .ToArray();
+ }
+ static void RequireNoPendingTrial(){
+  var pending=PendingSnapshots();
+  if(pending.Length!=0)throw new InvalidOperationException(
+   "Another display test is pending or its rollback failed; confirm all screens and recover the existing trial before starting a new one. First marker: "+pending[0]);
+ }
+ static string SerializeTopology(DoxaSavedTopology snapshot){
+  using(var writer=new StringWriter()){
+   new XmlSerializer(typeof(DoxaSavedTopology)).Serialize(writer,snapshot);
+   return writer.ToString();
+  }
  }
  static bool Restore(string file){
   var snapshot=ReadSnapshot(file);
@@ -171,6 +197,9 @@ public class DoxaDisplayPath {
    }
    if(!File.Exists(armed))return;
    Thread.Sleep(seconds*1000);
+   // If an operator already restored it manually, NEVER reapply the older
+   // snapshot while a later test may have started.
+   if(File.Exists(done) && File.ReadAllText(done).StartsWith("RESTORED"))return;
    bool restored=Restore(file);
    File.WriteAllText(done,restored?"RESTORED":"FAILED: use Windows+P, Extend or Display settings");
   }catch(Exception ex){
@@ -181,6 +210,12 @@ public class DoxaDisplayPath {
   if(seconds<15||seconds>90)throw new InvalidOperationException("Recovery seconds must be between 15 and 90");
   if(Process.GetCurrentProcess().SessionId==0||SystemInformation.TerminalServerSession)
    throw new InvalidOperationException("Live display test requires local interactive Windows session");
+  // Interprocess trial lock + persistent pending markers prevent overlapping
+  // snapshots: second watchdog could otherwise restore a reduced topology.
+  using(var trialGate=new Mutex(false,@"Local\StandivariusDoxaFaultLabTrialGate")){
+   if(!trialGate.WaitOne(0))throw new InvalidOperationException("A Doxa display trial is already being prepared");
+   try {
+  RequireNoPendingTrial();
   var snapshot=Snapshot();
   int index=TargetIndex(snapshot,device);
   if(ack!="DISABLE "+device)throw new InvalidOperationException("Explicit target confirmation missing");
@@ -217,6 +252,8 @@ public class DoxaDisplayPath {
   Console.WriteLine("RESTORE_BACKUP="+file);
   Console.WriteLine("MANUAL_RESTORE_COMMAND=\""+self+"\" --restore \""+file+"\"");
   Console.WriteLine("Recovery watchdog independently restores the original CCD topology after the timeout.");
+   }finally{trialGate.ReleaseMutex();}
+  }
  }
  static int Main(string[] args){
   try{
@@ -233,9 +270,8 @@ public class DoxaDisplayPath {
     try{
      WriteSnapshot(file,snapshot);
      var restored=ReadSnapshot(file);
-     if(restored.paths.Length!=snapshot.paths.Length || restored.modes.Length!=snapshot.modes.Length ||
-        restored.originalPrimary!=snapshot.originalPrimary || restored.session!=snapshot.session)
-      throw new InvalidOperationException("Topology backup serialization changed during roundtrip");
+     if(SerializeTopology(restored)!=SerializeTopology(snapshot))
+      throw new InvalidOperationException("Topology path/mode content changed during backup roundtrip");
      Console.WriteLine("PASS: complete active Windows topology backup serialized and restored in memory; NO DISPLAY CHANGE");
      return 0;
     }finally{Directory.Delete(dir,true);}
@@ -260,7 +296,29 @@ public class DoxaDisplayPath {
     Watchdog(args[1],sec);return 0;
    }
    if(args[0]=="--restore"&&args.Length==2){
-    bool ok=Restore(args[1]);Console.WriteLine("RESTORE="+(ok?"PASS":"FAILED"));return ok?0:3;
+    bool ok=Restore(args[1]);
+    if(ok)File.WriteAllText(args[1]+".done","RESTORED MANUALLY");
+    Console.WriteLine("RESTORE="+(ok?"PASS":"FAILED"));return ok?0:3;
+   }
+   if(args[0]=="--pending"&&args.Length==1){
+    string[] pending=PendingSnapshots();
+    Console.WriteLine("PENDING_TRIALS="+pending.Length);
+    foreach(string path in pending)Console.WriteLine(path);
+    return pending.Length==0?0:4;
+   }
+   if(args[0]=="--guard-test"&&args.Length==1){
+    RequireNoPendingTrial();
+    string testDir=Path.Combine(RunsRoot,"selftest-"+Guid.NewGuid().ToString("N"));
+    Directory.CreateDirectory(testDir);
+    string marker=Path.Combine(testDir,"topology.xml.armed");
+    try{
+     File.WriteAllText(marker,"TEST NO DISPLAY CHANGE");
+     bool rejected=false;
+     try{RequireNoPendingTrial();}catch(InvalidOperationException){rejected=true;}
+     if(!rejected)throw new InvalidOperationException("Concurrent trial marker was not rejected");
+     Console.WriteLine("PASS: overlapping-trial guard rejected pending recovery; NO DISPLAY CHANGE");
+     return 0;
+    }finally{Directory.Delete(testDir,true);}
    }
    throw new InvalidOperationException("Use --list, --preflight DEVICE, --trial DEVICE SECONDS ACK, --restore BACKUP");
   }catch(Exception ex){Console.Error.WriteLine("FAULT_LAB_ERROR="+ex.Message);return 1;}

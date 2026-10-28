@@ -282,11 +282,10 @@ function Say([string]$speaker,[string]$body){
  $chat.AppendText($body+$nl+$nl)
  $chat.ScrollToCaret()
 }
-function RefreshState {
+function RefreshStateNow([object]$preparedResult=$null,[object]$preparedCompatibility=$null) {
  try{
   $assistantStatus.Text=T 'Checking Windows and Doxa (read-only)...' 'Verificam Windows si Doxa (fara modificari)...'
-  [Windows.Forms.Application]::DoEvents()
-  $result=& $diagnose -Fault $script:fault -Language $script:lang | Out-String | ConvertFrom-Json
+  $result=if($null -ne $preparedResult){$preparedResult}else{& $diagnose -Fault $script:fault -Language $script:lang | Out-String | ConvertFrom-Json}
   $script:current=$result
   $d=$result.observed
   $stateKey=($result.code+'|'+[string]$d.driver_version+'|'+[string]$d.active_desktops+'|'+[string]@($d.pnp_doxa_panels).Count+'|'+[string]$script:fault)
@@ -330,16 +329,16 @@ function RefreshState {
   if(-not $result.test_only -and $result.code -eq 'doxa_not_detected' -and $d.driver_package_in_store){
    $advice+=' '+(T 'The Silicon Motion driver package is still installed in Windows. Do not reinstall it; reconnect Doxa and check again.' 'Pachetul driver Silicon Motion este inca instalat in Windows. Nu il reinstala; reconecteaza Doxa si verifica din nou.')
   }
-  if($stateChanged){Say 'Doxa' $advice}
+  # Hardware state belongs in the Detect Doxa status panel, not in conversation history.
   if(-not $result.test_only){
    # Refresh the expensive Windows USB compatibility census only when relevant state changed.
    if($stateChanged){
-    $preflight=(& $compatibilityScript -ConnectionChoice $script:connectionChoice -Language $script:lang|Out-String)|ConvertFrom-Json
+     $preflight=if($null -ne $preparedCompatibility){$preparedCompatibility}else{(& $compatibilityScript -ConnectionChoice $script:connectionChoice -Language $script:lang|Out-String)|ConvertFrom-Json}
    $script:compatibility=$preflight
    $summary=(T 'Pre-check: ' 'Verificare preliminara: ')+[string]$preflight.recommendation
    $summary+=' '+(T 'USB controllers seen: ' 'Controlere USB detectate: ')+[string]$preflight.usb_controller_count
    $summary+=' '+(T 'Physical USB-C port and real screen behavior still require hardware verification.' 'Portul USB-C fizic si functionarea ecranelor trebuie verificate cu hardware-ul conectat.')
-    Say 'Doxa' $summary
+    # Pre-check details are held in $script:compatibility; the right panel remains user-driven chat.
    }
     $sub.Text=T 'Detect Doxa and check the Windows screens.' 'Detecteaza Doxa si verifica ecranele Windows.'
    $assistantStatus.Text=if($script:cloudConsent){T 'Online AI requested; device approval may be required' 'AI online solicitat; aprobarea dispozitivului poate fi necesara'}else{T 'Offline Doxa help is ready' 'Asistenta Doxa offline este disponibila'}
@@ -348,6 +347,56 @@ function RefreshState {
   $rows[2].Text='!    Check failed'
   $stateLabel.Text=$_.Exception.Message
   Say 'Doxa' ('The check could not finish: '+$_.Exception.Message)
+ }
+}
+# Production: Windows WMI/PnP and pnputil checks execute in a child job, not
+# on the main WinForms event thread. Fixture/journey tests stay deterministic.
+$script:scanJob=$null
+$script:scanTimer=New-Object Windows.Forms.Timer
+$script:scanTimer.Interval=200
+$script:scanTimer.Add_Tick({
+ if($null -eq $script:scanJob){$script:scanTimer.Stop();return}
+ if($script:scanJob.State -notin @('Completed','Failed','Stopped')){return}
+ $job=$script:scanJob;$script:scanJob=$null;$script:scanTimer.Stop()
+ try{
+  if($job.State -ne 'Completed'){throw 'Windows read-only diagnostics did not finish.'}
+  $raw=Receive-Job -Job $job -ErrorAction Stop|Out-String
+  $value=$raw|ConvertFrom-Json -ErrorAction Stop
+  if($null -eq $value.result){throw 'Windows diagnostic result missing'}
+  RefreshStateNow $value.result $value.compatibility
+ }catch{
+  $stateLabel.Text=T 'Windows check could not finish. Select Detect Doxa to retry.' 'Verificarea Windows nu s-a incheiat. Apasa Detecteaza Doxa pentru a incerca din nou.'
+  $assistantStatus.Text=$_.Exception.Message
+ }finally{Remove-Job -Job $job -Force -ErrorAction SilentlyContinue}
+})
+function RefreshState {
+ if($JourneyTest -or $BrandTest -or $Smoke -or $DeveloperTests -or $EmbeddedSmoke){
+  RefreshStateNow
+  return
+ }
+ if($null -ne $script:scanJob){
+  $assistantStatus.Text=T 'Doxa detection is still running. You can continue using Help.' 'Detectarea Doxa continua. Poti folosi asistenta.'
+  return
+ }
+ $assistantStatus.Text=T 'Checking Windows and Doxa in the background...' 'Verificam Windows si Doxa in fundal...'
+ $path=$diagnose;$compat=$compatibilityScript
+ $faultForJob=$script:fault;$languageForJob=$script:lang
+ $connectionForJob=$script:connectionChoice
+ try{
+  $script:scanJob=Start-Job -ScriptBlock {
+   param($d,$c,$fault,$language,$choice)
+   $ErrorActionPreference='Stop'
+   $result=(& $d -Fault $fault -Language $language | Out-String)|ConvertFrom-Json
+   $compatibility=$null
+   if(-not $result.test_only){
+    $compatibility=(& $c -ConnectionChoice $choice -Language $language|Out-String)|ConvertFrom-Json
+   }
+   [pscustomobject]@{result=$result;compatibility=$compatibility}|ConvertTo-Json -Depth 14 -Compress
+  } -ArgumentList @($path,$compat,$faultForJob,$languageForJob,$connectionForJob)
+  $script:scanTimer.Start()
+ }catch{
+  $assistantStatus.Text=T 'Unable to start background diagnostic scan.' 'Nu se poate porni verificarea in fundal.'
+  Say 'Doxa' ('Read-only diagnostics unavailable: '+$_.Exception.Message)
  }
 }
 function Answer([string]$q){
@@ -463,11 +512,11 @@ $send.Add_Click({
    Say 'Doxa' (T 'This is a simulated failure, not an actual Windows display change. The online AI response will be guidance only.' 'Aceasta este o simulare; nu s-a modificat niciun ecran Windows. AI online ofera doar recomandari.')
   }
 # Fault overlays are clearly simulations and must not send any simulated claims to AI.
- if($script:fault -ne 'none'){
-  Say 'Doxa' (Answer $q)
-  $assistantStatus.Text=T 'Test mode -- Local explanation' 'Mod de test -- Explicatie locala'
-  return
- }
+ if($script:fault -ne 'none' -and -not $script:recoveryLabUnlocked){
+   Say 'Doxa' (Answer $q)
+   $assistantStatus.Text=T 'Test mode -- Local explanation' 'Mod de test -- Explicatie locala'
+   return
+  }
  if($null -eq $script:current){
   Say 'Doxa' (T 'Detect Doxa first, then ask about your equipment.' 'Verifica mai intai Doxa, apoi cere ajutor.')
   return
@@ -478,7 +527,7 @@ $send.Add_Click({
   return
  }
  $policy=(& $script:cloudPolicyScript|Out-String)|ConvertFrom-Json
- if(-not [bool]$policy.cloud_ai_allowed){
+  if(-not [bool]$policy.online_ai_selectable){
   Say 'Doxa' (Answer $q)
   $assistantStatus.Text='Offline only - remote AI disabled by your organization'
   $offline.Visible=$false
@@ -506,6 +555,12 @@ $send.Add_Click({
  }
 })
 $form.Add_FormClosing({
+ $script:scanTimer.Stop()
+ if($null -ne $script:scanJob){
+  Stop-Job $script:scanJob -ErrorAction SilentlyContinue
+  Remove-Job $script:scanJob -Force -ErrorAction SilentlyContinue
+  $script:scanJob=$null
+ }
  $aiTimer.Stop()
  if($null -ne $script:aiJob){
   Stop-Job -Job $script:aiJob -ErrorAction SilentlyContinue
@@ -542,8 +597,11 @@ function ApplyMainLanguage {
  $faultTitle.Text=T 'Test an installation problem (safe)' 'Simuleaza o problema de instalare'
  $send.Text=T 'Ask' 'Intreaba'
  $assistantStatus.Text=T 'Doxa installation questions only' 'Doar intrebari despre instalarea Doxa'
- $chat.Clear()
- if(-not $Smoke){RefreshState}
+ # Preserve user questions and previously supplied guidance on language switch.
+ # Do not re-run a potentially slow Windows PnP/driver census just to switch labels.
+ if($script:current){
+  $assistantStatus.Text=T 'Language changed; select Detect Doxa to refresh diagnostics.' 'Limba a fost schimbata; apasa Detecteaza Doxa pentru actualizare.'
+ }
 }
 $languageChoice.Add_SelectedIndexChanged({ApplyMainLanguage})
 if($Language -eq 'en'){$intro.Text='Your Doxa, ready to connect'}

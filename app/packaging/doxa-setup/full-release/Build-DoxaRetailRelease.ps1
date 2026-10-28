@@ -61,7 +61,7 @@ try {
  foreach($f in @($exe,$deploy)){
   $sig=Get-AuthenticodeSignature $f
   $sigStatus[(Split-Path $f -Leaf)]=$sig.Status.ToString()
-  if($RequirePublisherSignatures -and $sig.Status -ne 'Valid'){throw 'Production publisher signing required before final release'}
+  if($RequirePublisherSignatures){throw 'Review binaries are intentionally unsigned; sign separately, then use Finalize-DoxaSignedRelease.ps1 with the approved certificate thumbprint and timestamp.'}
  }
  $manageZip=Join-Path $managed 'Doxa-Managed-Windows.zip'
  Compress-Archive -LiteralPath $deploy -DestinationPath $manageZip -CompressionLevel Optimal

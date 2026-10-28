@@ -280,8 +280,12 @@ internal class DoxaHost {
   static bool ThreeDoxaPanelsPresent(){
    try{
     var monitors=new List<string>();
-    using(var q=new ManagementObjectSearcher("SELECT Name,PNPClass FROM Win32_PnPEntity WHERE PNPClass='Monitor'"))
-    foreach(ManagementObject item in q.Get())monitors.Add(Convert.ToString(item["Name"])??"");
+    using(var q=new ManagementObjectSearcher("SELECT Name,PNPClass,PNPDeviceID FROM Win32_PnPEntity WHERE PNPClass='Monitor'"))
+    foreach(ManagementObject item in q.Get()){
+     string id=Convert.ToString(item["PNPDeviceID"])??"";uint node;
+     // Exclude disconnected/ghost PnP monitor records, which may retain a friendly name.
+     if(!String.IsNullOrWhiteSpace(id) && LocateDevice(out node,id,0)==0)monitors.Add(Convert.ToString(item["Name"])??"");
+    }
     return VerifyPanelDecision(true,true,true,monitors);
    }catch{return false;}
   }
@@ -351,18 +355,31 @@ internal class DoxaHost {
    link.WorkingDirectory=AppRoot;link.Description=Product;link.Save();
   }catch(Exception e){Trace("Start menu shortcut unavailable: "+e.GetType().Name);}
  }
- static string Apply(){
+  // Source-testable gate: never invoke vendor custom actions during first-run
+  // personal preparation, a disconnected install, or a healthy-driver no-op.
+  static bool MayRunVendorMsi(bool applicationOnly,bool usbPresent,int driverBinding){
+   return !applicationOnly && usbPresent && driverBinding==0;
+  }
+  static string Apply(bool applicationOnly=false){
   Require(Elevated,"Windows administrator permission required");
   RequireSupportedWindows();
    string driverPackage=VerifyAndUnpackDriver();
   string appPayload=VerifyAndUnpackApplication();
   // An enterprise disconnected pre-provisioning run INVOKES the vendor MSI.
    // Its first-use hardware behavior is not yet physically qualified.
-   bool plugged=PresentUsb();
-  int current=DriverState();
-  Require(current!=2,"Unexpected driver identity: installation refused");
-   string driver=InstallDriver(driverPackage,plugged);
-  string app=InstallAppTo(AppRoot,appPayload);
+    bool plugged=PresentUsb();
+   int current=DriverState();
+   Require(current!=2,"Unexpected driver identity: installation refused");
+   // First-run personal setup installs APPLICATION ONLY. The guided connection
+   // page must run before a user can initiate the signed driver action.
+   // Enterprise also never invokes vendor MSI before USB hardware is present:
+   // vendor disconnected MSI custom actions have not passed a physical test.
+   string driver=applicationOnly?"DriverNotChangedAwaitingConnection":
+    !plugged?"DriverDeferredUntilConnected":
+    current==1?"DriverAlreadyHealthy":
+    MayRunVendorMsi(applicationOnly,plugged,current)?InstallDriver(driverPackage,true):
+    "DriverDeferredUntilConnected";
+   string app=InstallAppTo(AppRoot,appPayload);
   InstallMaintenance();
   string result=app+"; "+driver;
   Trace(result);return result;
@@ -417,14 +434,15 @@ internal class DoxaHost {
   Trace(result+"; signed display driver preserved");
   return result+"; DisplayDriverRetained";
  }
- static void Open(){
-  Require(IsValidApp(AppRoot),"Doxa application not installed or modified");
+  static void Open(bool localConsentAlreadyGranted=false){
+   Require(IsValidApp(AppRoot),"Doxa application not installed or modified");
   string script=Path.Combine(AppRoot,"app","packaging","doxa-setup","personal-ui","Start-DoxaGuidedSetup.ps1");
   Require(File.Exists(script),"Guided setup is absent");
   string exe=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows),"System32","WindowsPowerShell","v1.0","powershell.exe");
   // Enterprise GPO/WDAC can override -ExecutionPolicy. Report an early failure
   // rather than silently doing nothing in a hidden window.
-  var info=new ProcessStartInfo(exe,"-NoProfile -ExecutionPolicy Bypass -File \""+script+"\""){
+   var info=new ProcessStartInfo(exe,"-NoProfile -ExecutionPolicy Bypass -File \""+script+"\""+
+    (localConsentAlreadyGranted?" -LocalConsentAlreadyGranted":"")){
    UseShellExecute=false,CreateNoWindow=true,WorkingDirectory=AppRoot};
   using(var process=Process.Start(info)){
    Require(process!=null,"Windows could not launch Doxa guided setup");
@@ -458,10 +476,17 @@ internal class DoxaHost {
     Require(DetectDecision(true,true),"Registered valid app should detect regardless of USB/driver");
    Require(!DetectDecision(true,false),"Missing uninstall registration must fail detection");
    Require(!DetectDecision(false,true),"App missing must fail detection");
-   Require(ClassifyDriver("Microsoft","Microsoft Windows",true)==0,"Generic first-use USB driver must be installable");
+    Require(!MayRunVendorMsi(true,true,0),"Personal app preparation must never execute MSI");
+    Require(!MayRunVendorMsi(false,false,0),"USB-disconnected installation must never execute MSI");
+    Require(!MayRunVendorMsi(false,true,1),"Healthy driver must never execute MSI");
+    Require(!MayRunVendorMsi(false,true,2),"Untrusted driver must never execute MSI");
+    Require(MayRunVendorMsi(false,true,0),"Only present USB with missing driver may request MSI");
+    Require(ClassifyDriver("Microsoft","Microsoft Windows",true)==0,"Generic first-use USB driver must be installable");
    Require(ClassifyDriver("", "",false)==0,"Unconfigured USB device must be installable");
-   Require(ClassifyDriver("SiliconMotion","Microsoft Windows Hardware Compatibility Publisher",true)==1,
-           "Healthy signed driver must be preserved");
+    Require(ClassifyDriver("SiliconMotion","Microsoft Windows Hardware Compatibility Publisher",true)==1,
+            "Healthy signed driver must be preserved");
+    Require(ClassifyDriver("Silicon Motion, Inc.","Microsoft Windows Hardware Compatibility Publisher",true)==1,
+            "Documented alternate manufacturer spelling must be recognized");
    Require(ClassifyDriver("Unapproved vendor","Some signer",true)==2,"Foreign driver must block replacement");
    Require(ClassifyDriver("SiliconMotion","",false)==2,"Unsigned vendor driver must block replacement");
    string writable=Directory.GetFiles(testRoot,"*.ps1",SearchOption.AllDirectories).FirstOrDefault();
@@ -493,14 +518,16 @@ internal class DoxaHost {
     Console.WriteLine(pnp?"ThreeDoxaPnPMonitorIdentitiesPresent; ExtendModeNotVerified":"ThreeDoxaPnPMonitorIdentitiesNotVerified");
     return pnp?0:1;
    }
-   if(arg=="/install" || arg=="/repair"){
-    if(!Elevated && Environment.UserInteractive && Process.GetCurrentProcess().SessionId!=0){
-     using(var elevated=Process.Start(new ProcessStartInfo(SourceExe,arg){UseShellExecute=true,Verb="runas"})){
-      elevated.WaitForExit();return elevated.ExitCode;
+   if(arg=="/install" || arg=="/repair" || arg=="/prepare"){
+     if(!Elevated && Environment.UserInteractive && Process.GetCurrentProcess().SessionId!=0){
+      using(var elevated=Process.Start(new ProcessStartInfo(SourceExe,arg){UseShellExecute=true,Verb="runas"})){
+       Require(elevated!=null,"Could not request Windows administrator approval");
+       Require(elevated.WaitForExit(720000),"Elevated installation is still running; check Windows Installer before retrying");
+       return elevated.ExitCode;
+      }
      }
+     string result=Apply(arg=="/prepare");Console.WriteLine(result);return result.Contains("RestartRequired")?RebootCode:0;
     }
-    string result=Apply();Console.WriteLine(result);return result.Contains("RestartRequired")?RebootCode:0;
-   }
    if(arg=="/cleanup-maintenance"){
     Require(args.Length==2,"Cleanup requires the exact parent process ID");
     int parentPid;Require(Int32.TryParse(args[1],out parentPid),"Invalid parent process ID");
@@ -535,44 +562,44 @@ internal class DoxaHost {
   Action updateText=()=>{
    form.Text=ro?"Standivarius | Configurare Doxa":"Standivarius | Doxa Setup";
    help.Text=ro?"Conecteaza alimentarea Doxa si apoi cablul USB de date. Instaleaza componentele Windows si configureaza ecranele.":"Connect Doxa power, then the USB data cable. Install Windows components and configure your screens.";
-   install.Text=ro?"Instaleaza / verifica":"Install / check Doxa";
+   install.Text=ro?"Pregateste Doxa":"Set up Doxa";
    launch.Text=ro?"Deschide configurarea":"Open Doxa setup";
    refresh.Text=ro?"Actualizeaza":"Refresh status";
    language.Text=ro?"English":"Romana";
-   install.AccessibleName=ro?"Instaleaza sau verifica Doxa si driverul Windows":"Install or check Doxa software and Windows display driver";
+    install.AccessibleName=ro?"Instaleaza aplicatia si deschide ghidul Doxa":"Prepare Doxa software and open the guided connection setup";
    launch.AccessibleName=ro?"Deschide configurarea asistata Doxa":"Open Doxa guided setup";
    refresh.AccessibleName=ro?"Verifica din nou starea Doxa":"Refresh Doxa Windows status";
    language.AccessibleName=ro?"Schimba limba in engleza":"Change language to Romanian";
     localConsent.Text=ro?"Permit verificarea locala a dispozitivelor USB, ecranelor si driverelor Windows.":"I allow local read-only checks of USB devices, displays and Windows drivers.";
     localConsent.AccessibleName=localConsent.Text;
-    status.Text=!localConsent.Checked?(ro?"Verificarea locala necesita acordul tau.":"Local device checks require your consent."):lastState==null?(ro?"Se verifica Doxa...":"Checking Doxa..."):FriendlyState(lastState,ro);
+    status.Text=!localConsent.Checked?(ro?"Verificarea locala necesita acordul tau.":"Local device checks require your consent."):lastState==null?(ro?"Poti incepe configurarea Doxa; nu am verificat inca ecranele.":"Ready to set up Doxa. No screen check has run yet."):FriendlyState(lastState,ro);
     install.Enabled=localConsent.Checked;
     refresh.Enabled=localConsent.Checked;
   };
   language.Click+=(sender,e)=>{ro=!ro;updateText();};
-     Action checkPending=()=>{lastState=null;status.Text=ro?"Instalare incheiata. Apasa Actualizeaza pentru noua verificare.":"Installation complete. Select Refresh status to check again.";};
+     Action checkPending=()=>{lastState=null;status.Text=ro?"Aplicatia este pregatita. Conecteaza Doxa si verifica driverul in ghid.":"Application prepared. Connect Doxa and check the driver in the guided setup.";};
    install.Click+=(sender,e)=>{
     if(!localConsent.Checked)return;
     install.Enabled=false;refresh.Enabled=false;localConsent.Enabled=false;
-    status.Text=ro?"Instalare in curs. Asteapta confirmarea Windows.":"Installing. Approve Windows permission if requested.";
-    var worker=new BackgroundWorker();
-    worker.DoWork+=(workerSender,workerArgs)=>{
-     bool successful=false;
-     if(!Elevated){
-      using(var p=Process.Start(new ProcessStartInfo(SourceExe,"/install"){UseShellExecute=true,Verb="runas"})){
-       Require(p!=null,"Windows setup could not start");
-       Require(p.WaitForExit(720000),"Elevated setup is still running. Check installer status before trying again");
-       successful=p.ExitCode==0||p.ExitCode==RebootCode;
-      }
-     }else{Apply();successful=true;}
-     workerArgs.Result=successful;
-    };
+     status.Text=ro?"Pregatim aplicatia. Aproba permisiunea Windows daca apare.":"Preparing the Doxa application. Approve Windows permission if requested.";
+     var worker=new BackgroundWorker();
+     worker.DoWork+=(workerSender,workerArgs)=>{
+      int resultCode=0;
+      if(!Elevated){
+       using(var p=Process.Start(new ProcessStartInfo(SourceExe,"/prepare"){UseShellExecute=true,Verb="runas"})){
+        Require(p!=null,"Windows setup could not start");
+        Require(p.WaitForExit(720000),"Elevated setup is still running. Check installer status before trying again");
+        resultCode=p.ExitCode;
+       }
+      }else{Apply(true);}
+      workerArgs.Result=resultCode;
+     };
     worker.RunWorkerCompleted+=(completedSender,completedArgs)=>{
      try{
       if(form.IsDisposed)return;
       if(completedArgs.Error!=null)MessageBox.Show(completedArgs.Error.GetBaseException().Message,"Doxa Setup");
-      else if(!Convert.ToBoolean(completedArgs.Result))MessageBox.Show(ro?"Instalarea nu s-a incheiat. Verifica jurnalul Doxa.":"Installation did not complete. Check Doxa logs.","Doxa Setup");
-      else if(IsValidApp(AppRoot))Open();
+       else if(Convert.ToInt32(completedArgs.Result)!=0)MessageBox.Show(ro?"Instalarea aplicatiei nu s-a incheiat. Verifica jurnalul Doxa.":"Application installation did not complete. Check Doxa logs.","Doxa Setup");
+       else if(IsValidApp(AppRoot))Open(true);
      }catch(Exception ex){MessageBox.Show(ex.Message,"Doxa Setup");}
      finally{
       if(!form.IsDisposed){
@@ -599,7 +626,7 @@ launch.Click+=(sender,e)=>{try{Open();}catch(Exception ex){MessageBox.Show(ex.Me
    work.RunWorkerAsync();
   };
   refresh.Click+=(sender,e)=>checkState();
-   localConsent.CheckedChanged+=(sender,e)=>{if(localConsent.Checked)checkState();else{lastState=null;updateText();}};
+   localConsent.CheckedChanged+=(sender,e)=>{lastState=null;updateText();};
   // do not scan on window shown before consent
   form.Controls.AddRange(new Control[]{title,help,localConsent,status,install,launch,refresh,language});
   updateText();

@@ -55,7 +55,8 @@ try{
 Standivarius Ã¢â‚¬â€ Doxa Setup for Windows
 PERSONAL:
   Extract Personal/Doxa-Complete-Windows-Setup.zip and launch DoxaSetup.exe.
-  Connect Doxa USB power and DATA cable. Click Install / check Doxa and approve Windows UAC.
+  Launch DoxaSetup.exe, select Set up Doxa, and approve Windows UAC to install the application only.
+  In the guide connect power FIRST, then USB data. Detect Doxa, then install the signed driver ONLY if Doxa is connected and the driver is missing.
   A healthy existing signed driver is kept; no automatic downgrade or driver removal.
   This installer performs no automatic reboot or monitor topology writes.
   Complete the remaining steps in the bilingual Doxa UI.
@@ -66,6 +67,7 @@ INTUNE:
   Detection: DoxaDeploy.exe /detect (return 0 only with valid installed app).
   Driver/user-session verification: DoxaDeploy.exe /verify; user-session 4-screen check separately.
   Run as SYSTEM, 64-bit, explicit IT targeting, return code 3010 = coordinated reboot.
+  When Doxa USB is absent, /install stages the app ONLY and defers the MSI until hardware is connected; /verify will fail until ready.
 MANAGEENGINE:
   Extract ManageEngine/Doxa-Complete-Managed.zip to an approved package repository.
   Deliver all four package files side-by-side, using DoxaDeploy.exe /install as SYSTEM.
@@ -77,6 +79,7 @@ SIGNING:
   vendor signature from the vendor MSI.
 STATUS:
   This is a private unsigned release CANDIDATE. Source and package checks have passed.
+  Vendor MSI redistribution authorization, publisher signing and final customer AI privacy conditions are NOT approved. Do not distribute commercially.
   Do not mark full customer release passed without attended hardware installation,
   user-session graphics acceptance, managed-agent execution and signature verification.
 '@
