@@ -61,3 +61,24 @@ An attended physical test needs a **separate operator-owned rollback watchdog**,
 ## Test and release boundaries
 
 No device/driver, monitor layout, Intune/ManageEngine assignment, restart, or publisher-signing activity was performed by these code changes. Do not publish unsigned review executables or claim driver-free physical first install, unattended disconnected MSI behavior, four independently extended Doxa screens, or real signed packaging acceptance without separate evidence. The isolated worktree and PR remain draft.
+
+## Final corrected engineering package — verified
+
+- Source commit: b78f6dd63c293a7188148e46efd93dc694cc0036.
+- Guided application and extracted-file English/Romanian customer journey validation: PASS.
+- Native customer EXE, silent EXE, encrypted Microsoft Intune package and ManageEngine ZIP: BUILT.
+- Native self-test, driver preservation and source-hash checks: PASS.
+- Intune AES/HMAC authentication and payload extraction: PASS.
+- Intune / ManageEngine executable byte-for-byte parity: PASS.
+- Signed finalization source schema contract: PASS. Actual signed package validation requires publisher signing.
+- Recovery lab default-off and correct/wrong passphrase tests: PASS; no cloud request or monitor change.
+- Engineering archive: C:\wt\doxa-review-package-20261028\artifacts\releases\Standivarius-Doxa-Windows-Sol-Remediated-Engineering-Review-20261028.zip
+- Archive SHA-256: ED5542284B710300767F8DEB44FD7563BB72419EB10DFC89D7488621FC552474.
+- ZIP members were independently extracted and hash checked.
+- Safe real-Dell commands: /detect returned 1 with AppMissing DriverValid USBDetected; /verify returned 1; /verify-panels returned 1. These are expected because the corrected application was NOT installed on Dell.
+- Dell's signed USB display driver version 4.7.6.8001 remained present throughout.
+- A transient Windows executable file lock while ZIP creation was fixed using bounded archive retries and exact ZIP-file inventory verification.
+
+**Release status:** unsigned preproduction review package. Commercial signing, driver-free first install, the exact corrected binary's Intune and ManageEngine agent tests, and accessibility/corporate policy acceptance are still release gates. Keep PR draft; do not distribute the build as final retail software.
+
+**Physical display changes:** none. The local unlock code permits a simulated missing panel only. A genuine monitor-disable experiment requires an independent proven automatic rollback, which was not implemented or executed.
