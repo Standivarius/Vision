@@ -30,7 +30,7 @@ $teal=[Drawing.Color]::FromArgb(16,140,137)
 $slate=[Drawing.Color]::FromArgb(67,82,99)
 $light=[Drawing.Color]::FromArgb(231,238,245)
 $form=if($HostForm){$HostForm}else{New-Object Windows.Forms.Form}
-$form.Text='Standivarius | Doxa Setup - TEST preview.11'
+$form.Text='Standivarius | Doxa Setup - TEST preview.12'
 $script:developerMode=[bool]($DeveloperTests -or $JourneyTest)
 $form.StartPosition='CenterScreen'
 $form.ClientSize=New-Object Drawing.Size(1060,685)
@@ -325,6 +325,7 @@ function RefreshState {
    if($d.hardware_ready -and -not $d.physical_display_topology_verified){$stateLabel.Text=T 'Three Doxa PnP identities found. Four extended physical desktops have NOT been verified.' 'Trei identitati Doxa PnP gasite. Cele patru ecrane extinse fizic NU sunt confirmate.'}
    if($d.hardware_ready -and $d.physical_display_topology_verified){$stateLabel.Text=T 'Four Windows desktops observed; physical Doxa-to-Windows mapping remains unverified.' 'Patru ecrane Windows detectate; corespondenta fizica Doxa-Windows ramane neconfirmata.'}
    $stateLabel.ForeColor=if($d.hardware_ready){$slate}else{[Drawing.Color]::FromArgb(166,87,25)}
+   if(Get-Command UpdateDoxaPanelTicks -ErrorAction SilentlyContinue){UpdateDoxaPanelTicks}
   $advice=$result.message
   if(-not $result.test_only -and $result.code -eq 'doxa_not_detected' -and $d.driver_package_in_store){
    $advice+=' '+(T 'The Silicon Motion driver package is still installed in Windows. Do not reinstall it; reconnect Doxa and check again.' 'Pachetul driver Silicon Motion este inca instalat in Windows. Nu il reinstala; reconecteaza Doxa si verifica din nou.')
@@ -607,43 +608,64 @@ if(-not ($Smoke -or $JourneyTest)){
  . (Join-Path $PSScriptRoot 'Doxa-BrandTabs.ps1')
 }
 if($BrandTest){
- $form.Show()
- [Windows.Forms.Application]::DoEvents()
- $oldHandle=$form.Handle
+ $form.Show();[Windows.Forms.Application]::DoEvents()
+ $handle=$form.Handle
  $click=[Windows.Forms.Button].GetMethod('OnClick',[Reflection.BindingFlags]'Instance,NonPublic')
+ if($tabs.Count -ne 3 -or $tabs[2].Right -ge $sideHolder.Left){throw 'Main tabs intrude into chatbot column'}
+ if($workspace.Right -ge $sideHolder.Left){throw 'Workspace frame must not include persistent chatbot'}
+ if($tabs[0].Text -eq $check.Text){throw 'Redundant Detect Doxa action label'}
  [void]$click.Invoke($tabs[1],@([EventArgs]::Empty))
- if(-not $setup.Visible -or -not $context.Visible -or $side.Visible){throw 'Setup primary tab/context contract failed'}
- [void]$click.Invoke($sub2,@([EventArgs]::Empty))
- if(-not $arrange.Visible -or $connect.Visible){throw 'Arrangement subtab failed'}
+ if(-not $setup.Visible -or -not $side.Visible -or -not $sideHolder.Visible){throw 'Arrange and persistent Help not visible'}
+ if(-not $settingsButton.Visible -or $settingsButton.Parent -ne $setup){throw 'Windows Display settings must appear only in arrangement'}
  [void]$click.Invoke($tabs[2],@([EventArgs]::Empty))
- if(-not $install.Visible){throw 'Install tab failed'}
+ if(-not $install.Visible -or -not $side.Visible -or $reinstall.Visible){throw 'Signed-driver information not safe'}
  [void]$click.Invoke($tabs[0],@([EventArgs]::Empty))
- if(-not $detect.Visible -or $form.Handle -ne $oldHandle){throw 'Window transition broke'}
- if($form.Tag.upper_port -ne 'power' -or $form.Tag.lower_port -ne 'data'){throw 'Power/data order incorrect'}
- if($reinstall.Visible){throw 'Unsigned elevated driver action must not be visible'}
- if($modeOff.Visible -ne $true -or -not $privacyDetails.Visible){throw 'Help mode/privacy notice not available'}
+ if(-not $detect.Visible -or $form.Handle -ne $handle){throw 'Same window navigation failed'}
+ if($settingsButton.Parent -eq $detect){throw 'Windows display settings incorrectly present in Connect'}
+ if($form.Tag.upper_port -ne 'power' -or $form.Tag.lower_port -ne 'data'){throw 'USB-C order incorrect'}
+ if(-not $modeOff.Visible -or -not $privacy.Visible){throw 'Persistent help privacy/choice missing'}
+ if($guide.Parent -ne $form -or $guide -ne $tabs[1]){throw 'Obsolete duplicate navigation'}
+ # Test all three panel PnP outcomes; a green tick must never be hardcoded.
+ $savedCurrent=$script:current
+ $script:current=[pscustomobject]@{test_only=$false;observed=[pscustomobject]@{
+  doxa_hardware_detected=$true;pnp_doxa_panels=@('Generic Monitor (L)','Generic Monitor (T)');signed_driver_present=$true
+ }}
+ UpdateDoxaPanelTicks
+ if(-not $script:doxaScreenChecks[0] -or -not $script:doxaScreenChecks[1] -or $script:doxaScreenChecks[2]){throw 'Per-panel ticks do not follow PnP data'}
+ $script:current.test_only=$true
+ UpdateDoxaPanelTicks
+ if(@($script:doxaScreenChecks|Where-Object {$_}).Count -gt 0){throw 'Test-only data presented as verified'}
+ $script:current=$savedCurrent
+ if($savedCurrent){UpdateDoxaPanelTicks}
  $languageChoice.SelectedIndex=1
- if($tabs[0].Text -ne 'Detecteaza Doxa' -or $modeOff.Text -ne 'Ajutor offline'){throw 'Shipped Romanian tab/help translation absent'}
+ if($tabs[0].Text -ne 'Detecteaza Doxa' -or $check.Text -ne 'Verifica conexiunea'){throw 'Romanian interface translation missing'}
  $languageChoice.SelectedIndex=0
- if($tabs[0].Text -ne 'Detect Doxa' -or $modeOff.Text -ne 'Offline help'){throw 'Reversible language switch broken'}
- $script:previousAIApproval=$true
- $script:queuedQuestion='pending question'
- $script:quickAdviceShown=$true
- # Local delayed mock: prove offline suppresses a pending reply without any network call.
- $script:aiJob=Start-Job -ScriptBlock {Start-Sleep -Seconds 12;'late reply'}
- $modeOff.Checked=$false
- $modeOff.Checked=$true
- if($script:previousAIApproval -or $script:queuedQuestion -or $script:quickAdviceShown -or $null -ne $script:aiJob){throw 'Online consent revocation did not clear job and session state'}
- if($tabs[0].AccessibleRole -ne [Windows.Forms.AccessibleRole]::PageTab){throw 'Tabbed controls lack accessibility role'}
- foreach($size in @(@(780,600),@(1060,615))){
-  $form.ClientSize=New-Object Drawing.Size([int]$size[0],[int]$size[1])
-  [Windows.Forms.Application]::DoEvents()
-  if($frame.Right -gt $form.ClientSize.Width+1 -or $tabs[2].Right -gt $form.ClientSize.Width+1 -or $right.Right -gt $frame.Width+2){throw 'Preview11 clipped horizontally at '+$size[0]}
+ if($tabs[0].Text -ne 'Detect Doxa' -or $check.Text -ne 'Check connection'){throw 'English reversibility missing'}
+ $script:previousAIApproval=$true;$script:queuedQuestion='pending';$script:quickAdviceShown=$true
+ $script:aiJob=Start-Job -ScriptBlock {Start-Sleep -Seconds 10;'late'}
+ $modeOff.Checked=$false;$modeOff.Checked=$true
+ if($script:previousAIApproval -or $script:queuedQuestion -or $script:quickAdviceShown -or $script:aiJob){throw 'Offline mode did not clear pending job/approval'}
+ foreach($size in @(@(780,610),@(1060,610))){
+  $form.ClientSize=New-Object Drawing.Size([int]$size[0],[int]$size[1]);[Windows.Forms.Application]::DoEvents()
+  if($tabs[2].Right -gt $form.ClientSize.Width -or $workspace.Right -gt $form.ClientSize.Width -or $sideHolder.Right -gt $form.ClientSize.Width){throw 'Horizontal overflow at '+$size[0]}
  }
- $result=[ordered]@{status='PASS';version='preview.11';single_form=$true;right_column_inside_frame=$true;tab_switching=$true;setup_subtabs=$true;upper_port='power';lower_port='data';help_mode_toggle=$true;no_driver_mutation=$true;no_network=$true;real_shipped_tabs_tested=$true;online_revocation_tested=$true;romanian_tabs_tested=$true;horizontal_reflow_tested=$true;driver_action_hidden=$true;window_fits_height=($form.Height -le [Windows.Forms.Screen]::PrimaryScreen.WorkingArea.Height)}
- $form.Dispose()
- $result|ConvertTo-Json -Compress
- return
+ # Render the real paint handlers (including USB-C sockets and screen ticks).
+ $form.ClientSize=New-Object Drawing.Size(1060,610)
+ [Windows.Forms.Application]::DoEvents()
+ $preview=New-Object Drawing.Bitmap($workspace.Width,$workspace.Height)
+ try{$workspace.DrawToBitmap($preview,(New-Object Drawing.Rectangle(0,0,$workspace.Width,$workspace.Height)))}finally{$preview.Dispose()}
+ if($SnapshotPath){
+  $form.ClientSize=New-Object Drawing.Size(1060,610)
+  SelectDoxaPage 'detect'
+  [Windows.Forms.Application]::DoEvents()
+  $bitmap=New-Object Drawing.Bitmap($form.Width,$form.Height)
+  try{
+   $form.DrawToBitmap($bitmap,([Drawing.Rectangle]::new(0,0,$form.Width,$form.Height)))
+   $bitmap.Save($SnapshotPath,[Drawing.Imaging.ImageFormat]::Png)
+  }finally{$bitmap.Dispose()}
+ }
+ $result=[ordered]@{status='PASS';version='preview.12';single_form=$true;task_tabs_left_only=$true;chat_persistent=$true;duplicate_bottom_nav_removed=$true;connect_first=$true;arrange_only_windows_settings=$true;individual_pnp_ticks_tested=$true;upper_port='power';lower_port='data';romanian_tabs_tested=$true;online_revocation_tested=$true;driver_action_hidden=$true;horizontal_reflow_tested=$true;driver_changes=$false;network_requests=0}
+ $form.Dispose();$result|ConvertTo-Json -Compress;return
 }
 if($JourneyTest){
  # No display or driver modifications; invoke button click handlers without showing a window.

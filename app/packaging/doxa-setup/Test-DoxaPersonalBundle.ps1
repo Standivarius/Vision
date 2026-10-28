@@ -12,7 +12,7 @@ try{
  New-Item -ItemType Directory -Path $testRoot -Force|Out-Null
  Expand-Archive -LiteralPath $BundlePath -DestinationPath $testRoot -Force
  $manifest=Get-Content -LiteralPath (Join-Path $testRoot 'manifest.json') -Raw -Encoding UTF8|ConvertFrom-Json
- if($manifest.product -ne 'Standivarius Doxa Setup' -or $manifest.preview_version -ne '0.4.0-preview.11'){throw 'Wrong product/version'}
+ if($manifest.product -ne 'Standivarius Doxa Setup' -or $manifest.preview_version -ne '0.4.0-preview.12'){throw 'Wrong product/version'}
  if($manifest.signing_status -notmatch '^UNSIGNED preview'){throw 'Unexpected signing status'}
  if(@($manifest.files).Count -ne 20){throw 'Unexpected packaged file count'}
  $checked=0

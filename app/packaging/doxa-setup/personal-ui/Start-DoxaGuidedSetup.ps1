@@ -8,7 +8,7 @@ Add-Type -AssemblyName System.Drawing
 $form=New-Object Windows.Forms.Form
 $script:lang=$Language
 function T([string]$en,[string]$ro){if($script:lang -eq 'ro'){$ro}else{$en}}
-$form.Text='Standivarius Doxa Setup - TEST preview.11'
+$form.Text='Standivarius Doxa Setup - TEST preview.12'
 $form.StartPosition='CenterScreen'
 $form.ClientSize=New-Object Drawing.Size(750,510)
 $form.FormBorderStyle='FixedDialog'
@@ -137,7 +137,7 @@ $script:aiAllowed=$false
 $script:finished=$false
 function ShowStep {
  $first=$script:page -eq 1
- $form.Text=T 'Doxa Setup - TEST preview.11' 'Doxa - TEST preview.11'
+ $form.Text=T 'Doxa Setup - TEST preview.12' 'Doxa - TEST preview.12'
  $title.Text=T 'Welcome to Doxa Setup' 'Bine ai venit la Doxa'
  $step.Text=if($first){T 'Step 1 - permissions' 'Pasul 1 - permisiuni'}else{T 'Step 2 - connect Doxa or continue' 'Pasul 2 - conecteaza Doxa sau continua'}
  $explanation.Text=if($first){
@@ -253,7 +253,7 @@ if($SeamlessTest){
   if(-not $state.checkButton.IsHandleCreated -and $null -eq $state.checkButton.Parent){throw 'Detect is orphaned'}
   if($state.guideButton.Parent -eq $null){throw 'Screen guide entry is orphaned'}
   [void]$click.Invoke($state.tabs[1],@([EventArgs]::Empty))
-  if(-not $state.context.Visible){throw 'Setup contextual panel absent in shipped customer journey'}
+  if(-not $state.setup_page.Visible -or -not $state.help_persistent -or -not $state.side_panel.Visible){throw 'Setup task must keep Doxa Help present'}
   [void]$click.Invoke($state.tabs[0],@([EventArgs]::Empty))
   if($Language -eq 'ro' -and $state.tabs[0].Text -notmatch 'Detecteaza'){throw 'Shipped tab lacks Romanian localisation'}
  [void]$click.Invoke($state.checkButton,@([EventArgs]::Empty))
