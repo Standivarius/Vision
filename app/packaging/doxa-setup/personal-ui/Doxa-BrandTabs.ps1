@@ -12,7 +12,7 @@ $form.BackColor=$white
 $form.ClientSize=New-Object Drawing.Size(1060,610)
 $form.MinimumSize=New-Object Drawing.Size(745,520)
 $form.AutoScroll=$true
-$form.Text='Standivarius | Doxa Setup - TEST preview.12'
+$form.Text='Standivarius | Doxa Setup'
 function UXLabel([string]$t,[int]$x,[int]$y,[int]$w,[int]$h,[float]$pt=10,[bool]$bold=$false){
  $c=New-Object Windows.Forms.Label;$c.Text=$t;$c.SetBounds($x,$y,$w,$h)
  $c.ForeColor=$ink
@@ -225,17 +225,17 @@ $official.SetBounds(14,401,450,30);$official.LinkColor=$red;$install.Controls.Ad
 $side.BorderStyle='None';$side.BackColor=$white
 $side.SetBounds(0,0,339,475);$sideHolder.Controls.Add($side)
 $helpHeading.Text='Doxa Help';$helpHeading.SetBounds(14,10,309,38)
-$assistantStatus.SetBounds(14,49,308,27)
+$assistantStatus.SetBounds(14,43,308,24)
 $offline.Visible=$false;$hint.Visible=$false
 $modeOff=New-Object Windows.Forms.RadioButton
-$modeOff.SetBounds(14,82,143,28);$modeOff.Text='Offline help';$modeOff.Checked=(-not $script:cloudConsent)
+$modeOff.SetBounds(14,70,143,28);$modeOff.Text='Offline help';$modeOff.Checked=(-not $script:cloudConsent)
 $modeOn=New-Object Windows.Forms.RadioButton
-$modeOn.SetBounds(169,82,146,28);$modeOn.Text='Online AI';$modeOn.Checked=[bool]$script:cloudConsent
+$modeOn.SetBounds(169,70,146,28);$modeOn.Text='Online AI';$modeOn.Checked=[bool]$script:cloudConsent
 $side.Controls.AddRange(@($modeOff,$modeOn))
-$chat.SetBounds(14,118,309,246)
-$ask.SetBounds(14,373,203,32);$send.SetBounds(228,373,95,32);$send.BackColor=$red
+$chat.SetBounds(14,105,309,292)
+$ask.SetBounds(14,404,203,32);$send.SetBounds(228,404,95,32);$send.BackColor=$red
 $privacy=New-Object Windows.Forms.LinkLabel
-$privacy.Text='Privacy details for online AI';$privacy.SetBounds(14,422,302,34)
+$privacy.Text='Privacy details for online AI';$privacy.SetBounds(14,440,302,31)
 $privacy.LinkColor=$red
 $privacy.Add_LinkClicked({
  $f=Join-Path $PSScriptRoot 'AI-PRIVACY-NOTICE.txt'
@@ -324,7 +324,7 @@ function LayoutDoxa {
   $sideHolder.SetBounds(19,611,663,477)
   $side.SetBounds(0,0,661,473)
   $chat.Width=628;$ask.Width=520;$send.Left=548;$send.Width=96
-  $privacy.Top=422
+  $privacy.Top=440
  }else{
   $workspace.SetBounds(19,119,663,478)
   $sideHolder.SetBounds(699,119,($width-719),478)

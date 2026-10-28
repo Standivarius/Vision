@@ -30,7 +30,7 @@ $teal=[Drawing.Color]::FromArgb(16,140,137)
 $slate=[Drawing.Color]::FromArgb(67,82,99)
 $light=[Drawing.Color]::FromArgb(231,238,245)
 $form=if($HostForm){$HostForm}else{New-Object Windows.Forms.Form}
-$form.Text='Standivarius | Doxa Setup - TEST preview.12'
+$form.Text='Standivarius | Doxa Setup'
 $script:developerMode=[bool]($DeveloperTests -or $JourneyTest)
 $form.StartPosition='CenterScreen'
 $form.ClientSize=New-Object Drawing.Size(1060,685)
@@ -257,9 +257,9 @@ if($script:shortWide){
  $reinstall.SetBounds(375,513,272,43)
  $side.SetBounds(669,113,362,445)
  if(-not $script:developerMode){
-  $chat.SetBounds(17,78,326,265)
-  $ask.SetBounds(17,350,228,36)
-  $send.SetBounds(258,349,85,38)
+  $chat.SetBounds(17,78,326,295)
+  $ask.SetBounds(17,381,228,36)
+  $send.SetBounds(258,380,85,38)
   $hint.SetBounds(17,405,326,28)
   $offline.SetBounds(17,404,326,31)
  }
@@ -558,52 +558,9 @@ $advanced.Add_LinkClicked({
   Say 'Doxa' (T 'Windows has requested administrator approval. Recheck the displays after the technical test and review the installer log.' 'Windows solicita aprobarea administratorului. Repeta verificarea si consulta jurnalul testului.')
  }catch{Say 'Doxa' ('Could not obtain administrator approval: '+$_.Exception.Message)}
 })
-$reinstall.Add_Click({
- # Do not prompt for an MSI when Doxa is disconnected or the signed driver works.
- if($null -eq $script:current){RefreshState}
- if($script:current.code -eq 'doxa_not_detected'){
-  Say 'Doxa' (T 'Doxa is not detected. Its original driver may still be installed in Windows. First connect Doxa power and its USB data cable, then click Detect Doxa. Driver installation is not appropriate until hardware detection has been checked.' 'Doxa nu este detectat. Driverul poate fi deja instalat in Windows. Conecteaza mai intai alimentarea si cablul USB de date, apoi Detecteaza Doxa. Nu instala driverul pana nu verifici detectarea dispozitivului.')
-  return
- }
- # Do not prompt for an MSI when the signed driver is already correctly installed.
- if($script:fault -ne 'none'){
-  Say 'Doxa' (T 'Return to live check before installing any driver.' 'Revino la verificarea reala inainte de instalarea driverului.')
-  return
- }
- if($null -eq $script:current){RefreshState}
- if($script:current.observed.signed_driver_present){
-  Say 'Doxa' (T 'The signed Doxa driver is already installed. No installation is necessary.' 'Driverul Doxa semnat este deja instalat. Nu este necesara instalarea.')
-  return
- }
- $dialog=New-Object System.Windows.Forms.OpenFileDialog
- $dialog.Title=T 'Choose the official Silicon Motion SMI770 MSI' 'Alege pachetul MSI oficial Silicon Motion'
- $dialog.Filter='Windows Installer packages (*.msi)|*.msi'
- $dialog.CheckFileExists=$true
- $dialog.Multiselect=$false
- try{
-  if($dialog.ShowDialog($form) -ne [Windows.Forms.DialogResult]::OK){return}
-  $engine=Join-Path $PSScriptRoot 'Invoke-DoxaPersonalInstallation.ps1'
-  $package=$dialog.FileName
-  $result=(& $engine -PackagePath $package | Out-String)|ConvertFrom-Json
-  if($result.code -eq 'already_installed'){
-   Say 'Doxa' $result.message
-   return
-  }
-  if($result.code -ne 'ready_to_install'){
-   Say 'Doxa' ((T 'Installation stopped: ' 'Instalarea a fost oprita: ')+$result.message)
-   return
-  }
-  $note=T 'The original signed driver package has passed verification. Windows will request administrator permission and show installation progress. No automatic restart. Continue?' 'Pachetul oficial semnat a trecut verificarea. Windows va cere aprobarea administratorului si va afisa progresul. Nu va reporni automat. Continui?'
-  $yes=[Windows.Forms.MessageBox]::Show($note,'Doxa setup',[Windows.Forms.MessageBoxButtons]::YesNo,[Windows.Forms.MessageBoxIcon]::Question,[Windows.Forms.MessageBoxDefaultButton]::Button2)
-  if($yes -ne [Windows.Forms.DialogResult]::Yes){return}
-  $escaped=$package.Replace('"','')
-  $argument='-NoProfile -File "'+$engine+'" -PackagePath "'+$escaped+'" -Apply'
-  Start-Process -FilePath "$env:WINDIR\System32\WindowsPowerShell\v1.0\powershell.exe" -ArgumentList $argument -Verb RunAs|Out-Null
-  Say 'Doxa' (T 'Windows installation has been requested. Once it finishes, use Detect Doxa to verify the driver and panels.' 'Instalarea Windows a fost solicitata. La final, foloseste Detecteaza Doxa pentru confirmare.')
- }catch{
-  Say 'Doxa' (T 'The installation could not start or Windows approval was declined.' 'Instalarea nu a putut porni sau aprobarea Windows a fost refuzata.')
- }finally{$dialog.Dispose()}
-})
+ # The legacy driver picker has been retired. The only customer install action
+ # is the protected embedded DoxaMaintenance-v2.exe /install in Doxa-BrandTabs.
+ # The old $reinstall control remains hidden for existing UI test compatibility.
 if(-not ($Smoke -or $JourneyTest)){
  . (Join-Path $PSScriptRoot 'Doxa-BrandTabs.ps1')
 }
@@ -692,16 +649,15 @@ if($JourneyTest){
  if(-not $chat.Text.Contains((T 'diagnostic test' 'simulare'))){throw 'Fault message did not stay local.'}
  $script:fault='none';RefreshState
  $installSkip='not_checked'
- if($script:current.code -eq 'doxa_not_detected'){
-  [void]$click.Invoke($reinstall,@([EventArgs]::Empty))
-  if(-not $chat.Text.Contains((T 'First connect Doxa power' 'Conecteaza mai intai alimentarea'))){throw 'Disconnected Doxa did not provide appropriate connection guidance.'}
-  $installSkip='connect_doxa_first'
- }elseif($script:current.observed.signed_driver_present){
-  [void]$click.Invoke($reinstall,@([EventArgs]::Empty))
-  if(-not $chat.Text.Contains((T 'No installation is necessary' 'Nu este necesara instalarea'))){throw 'Already-installed path did not avoid MSI selection.'}
-  $installSkip='correct_driver_noop'
- }
- $result=[ordered]@{journey='PASS';initial_code=$initialCode;fault_did_not_call_ai=$true;install_button=$installSkip;driver_changes=$false;official_source=$official.Text;language_options=$languageChoice.Items.Count;device_illustration_present=($deviceArt.Width -gt 300);connection_steps_offline=$true;repeat_detect_does_not_spam=$repeatDetectNoChatFlood;language=$script:lang;localized_intro=$intro.Text}
+   # The legacy browse-for-MSI button must not reappear for customers.
+  # Driver actions use the protected embedded native installer in BrandTabs.
+  if($reinstall.Visible){throw 'Legacy driver selection returned to the customer experience.'}
+  if($script:current.code -eq 'doxa_not_detected'){
+   $installSkip='connect_doxa_first'
+  }elseif($script:current.observed.signed_driver_present){
+   $installSkip='correct_driver_noop'
+  }
+$result=[ordered]@{journey='PASS';initial_code=$initialCode;fault_did_not_call_ai=$true;install_button=$installSkip;driver_changes=$false;official_source=$official.Text;language_options=$languageChoice.Items.Count;device_illustration_present=($deviceArt.Width -gt 300);connection_steps_offline=$true;repeat_detect_does_not_spam=$repeatDetectNoChatFlood;language=$script:lang;localized_intro=$intro.Text}
  $form.Dispose()
  $result|ConvertTo-Json -Compress
  return

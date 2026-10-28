@@ -12,11 +12,24 @@ if(-not(Test-Path $personal -PathType Leaf) -or -not(Test-Path $managed -PathTyp
 $windowsApp='C:\Program Files\Standivarius\DoxaSetup'
 $maintenance='C:\Program Files\Standivarius\DoxaMaintenance'
 $reg='HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\StandivariusDoxaSetup'
+# Portable device identity, not a Dell-specific oemNNN.inf filename.
+# Read-only WMI: detect the signed bound Silicon Motion hardware identity.
+function Get-SignedDoxaDriverFingerprint {
+ $drivers=@(Get-CimInstance Win32_PnPSignedDriver -ErrorAction Stop|
+   Where-Object {$_.DeviceID -like 'USB\VID_090C&PID_770A*' -and
+     $_.IsSigned -and $_.DriverProviderName -match '^Silicon\s*Motion' -and
+     $_.Signer -eq 'Microsoft Windows Hardware Compatibility Publisher'} |
+   Sort-Object DeviceID,DriverVersion,InfName)
+ return (@($drivers|ForEach-Object {
+   [string]$_.DeviceID+'|'+[string]$_.DriverVersion+'|'+[string]$_.InfName
+ }) -join ';')
+}
+$baselineDriverIdentity=Get-SignedDoxaDriverFingerprint
 $snapshot=[ordered]@{
  app_present=Test-Path $windowsApp
  maintenance_present=Test-Path $maintenance
  uninstall_key_present=Test-Path $reg
- signed_driver_inf_present=Test-Path 'C:\Windows\INF\oem102.inf'
+ signed_doxa_driver_identity=$baselineDriverIdentity
 }
 $test=Join-Path $env:TEMP ('DoxaNativeTest-'+[Guid]::NewGuid().ToString('N'))
 New-Item $test -ItemType Directory|Out-Null
@@ -54,7 +67,7 @@ try {
   app_present=Test-Path $windowsApp
   maintenance_present=Test-Path $maintenance
   uninstall_key_present=Test-Path $reg
-  signed_driver_inf_present=Test-Path 'C:\Windows\INF\oem102.inf'
+  signed_doxa_driver_identity=Get-SignedDoxaDriverFingerprint
  }
  foreach($field in $snapshot.Keys){if($snapshot[$field] -ne $after[$field]){throw "System state changed unexpectedly: $field"}}
  $result=[ordered]@{

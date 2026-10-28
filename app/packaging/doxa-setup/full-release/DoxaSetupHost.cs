@@ -101,6 +101,27 @@ internal class DoxaHost {
    (driver==1?"DriverValid":driver==2?"DriverUntrusted":"DriverMissing")+" "+
    (usb?"USBDetected":"USBAbsent");
  }
+ static string FriendlyState(string raw,bool romanian){
+  bool app=raw.Contains("AppInstalled");
+  bool driver=raw.Contains("DriverValid");
+  bool foreign=raw.Contains("DriverUntrusted");
+  bool connected=raw.Contains("USBDetected");
+  if(foreign)return romanian?
+   "Driver neidentificat. Configurarea s-a oprit pentru a proteja ecranele.":
+   "Unrecognized display driver. Setup is stopped to protect your screens.";
+  if(!app)return romanian?
+   "Configurarea Doxa nu este instalata. Apasa Instaleaza / verifica.":
+   "Doxa setup is not installed. Choose Install / check Doxa.";
+  if(!connected)return romanian?
+   "Doxa nu este conectat. Conecteaza alimentarea, apoi cablul USB de date.":
+   "Doxa is not connected. Connect power first, then the USB data cable.";
+  if(!driver)return romanian?
+   "Doxa este conectat, dar driverul nu este confirmat. Verifica instalarea.":
+   "Doxa is connected, but its driver is not verified. Check installation.";
+  return romanian?
+   "Doxa si driverul semnat sunt detectate. Verifica ecranele in Windows.":
+   "Doxa and its signed driver are detected. Check your screens in Windows.";
+ }
  static bool RecognizedRegisteredMaintenance(string uninstall){
   string current=((char)34)+MaintenanceExe+((char)34)+" /uninstall";
   string legacy=((char)34)+LegacyMaintenanceExe+((char)34)+" /uninstall";
@@ -390,6 +411,9 @@ internal class DoxaHost {
    Require(RecognizedRegisteredMaintenance(((char)34)+LegacyMaintenanceExe+((char)34)+" /uninstall"),"Legacy registered maintenance path unrecognized");
    // Legacy path classification only accepts installed versioned executable.
    Require(!RecognizedRegisteredMaintenance("untrusted /uninstall"),"Arbitrary uninstall path accepted");
+   Require(FriendlyState("AppInstalled DriverValid USBDetected",false).Contains("signed driver"),"English ready status not human readable");
+   Require(FriendlyState("AppInstalled DriverValid USBAbsent",true).Contains("alimentarea"),"Romanian disconnected guidance missing");
+   Require(FriendlyState("AppMissing DriverValid USBDetected",false).Contains("not installed"),"Customer missing app status missing");
    Require(DetectDecision(true,true),"Registered valid app should detect regardless of USB/driver");
    Require(!DetectDecision(true,false),"Missing uninstall registration must fail detection");
    Require(!DetectDecision(false,true),"App missing must fail detection");
@@ -470,7 +494,7 @@ internal class DoxaHost {
    launch.AccessibleName=ro?"Deschide configurarea asistata Doxa":"Open Doxa guided setup";
    refresh.AccessibleName=ro?"Verifica din nou starea Doxa":"Refresh Doxa Windows status";
    language.AccessibleName=ro?"Schimba limba in engleza":"Change language to Romanian";
-   status.Text=lastState==null?(ro?"Se verifica Doxa...":"Checking Doxa..."):lastState;
+   status.Text=lastState==null?(ro?"Se verifica Doxa...":"Checking Doxa..."):FriendlyState(lastState,ro);
   };
   language.Click+=(sender,e)=>{ro=!ro;updateText();};
   install.Click+=(sender,e)=>{
@@ -483,7 +507,7 @@ internal class DoxaHost {
       if(!successful)MessageBox.Show(ro?"Instalarea nu s-a incheiat. Verifica jurnalul Doxa.":"Installation did not complete. Check Doxa installation logs.","Doxa Setup");
      }
     }else{Apply();successful=true;}
-    status.Text=State();
+    lastState=State();status.Text=FriendlyState(lastState,ro);
     if(successful&&IsValidApp(AppRoot))Open();
    }catch(Exception ex){MessageBox.Show(ex.Message,"Doxa Setup");}
   };
@@ -493,7 +517,7 @@ internal class DoxaHost {
    var work=new BackgroundWorker();
    work.DoWork+=(sender,e)=>{e.Result=State();};
    work.RunWorkerCompleted+=(sender,e)=>{
-    if(!status.IsDisposed)status.Text=e.Error==null?Convert.ToString(e.Result):(ro?"Verificare indisponibila":"Status unavailable");
+    if(!status.IsDisposed)status.Text=e.Error==null?FriendlyState(Convert.ToString(e.Result),ro):(ro?"Verificare indisponibila":"Status unavailable");
     if(e.Error==null)lastState=Convert.ToString(e.Result);
     work.Dispose();
    };

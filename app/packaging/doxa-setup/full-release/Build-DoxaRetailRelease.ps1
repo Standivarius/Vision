@@ -19,6 +19,12 @@ $toolSig=Get-AuthenticodeSignature $ContentPrepTool
 if($toolSig.Status -ne 'Valid' -or $toolSig.SignerCertificate.Subject -notmatch 'Microsoft Corporation'){throw 'Microsoft content prep not signed correctly'}
 $stage=Join-Path $env:TEMP ('DoxaRetail-'+[guid]::NewGuid().ToString('N'))
 $source=Join-Path $PSScriptRoot 'DoxaSetupHost.cs'
+if(-not(Test-Path $source -PathType Leaf)){throw 'Missing native installer source'}
+$sourceHash=(Get-FileHash $source -Algorithm SHA256).Hash
+$sourceCommit=((& git -C $root rev-parse HEAD)|Out-String).Trim()
+if($LASTEXITCODE -ne 0 -or $sourceCommit -notmatch '^[0-9a-f]{40}$'){throw 'Version-control identity unavailable'}
+$builderSourceHash=(Get-FileHash $PSCommandPath -Algorithm SHA256).Hash
+
 $csc='C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe'
 New-Item $OutputDirectory,$stage -ItemType Directory -Force|Out-Null
 try {
@@ -39,6 +45,8 @@ try {
    & $csc @ref ("/target:$($pair[0])") ("/out:$(Join-Path $target $pair[1])") ("/resource:$msi,Doxa.Driver") ("/resource:$app,Doxa.App") $source
    if($LASTEXITCODE){throw "Compiler failed for $($pair[1])"}
  }
+ if((Get-FileHash $source -Algorithm SHA256).Hash -ne $sourceHash){throw 'Installer source changed during compilation; refusing release'}
+ if((Get-FileHash $PSCommandPath -Algorithm SHA256).Hash -ne $builderSourceHash){throw 'Release builder changed during compilation'}
  $exe=Join-Path $personal 'DoxaSetup.exe'
  $deploy=Join-Path $managed 'DoxaDeploy.exe'
  $testExe=Join-Path $stage 'standalone-test'
@@ -102,6 +110,12 @@ are separately needed before any production go-live claim.
  $release=[ordered]@{
   status=if($RequirePublisherSignatures){'SIGNED_BUILD_READY_FOR_ENDPOINT_QUALIFICATION'}else{'UNSIGNED_REVIEW_BUILD_PASS'}
   source_branch=((& git -C $root branch --show-current)|Out-String).Trim()
+  source_commit=$sourceCommit
+  native_host_source_sha256=$sourceHash
+  retail_builder_source_sha256=$builderSourceHash
+  embedded_application_payload_sha256=(Get-FileHash $app -Algorithm SHA256).Hash
+  embedded_vendor_msi_sha256=(Get-FileHash $msi -Algorithm SHA256).Hash
+
   embedded_package_source_sha256=(Get-FileHash $sourceBundle -Algorithm SHA256).Hash
   product='Standivarius Doxa Setup'
   machine_install_and_signatures=$sigStatus

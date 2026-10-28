@@ -37,7 +37,14 @@ try{
  $logo=Join-Path $testRoot 'app\packaging\doxa-setup\personal-ui\assets\standivarius-official-logo.png'
  if(-not(Test-Path -LiteralPath $logo)){throw 'Official Standivarius logo missing from bundle'}
  $mainBrand=Join-Path $testRoot 'app\packaging\doxa-setup\personal-ui\Start-DoxaSetup.ps1'
- $brandCheck=(& $mainBrand -BrandTest | Out-String)|ConvertFrom-Json
+ # The shipped customer flow must never expose a browse-for-MSI dialog.
+$brandText=[IO.File]::ReadAllText($mainBrand)
+$tabsText=[IO.File]::ReadAllText((Join-Path $testRoot 'app\packaging\doxa-setup\personal-ui\Doxa-BrandTabs.ps1'))
+$welcomeText=[IO.File]::ReadAllText((Join-Path $testRoot 'app\packaging\doxa-setup\personal-ui\Start-DoxaGuidedSetup.ps1'))
+if($brandText.Contains('OpenFileDialog') -or $brandText.Contains('Choose the official Silicon Motion SMI770 MSI')){throw 'Obsolete MSI file picker is still embedded'}
+if(@($brandText,$tabsText,$welcomeText)|Where-Object{$_ -match 'TEST preview\.12'}){throw 'Customer window still shows TEST preview branding'}
+if(-not $tabsText.Contains('DoxaMaintenance-v2.exe') -or -not $tabsText.Contains("'/install'")){throw 'Protected embedded driver action is absent'}
+$brandCheck=(& $mainBrand -BrandTest | Out-String)|ConvertFrom-Json
  if($brandCheck.status -ne 'PASS' -or -not $brandCheck.single_form -or $brandCheck.upper_port -ne 'power' -or $brandCheck.lower_port -ne 'data'){throw 'Packaged brand/tab contract failed'}
  $wizard=Join-Path $testRoot 'app\packaging\doxa-setup\personal-ui\Start-DoxaGuidedSetup.ps1'
  $sameWindow=(& $wizard -SeamlessTest -Language en -TestConnectionChoice connected|Out-String)|ConvertFrom-Json

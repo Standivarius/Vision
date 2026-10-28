@@ -18,6 +18,25 @@ def digest(data):
     return hashlib.sha256(data).hexdigest().upper()
 
 def verify(folder):
+    manifest_file=folder/"RELEASE-MANIFEST.json"
+    assert manifest_file.is_file(), "Release manifest is missing"
+    release=json.loads(manifest_file.read_text(encoding="utf-8-sig"))
+    assert release.get("source_commit"), "Source commit not recorded"
+    assert release.get("native_host_source_sha256"), "Native source SHA-256 not recorded"
+    assert release.get("retail_builder_source_sha256"), "Builder source SHA-256 not recorded"
+    expected_files=release.get("files") or []
+    assert expected_files, "Empty release manifest file inventory"
+    for record in expected_files:
+        rel=record["path"]
+        assert not Path(rel).is_absolute() and ".." not in Path(rel).parts, "Untrusted manifest path"
+        binary=(folder/rel).read_bytes()
+        assert hmac.compare_digest(digest(binary),record["sha256"].upper()), f"Release file changed: {rel}"
+        assert len(binary)==record["bytes"], f"Release file length mismatch: {rel}"
+    checkout=Path(__file__).resolve().parent
+    assert hmac.compare_digest(digest((checkout/"DoxaSetupHost.cs").read_bytes()),
+        release["native_host_source_sha256"].upper()), "Installer source differs from this release"
+    assert hmac.compare_digest(digest((checkout/"Build-DoxaRetailRelease.ps1").read_bytes()),
+        release["retail_builder_source_sha256"].upper()), "Builder source differs from release"
     deploy = (folder / "ManageEngine" / "DoxaDeploy.exe").read_bytes()
     with zipfile.ZipFile(folder / "ManageEngine" / "Doxa-Managed-Windows.zip") as z:
         if z.namelist() != ["DoxaDeploy.exe"]:
