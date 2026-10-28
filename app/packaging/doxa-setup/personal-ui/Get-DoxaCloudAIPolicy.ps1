@@ -22,10 +22,20 @@ if($EvidencePath){
   $blocked=$true
  }
 }
+# Read-only local indication: this is NOT server enrollment approval.
+# No key generation, file contents, HTTPS or public identity sent here.
+$vault=Join-Path $env:LOCALAPPDATA 'Standivarius\DeveloperAccess\DoxaSetup'
+$keyReady=(Test-Path -LiteralPath (Join-Path $vault 'client-rsa-key.dpapi') -PathType Leaf)
+$publicReady=(Test-Path -LiteralPath (Join-Path $vault 'client-public-key.json') -PathType Leaf) -or
+ (Test-Path -LiteralPath (Join-Path (Split-Path -Parent $PSScriptRoot) 'assistant\client-public-key.json') -PathType Leaf)
+$identityReady=[bool]($keyReady -and $publicReady)
 [ordered]@{
  schema_version=1
  policy_source=$source
  cloud_ai_allowed=(-not $blocked)
+ local_identity_ready=$identityReady
+ online_ai_selectable=(-not $blocked -and $identityReady)
+ server_approval_unverified=$true
  cloud_ai_blocked_by_it=$blocked
  user_permission_still_required=$true
  machine_mutation_performed=$false

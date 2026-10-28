@@ -12,7 +12,7 @@ $form.BackColor=$white
 $form.ClientSize=New-Object Drawing.Size(1060,610)
 $form.MinimumSize=New-Object Drawing.Size(745,520)
 $form.AutoScroll=$true
-$form.Text='Standivarius | Doxa Setup - TEST preview.12'
+$form.Text='Standivarius | Doxa Setup'
 function UXLabel([string]$t,[int]$x,[int]$y,[int]$w,[int]$h,[float]$pt=10,[bool]$bold=$false){
  $c=New-Object Windows.Forms.Label;$c.Text=$t;$c.SetBounds($x,$y,$w,$h)
  $c.ForeColor=$ink
@@ -111,6 +111,7 @@ $detect.Controls.Add($connectionBadge)
 # Decorative screen positions, but checks come EXCLUSIVELY from live PnP identities.
 $script:doxaScreenChecks=@($false,$false,$false)
 $screenDiagram=New-Object Windows.Forms.Panel
+$screenDiagram.Tag=$script:doxaScreenChecks # Captured live result array survives New-Module event callback
 $screenDiagram.SetBounds(8,188,627,145)
 $screenDiagram.BackColor=[Drawing.Color]::FromArgb(249,250,252)
 $screenDiagram.AccessibleName='Illustration: Screens 2, 3, 4 above laptop Screen 1. A green tick means Windows identified that Doxa PnP monitor, not verified Extend mode.'
@@ -129,7 +130,7 @@ $screenDiagram.Add_Paint({
    $x=11+($i*209)
    $g.FillRectangle($fill,$x,8,195,73);$g.DrawRectangle($displayPen,$x,8,195,73)
    $g.DrawString((T ('Screen '+($i+2)) ('Ecran '+($i+2))),$font,$txt,$x+39,30)
-   $checked=[bool]$script:doxaScreenChecks[$i]
+   $checked=[bool](@($s.Tag)[$i])
    $p=if($checked){$good}else{$none}
    if($checked){
     $g.DrawLines($p,[Drawing.PointF[]]@([Drawing.PointF]::new([float]($x+153),[float]44),[Drawing.PointF]::new([float]($x+160),[float]50),[Drawing.PointF]::new([float]($x+173),[float]34)))
@@ -195,25 +196,64 @@ $install.Controls.Add((UXLabel 'Signed driver: only if needed' 14 15 615 43 18 $
 $install.Controls.Add((UXLabel 'Check Doxa first. When the signed Silicon Motion driver is healthy, no installation is needed.' 14 84 615 60 11))
 $driverStatus=UXLabel 'Driver status: run Detect Doxa to verify.' 14 164 600 62 12 $true
 $install.Controls.Add($driverStatus)
-$install.Controls.Add((UXLabel 'For now, driver installation is disabled in this unsigned preview. Use your IT administrator or the official vendor source.' 14 249 613 78 11))
+$install.Controls.Add((UXLabel 'If the signed driver is missing, choose Install / check driver below. Windows will ask for administrator approval. A working driver is never replaced.' 14 249 613 78 11))
+$driverAction=UXButton 'Install / check driver' 14 339 286 45
+$driverAction.AccessibleName='Install or verify the signed Doxa Windows display driver'
+$driverAction.AccessibleDescription='Uses the protected Doxa Windows installer and asks for administrator approval only if installation is needed.'
+$install.Controls.Add($driverAction)
+$driverAction.Add_Click({
+ $native=Join-Path $env:ProgramFiles 'Standivarius\DoxaMaintenance\DoxaMaintenance-v2.exe'
+ if(-not(Test-Path -LiteralPath $native -PathType Leaf)){
+  Say 'Doxa' (T 'Open the original Standivarius Doxa Windows installer to install the driver.' 'Deschide instalatorul Doxa pentru Windows ca sa instalezi driverul.')
+  return
+ }
+  if(-not($script:current -and $script:current.observed.doxa_hardware_detected)){
+   Say 'Doxa' (T 'Connect Doxa power first and USB data second, then select Detect Doxa before installing the signed driver.' 'Conecteaza intai alimentarea Doxa, apoi cablul USB de date. Apasa Detecteaza Doxa inainte de instalarea driverului.')
+   return
+  }
+  try {
+   $driverAction.Enabled=$false
+   $process=Start-Process -FilePath $native -ArgumentList '/install' -Verb RunAs -PassThru -Wait
+   if($process.ExitCode -in @(0,3010)){
+    RefreshState
+    if($process.ExitCode -eq 3010){
+     Say 'Doxa' (T 'The signed driver installer requests a Windows restart. Save your work and restart when convenient; Doxa never restarts automatically.' 'Instalatorul driverului semnat solicita repornirea Windows. Salveaza lucrul si reporneste cand poti; Doxa nu reporneste automat.')
+    }else{
+     Say 'Doxa' (T 'The installer finished. Select Detect Doxa to verify driver binding and all three screens; installation success alone does not prove the displays work.' 'Instalarea s-a incheiat. Apasa Detecteaza Doxa pentru a verifica driverul si cele trei ecrane; succesul instalarii nu confirma ecranele.')
+    }
+   }else{
+   Say 'Doxa' (T 'Windows driver setup was not completed. Ask IT to check the Doxa installer logs.' 'Instalarea driverului nu s-a incheiat. Solicita IT sa verifice jurnalul instalatorului Doxa.')
+  }
+  }catch{
+   Say 'Doxa' (T 'Administrator approval was declined or setup could not start.' 'Aprobarea administratorului a fost refuzata sau instalarea nu a pornit.')
+  }finally{$driverAction.Enabled=$true}
+})
 $reinstall.Visible=$false
-$official.SetBounds(14,351,450,30);$official.LinkColor=$red;$install.Controls.Add($official)
+$official.SetBounds(14,401,450,30);$official.LinkColor=$red;$install.Controls.Add($official)
 
 # Doxa Help stays present on the RIGHT for every task, not an interchangeable guide.
 $side.BorderStyle='None';$side.BackColor=$white
 $side.SetBounds(0,0,339,475);$sideHolder.Controls.Add($side)
 $helpHeading.Text='Doxa Help';$helpHeading.SetBounds(14,10,309,38)
-$assistantStatus.SetBounds(14,49,308,27)
+$assistantStatus.SetBounds(14,43,308,24)
 $offline.Visible=$false;$hint.Visible=$false
 $modeOff=New-Object Windows.Forms.RadioButton
-$modeOff.SetBounds(14,82,143,28);$modeOff.Text='Offline help';$modeOff.Checked=(-not $script:cloudConsent)
+$modeOff.SetBounds(14,70,143,28);$modeOff.Text='Offline help';$modeOff.Checked=(-not $script:cloudConsent)
 $modeOn=New-Object Windows.Forms.RadioButton
-$modeOn.SetBounds(169,82,146,28);$modeOn.Text='Online AI';$modeOn.Checked=[bool]$script:cloudConsent
+$modeOn.SetBounds(169,70,146,28);$modeOn.Text='Online AI';$modeOn.Checked=[bool]$script:cloudConsent
+$initialOnlinePolicy=(& $script:cloudPolicyScript|Out-String)|ConvertFrom-Json
+if(-not [bool]$initialOnlinePolicy.online_ai_selectable){
+ $modeOn.Enabled=$false
+ $modeOn.Checked=$false
+ $modeOff.Checked=$true
+ $script:cloudConsent=$false
+ $modeOn.AccessibleDescription=if([bool]$initialOnlinePolicy.cloud_ai_allowed){'Requires approved Doxa device enrollment. Offline help remains available.'}else{'Disabled by organization policy.'}
+}
 $side.Controls.AddRange(@($modeOff,$modeOn))
-$chat.SetBounds(14,118,309,246)
-$ask.SetBounds(14,373,203,32);$send.SetBounds(228,373,95,32);$send.BackColor=$red
+$chat.SetBounds(14,105,309,292)
+$ask.SetBounds(14,404,203,32);$send.SetBounds(228,404,95,32);$send.BackColor=$red
 $privacy=New-Object Windows.Forms.LinkLabel
-$privacy.Text='Privacy details for online AI';$privacy.SetBounds(14,422,302,34)
+$privacy.Text='Privacy details for online AI';$privacy.SetBounds(14,440,188,31)
 $privacy.LinkColor=$red
 $privacy.Add_LinkClicked({
  $f=Join-Path $PSScriptRoot 'AI-PRIVACY-NOTICE.txt'
@@ -226,6 +266,59 @@ $privacy.Add_LinkClicked({
  }catch{[Windows.Forms.MessageBox]::Show((T 'Privacy notice unavailable.' 'Informarea nu este disponibila.'),'Doxa')|Out-Null}
 })
 $side.Controls.Add($privacy)
+# Authorized recovery lab is OFF unless a local operator explicitly configures
+# a per-session password hash; an LLM cannot enable it or execute commands.
+. (Join-Path $PSScriptRoot 'Doxa-RecoveryLab.ps1')
+$script:recoveryLabUnlocked=$false
+$recoveryLab=New-Object Windows.Forms.LinkLabel
+$recoveryLab.Text='Recovery lab'
+$recoveryLab.SetBounds(205,440,125,31)
+$recoveryLab.LinkColor=$red
+$recoveryLab.Visible=[bool](Get-DoxaRecoveryLabEnabled)
+$recoveryLab.AccessibleName='Recovery lab - simulated missing screen only'
+$side.Controls.Add($recoveryLab)
+$recoveryLab.Add_LinkClicked({
+ if($script:recoveryLabUnlocked){
+  $script:recoveryLabUnlocked=$false;$script:fault='none'
+  $recoveryLab.Text=T 'Recovery lab' 'Test recuperare'
+  RefreshState
+  Say 'Doxa' (T 'Recovery test ended. Actual Windows state restored to view; no display setting was changed.' 'Testul s-a incheiat. Afisam din nou starea reala; nicio setare Windows nu a fost schimbata.')
+  return
+ }
+ if(-not(Get-DoxaRecoveryLabEnabled)){return}
+ $dlg=New-Object Windows.Forms.Form
+ $dlg.Text=T 'Unlock recovery lab' 'Deblocheaza testul de recuperare'
+ $dlg.ClientSize=New-Object Drawing.Size(480,190)
+ $dlg.StartPosition='CenterParent'
+ $lbl=New-Object Windows.Forms.Label
+ $lbl.Text=T 'Local test code (never sent online):' 'Cod local de test (nu este trimis online):'
+ $lbl.SetBounds(18,14,440,43)
+ $code=New-Object Windows.Forms.TextBox
+ $code.UseSystemPasswordChar=$true
+ $code.SetBounds(18,65,440,30)
+ $code.AccessibleName=T 'Recovery test unlock code' 'Cod de deblocare test'
+ $ok=New-Object Windows.Forms.Button
+ $ok.Text=T 'Unlock simulated fault' 'Deblocheaza simularea'
+ $ok.SetBounds(248,125,210,40)
+ $ok.DialogResult=[Windows.Forms.DialogResult]::OK
+ $dlg.Controls.AddRange(@($lbl,$code,$ok))
+ $dlg.AcceptButton=$ok
+ try{
+  if($dlg.ShowDialog($form) -ne [Windows.Forms.DialogResult]::OK){return}
+  $accepted=Test-DoxaRecoveryLabUnlock ([string]$code.Text)
+  $code.Clear()
+  if(-not $accepted){
+   [Windows.Forms.MessageBox]::Show((T 'Wrong test code; no changes made.' 'Cod incorect; nu s-a schimbat nimic.'),'Doxa')|Out-Null
+   return
+  }
+ }finally{$code.Clear();$dlg.Dispose()}
+ $script:recoveryLabUnlocked=$true
+ $script:fault='display_missing' # in-memory diagnostic fixture only
+ $recoveryLab.Text=T 'End recovery test' 'Inchide testul'
+ RefreshState
+ Say 'Doxa' (T 'TEST: One Doxa screen is reported missing for recovery practice. Your actual Windows screens are unchanged. You can ask Doxa online AI about this explicitly simulated fault if online AI is enabled.' 'TEST: Simulam lipsa unui ecran Doxa, fara sa modificam ecranele Windows. Poti intreba AI online despre aceasta simulare daca ai activat asistenta AI.')
+})
+
 $script:previousAIApproval=[bool]$script:cloudConsent
 $modeOff.Add_CheckedChanged({
  if(-not $modeOff.Checked){return}
@@ -240,7 +333,10 @@ $modeOff.Add_CheckedChanged({
 $modeOn.Add_CheckedChanged({
  if(-not $modeOn.Checked){return}
  $policy=(& $script:cloudPolicyScript | Out-String)|ConvertFrom-Json
- if(-not [bool]$policy.cloud_ai_allowed){$modeOff.Checked=$true;return}
+  if(-not [bool]$policy.online_ai_selectable){
+   $assistantStatus.Text=T 'Online AI requires approved device enrollment. Offline help is available.' 'AI online necesita inregistrarea dispozitivului. Asistenta offline este disponibila.'
+   $modeOff.Checked=$true;return
+  }
  if(-not $script:previousAIApproval){
   $msg=T 'Online AI sends your typed question and limited Doxa/Windows diagnostics over HTTPS. No screenshots. Allow online AI this session?' 'AI online trimite intrebarea si diagnostice limitate Doxa/Windows prin HTTPS. Fara capturi de ecran. Permiti AI online in aceasta sesiune?'
   $answer=[Windows.Forms.MessageBox]::Show($msg,'Doxa online AI',[Windows.Forms.MessageBoxButtons]::YesNo,[Windows.Forms.MessageBoxIcon]::Question,[Windows.Forms.MessageBoxDefaultButton]::Button2)
@@ -262,6 +358,7 @@ function SelectDoxaPage([string]$page) {
   $tabs[$i].AccessibleDescription=if($selected){T 'Selected task' 'Sarcina selectata'}else{T 'Other task' 'Alta sarcina'}
  }
  if($page -eq 'install'){
+  $driverAction.Visible=(-not ($script:current -and $script:current.observed.signed_driver_present))
   $driverStatus.Text=if($script:current -and $script:current.observed.signed_driver_present){
    T 'Signed Silicon Motion driver detected. No reinstall needed.' 'Driver Silicon Motion semnat detectat. Nu este necesara reinstalarea.'
   }else{
@@ -301,7 +398,8 @@ function LayoutDoxa {
   $sideHolder.SetBounds(19,611,663,477)
   $side.SetBounds(0,0,661,473)
   $chat.Width=628;$ask.Width=520;$send.Left=548;$send.Width=96
-  $privacy.Top=422
+  $privacy.Top=440
+  $recoveryLab.Left=[Math]::Max(205,$side.Width-135)
  }else{
   $workspace.SetBounds(19,119,663,478)
   $sideHolder.SetBounds(699,119,($width-719),478)
@@ -331,10 +429,13 @@ $brandTranslations=@{
  'Signed driver: only if needed'='Driver semnat: doar la nevoie'
  'Check Doxa first. When the signed Silicon Motion driver is healthy, no installation is needed.'='Verifica Doxa mai intai. Daca driverul Silicon Motion semnat functioneaza, nu instala nimic.'
  'Driver status: run Detect Doxa to verify.'='Starea driverului: apasa Detecteaza Doxa pentru verificare.'
- 'For now, driver installation is disabled in this unsigned preview. Use your IT administrator or the official vendor source.'='Instalarea driverului este dezactivata in aceasta versiune nesemnata. Contacteaza IT sau furnizorul oficial.'
+ 'If the signed driver is missing, choose Install / check driver below. Windows will ask for administrator approval. A working driver is never replaced.'='Daca driverul semnat lipseste, apasa Instaleaza / verifica driverul. Windows va solicita aprobarea administratorului. Driverul functional nu este inlocuit.'
  'Offline help'='Ajutor offline'
  'Online AI'='AI online'
  'Privacy details for online AI'='Confidentialitate AI online'
+  'Install / check driver'='Instaleaza / verifica driverul'
+  'Recovery lab'='Test recuperare'
+  'End recovery test'='Inchide testul'
  'Doxa Help'='Asistenta Doxa'
 }
 function TranslateDoxa {
@@ -356,7 +457,10 @@ function TranslateDoxa {
  }
  Walk $form
  $check.Text=T 'Check connection' 'Verifica conexiunea'
- $check.AccessibleName=$check.Text
+   $check.AccessibleName=$check.Text
+  $driverAction.AccessibleDescription=T 'Checks the original signed embedded Windows driver; approval required if needed.' 'Verifica driverul Windows semnat inclus; daca este necesar, se solicita aprobarea.'
+  $settingsButton.AccessibleDescription=T 'Opens Windows display settings without changing them.' 'Deschide setarile ecranelor Windows fara sa le modifice.'
+  if($recoveryLab.Visible){$recoveryLab.Text=if($script:recoveryLabUnlocked){T 'End recovery test' 'Inchide testul'}else{T 'Recovery lab' 'Test recuperare'}}
  SelectDoxaPage $script:doxaCurrentPage
  $screenDiagram.Invalidate();$layoutDiagram.Invalidate();$ports.Invalidate()
 }

@@ -14,7 +14,7 @@ try{
  $manifest=Get-Content -LiteralPath (Join-Path $testRoot 'manifest.json') -Raw -Encoding UTF8|ConvertFrom-Json
  if($manifest.product -ne 'Standivarius Doxa Setup' -or $manifest.preview_version -ne '0.4.0-preview.12'){throw 'Wrong product/version'}
  if($manifest.signing_status -notmatch '^UNSIGNED preview'){throw 'Unexpected signing status'}
- if(@($manifest.files).Count -ne 20){throw 'Unexpected packaged file count'}
+ if(@($manifest.files).Count -ne 21){throw 'Unexpected packaged file count'}
  $checked=0
  foreach($item in $manifest.files){
   $path=Join-Path $testRoot ($item.file.Replace('/','\'))
@@ -33,11 +33,21 @@ try{
  $all=@(Get-ChildItem -LiteralPath $testRoot -Recurse -File)
  $forbidden=@($all|Where-Object {$_.Name -like '*.env' -or $_.Extension -in @('.msi','.dll','.cat','.sys','.dpapi','.pfx','.pem','.key') -or $_.Name -match '(token|secret|private.?key)'})
  if($forbidden.Count){throw 'Forbidden driver or credential content in ZIP'}
- if($all.Count -ne 23){throw 'Unexpected extra content in personal bundle'}
+ if($all.Count -ne 24){throw 'Unexpected extra content in personal bundle'}
  $logo=Join-Path $testRoot 'app\packaging\doxa-setup\personal-ui\assets\standivarius-official-logo.png'
  if(-not(Test-Path -LiteralPath $logo)){throw 'Official Standivarius logo missing from bundle'}
- $mainBrand=Join-Path $testRoot 'app\packaging\doxa-setup\personal-ui\Start-DoxaSetup.ps1'
- $brandCheck=(& $mainBrand -BrandTest | Out-String)|ConvertFrom-Json
+ $lab=Join-Path $testRoot 'app\packaging\doxa-setup\personal-ui\Doxa-RecoveryLab.ps1'
+$labCheck=(& $lab -SelfTest|Out-String)
+if($labCheck -notmatch '^PASS:'){throw 'Local recovery lab guard failed'}
+$mainBrand=Join-Path $testRoot 'app\packaging\doxa-setup\personal-ui\Start-DoxaSetup.ps1'
+ # The shipped customer flow must never expose a browse-for-MSI dialog.
+$brandText=[IO.File]::ReadAllText($mainBrand)
+$tabsText=[IO.File]::ReadAllText((Join-Path $testRoot 'app\packaging\doxa-setup\personal-ui\Doxa-BrandTabs.ps1'))
+$welcomeText=[IO.File]::ReadAllText((Join-Path $testRoot 'app\packaging\doxa-setup\personal-ui\Start-DoxaGuidedSetup.ps1'))
+if($brandText.Contains('OpenFileDialog') -or $brandText.Contains('Choose the official Silicon Motion SMI770 MSI')){throw 'Obsolete MSI file picker is still embedded'}
+if(@($brandText,$tabsText,$welcomeText)|Where-Object{$_ -match 'TEST preview\.12'}){throw 'Customer window still shows TEST preview branding'}
+if(-not $tabsText.Contains('DoxaMaintenance-v2.exe') -or -not $tabsText.Contains("'/install'")){throw 'Protected embedded driver action is absent'}
+$brandCheck=(& $mainBrand -BrandTest | Out-String)|ConvertFrom-Json
  if($brandCheck.status -ne 'PASS' -or -not $brandCheck.single_form -or $brandCheck.upper_port -ne 'power' -or $brandCheck.lower_port -ne 'data'){throw 'Packaged brand/tab contract failed'}
  $wizard=Join-Path $testRoot 'app\packaging\doxa-setup\personal-ui\Start-DoxaGuidedSetup.ps1'
  $sameWindow=(& $wizard -SeamlessTest -Language en -TestConnectionChoice connected|Out-String)|ConvertFrom-Json
@@ -117,7 +127,7 @@ try{
   $aiStatus=[string]$reply.status
   if($aiStatus -ne 'answered'){throw ('Extracted client did not reach live Doxa AI: '+$aiStatus)}
  }
- [ordered]@{status='PASS';file_integrity_verified=$checked;archive_total_files=$all.Count;driver_payload_bundled=$false;credentials_bundled=$false;extracted_away_from_repository=$true;journey=$result.journey;simulated_fault_did_not_call_ai=$result.fault_did_not_call_ai;driver_install_prevented_safely=$true;installation_button_result=$result.install_button;cloud_ai=$aiStatus;multidevice_identity_tested=$true;bilingual_ui_verified=$true;consent_before_diagnostics=$true;same_window_navigation_passed=$true;single_window_transition=$true;single_window_transition_verified=$true}|ConvertTo-Json -Compress
+ [ordered]@{status='PASS';file_integrity_verified=$checked;archive_total_files=$all.Count;driver_payload_bundled=$false;credentials_bundled=$false;extracted_away_from_repository=$true;journey=$result.journey;simulated_fault_did_not_call_ai=$result.fault_did_not_call_ai;driver_install_prevented_safely='NOT_PHYSICALLY_TESTED';installation_button_result=$result.install_button;cloud_ai=$aiStatus;multidevice_identity_tested='PNP_FIXTURE_ONLY';bilingual_ui_verified='UI_FIXTURE_ONLY';consent_before_diagnostics=$true;same_window_navigation_passed=$true;single_window_transition=$true;single_window_transition_verified=$true}|ConvertTo-Json -Compress
 }finally{
  Set-Location -LiteralPath $before
  if(Test-Path -LiteralPath $testRoot){Remove-Item -LiteralPath $testRoot -Recurse -Force}

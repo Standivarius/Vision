@@ -39,23 +39,34 @@ if ($SnapshotPath) {
  $origin = 'live'
 }
 $matched = @($snapshot.drivers | Where-Object {
- [string]$_.device_id -like ($profile.hardware_id_prefix + '*')
+ $null -ne $_ -and [string]$_.device_id -like ($profile.hardware_id_prefix + '*')
 })
-$driver = if ($matched.Count -gt 0) {$matched[0]} else {$null}
+# Prioritize untrusted third-party binding, then a trusted vendor binding,
+# then a generic Microsoft/unbound first-use device. Same table as native host.
+function Get-DoxaBindingClass($item) {
+ $provider=[string]$item.provider
+ if([string]::IsNullOrWhiteSpace($provider) -or $provider -in @('Microsoft','Microsoft Windows')){return 'missing'}
+ $normalized=$provider -replace '[^A-Za-z0-9]',''
+ if($normalized -match '^(?i)SiliconMotion' -and [bool]$item.signed -and
+    [string]$item.signer -eq [string]$profile.expected_driver_signer){return 'trusted'}
+ return 'untrusted'
+}
+$classifications=@($matched|ForEach-Object {Get-DoxaBindingClass $_})
+$driver=if($classifications -contains 'untrusted') {
+ $matched[[array]::IndexOf($classifications,'untrusted')]
+}elseif($classifications -contains 'trusted'){
+ $matched[[array]::IndexOf($classifications,'trusted')]
+}elseif($matched.Count -gt 0){$matched[0]}else{$null}
+$binding=if($classifications -contains 'untrusted'){'untrusted'}elseif($classifications -contains 'trusted'){'trusted'}else{'missing'}
 $names = @($snapshot.monitors | ForEach-Object {[string]$_.name})
 $present = @($profile.expected_monitor_names | Where-Object {$names -contains $_})
 $missing = @($profile.expected_monitor_names | Where-Object {$names -notcontains $_})
-$driverOk = $false
-if ($null -ne $driver) {
- $driverOk = [bool]$driver.signed -and
-   [string]$driver.provider -eq [string]$profile.expected_driver_provider -and
-   [string]$driver.signer -eq [string]$profile.expected_driver_signer
-}
+$driverOk = ($binding -eq 'trusted')
 $status = if ([int]$snapshot.os_build -lt [int]$profile.minimum_windows_build) {
  'unsupported_windows'
-} elseif ($null -eq $driver) {
- 'driver_missing'
-} elseif (-not $driverOk) {
+ } elseif ($binding -eq 'missing') {
+  'driver_missing'
+ } elseif (-not $driverOk) {
  'driver_identity_or_signature_mismatch'
 } elseif ($missing.Count -gt 0) {
  'signed_driver_present_monitors_missing'

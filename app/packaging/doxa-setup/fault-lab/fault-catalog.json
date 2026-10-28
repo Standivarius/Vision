@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "lab_name": "Doxa Fault Lab",
+  "non_negotiable": "Live Doxa display tests must be local, temporary, primary-display-safe, and independently auto-restored. The AI may provide guidance only.",
+  "scenarios": [
+    {
+      "id": "one-screen-temporary",
+      "kind": "real_reversible",
+      "label": "Temporarily disable one Doxa display",
+      "run": "Invoke-DoxaFaultLab.ps1 -Scenario one-screen-temporary -Display '<listed external display>' -Seconds 30 -Execute -OwnerAtKeyboard -LaptopScreenUsable -ConfirmDisplay '<same display>'",
+      "expected_fault": "One Doxa Windows display disappears temporarily; primary laptop remains active",
+      "expected_recovery": "Independent watchdog restores the exact prior Windows display configuration after the specified delay; operator can also restore from the saved snapshot",
+      "test_question": "One external Doxa monitor disappeared; help me identify it and recover the four-screen layout.",
+      "requires_admin": false,
+      "automated": true,
+      "tested_on_live_machine": false
+    },
+    {
+      "id": "screen-missing-simulation",
+      "kind": "simulation",
+      "label": "Simulate missing Doxa panel",
+      "run": "Invoke-DoxaFaultLab.ps1 -Scenario screen-missing-simulation",
+      "expected_fault": "Read-only diagnostic overlay for a missing Doxa screen, with actual display unchanged",
+      "expected_recovery": "Exit simulation and re-run Detect Doxa",
+      "test_question": "A Doxa panel is missing in a simulation. Walk through safe recovery steps.",
+      "requires_admin": false,
+      "automated": true
+    },
+    {
+      "id": "driver-missing-simulation",
+      "kind": "simulation",
+      "label": "Simulate missing display driver",
+      "run": "Invoke-DoxaFaultLab.ps1 -Scenario driver-missing-simulation",
+      "expected_fault": "Diagnostic says the display driver is missing; installed signed vendor driver is untouched",
+      "expected_recovery": "Explain Windows signed-driver checks and escalation, then reset simulation",
+      "requires_admin": false,
+      "automated": true
+    },
+    {
+      "id": "blocked-policy-simulation",
+      "kind": "simulation",
+      "label": "Simulate organization policy blocking installation",
+      "run": "Invoke-DoxaFaultLab.ps1 -Scenario blocked-policy-simulation",
+      "expected_fault": "Permission / policy failure reported in diagnostic fixture",
+      "expected_recovery": "Explain permitted IT escalation; do not bypass policy",
+      "requires_admin": false,
+      "automated": true
+    },
+    {
+      "id": "package-mismatch-simulation",
+      "kind": "simulation",
+      "label": "Simulate corrupt or incorrect installer package",
+      "run": "Invoke-DoxaFaultLab.ps1 -Scenario package-mismatch-simulation",
+      "expected_fault": "Package integrity mismatch in diagnostic overlay",
+      "expected_recovery": "Recommend signed original installer and checksum validation; never disable safety checks",
+      "requires_admin": false,
+      "automated": true
+    },
+    {
+      "id": "assistant-unavailable-simulation",
+      "kind": "simulation",
+      "label": "Simulate online Doxa support unavailable",
+      "run": "Invoke-DoxaFaultLab.ps1 -Scenario assistant-unavailable-simulation",
+      "expected_fault": "Remote support not available in diagnostic fixture",
+      "expected_recovery": "Offline verified Doxa help remains available",
+      "requires_admin": false,
+      "automated": true
+    },
+    {
+      "id": "usb-data-unplug",
+      "kind": "manual",
+      "label": "Disconnect and reconnect Doxa USB data cable",
+      "run": "Physical operator only: leave Doxa power connected, unplug data USB-C, ask Doxa Help, reconnect.",
+      "expected_fault": "Doxa USB controller or all external displays disappear",
+      "expected_recovery": "Reconnect original data USB-C, allow Windows reenumeration, click Detect Doxa; no signed driver removal",
+      "requires_admin": false,
+      "automated": false
+    },
+    {
+      "id": "ai-offline-mode",
+      "kind": "manual",
+      "label": "Turn off Online AI in the installer",
+      "run": "Click Offline help in the Doxa Help panel. No network or device change.",
+      "expected_fault": "Cloud assistance deliberately disabled for the user",
+      "expected_recovery": "Offline curated help continues; re-enable online AI only with fresh consent",
+      "requires_admin": false,
+      "automated": false
+    }
+  ]
+}

@@ -30,7 +30,7 @@ $teal=[Drawing.Color]::FromArgb(16,140,137)
 $slate=[Drawing.Color]::FromArgb(67,82,99)
 $light=[Drawing.Color]::FromArgb(231,238,245)
 $form=if($HostForm){$HostForm}else{New-Object Windows.Forms.Form}
-$form.Text='Standivarius | Doxa Setup - TEST preview.12'
+$form.Text='Standivarius | Doxa Setup'
 $script:developerMode=[bool]($DeveloperTests -or $JourneyTest)
 $form.StartPosition='CenterScreen'
 $form.ClientSize=New-Object Drawing.Size(1060,685)
@@ -200,7 +200,7 @@ $official.Add_LinkClicked({
  try{Start-Process 'https://www.siliconmotion.com/downloads/SM770-drivers.html'|Out-Null}
  catch{Say 'Doxa' (T 'Open siliconmotion.com and find the official SM770 driver.' 'Deschide siliconmotion.com pentru driverul oficial SM770.')}
 })
-$footer=Label 'Doxa Setup personal preview -- Driver changes require your approval' 29 648 995 22 9
+$footer=Label 'Doxa Setup | Windows administrator approval is required for driver changes' 29 648 995 22 9
 $form.Controls.Add($footer)
 # In a portrait/remote Windows desktop, stack device and help instead of losing
 # half the application off-screen. On full-size desktops retain the two-column view.
@@ -257,9 +257,9 @@ if($script:shortWide){
  $reinstall.SetBounds(375,513,272,43)
  $side.SetBounds(669,113,362,445)
  if(-not $script:developerMode){
-  $chat.SetBounds(17,78,326,265)
-  $ask.SetBounds(17,350,228,36)
-  $send.SetBounds(258,349,85,38)
+  $chat.SetBounds(17,78,326,295)
+  $ask.SetBounds(17,381,228,36)
+  $send.SetBounds(258,380,85,38)
   $hint.SetBounds(17,405,326,28)
   $offline.SetBounds(17,404,326,31)
  }
@@ -270,7 +270,7 @@ if($script:shortWide){
 $form.MinimumSize=if($script:compactLayout){New-Object Drawing.Size(440,480)}else{New-Object Drawing.Size(770,500)}
 $script:lastDetectionKey='';$script:current=$null;$script:fault='none';$script:lang=$Language
 $script:cloudPolicyScript=Join-Path $PSScriptRoot 'Get-DoxaCloudAIPolicy.ps1'
-function T([string]$en,[string]$ro){if($script:lang -eq 'ro'){$ro}else{$en}}
+function T([string]$en,[string]$ro){$active=Get-Variable -Name lang -Scope Script -ErrorAction SilentlyContinue;if($active -and [string]$active.Value -eq 'ro'){$ro}else{$en}}
 function Say([string]$speaker,[string]$body){
  $nl=[Environment]::NewLine
  $chat.SelectionStart=$chat.TextLength
@@ -282,11 +282,10 @@ function Say([string]$speaker,[string]$body){
  $chat.AppendText($body+$nl+$nl)
  $chat.ScrollToCaret()
 }
-function RefreshState {
+function RefreshStateNow([object]$preparedResult=$null,[object]$preparedCompatibility=$null) {
  try{
   $assistantStatus.Text=T 'Checking Windows and Doxa (read-only)...' 'Verificam Windows si Doxa (fara modificari)...'
-  [Windows.Forms.Application]::DoEvents()
-  $result=& $diagnose -Fault $script:fault -Language $script:lang | Out-String | ConvertFrom-Json
+  $result=if($null -ne $preparedResult){$preparedResult}else{& $diagnose -Fault $script:fault -Language $script:lang | Out-String | ConvertFrom-Json}
   $script:current=$result
   $d=$result.observed
   $stateKey=($result.code+'|'+[string]$d.driver_version+'|'+[string]$d.active_desktops+'|'+[string]@($d.pnp_doxa_panels).Count+'|'+[string]$script:fault)
@@ -330,16 +329,16 @@ function RefreshState {
   if(-not $result.test_only -and $result.code -eq 'doxa_not_detected' -and $d.driver_package_in_store){
    $advice+=' '+(T 'The Silicon Motion driver package is still installed in Windows. Do not reinstall it; reconnect Doxa and check again.' 'Pachetul driver Silicon Motion este inca instalat in Windows. Nu il reinstala; reconecteaza Doxa si verifica din nou.')
   }
-  if($stateChanged){Say 'Doxa' $advice}
+  # Hardware state belongs in the Detect Doxa status panel, not in conversation history.
   if(-not $result.test_only){
    # Refresh the expensive Windows USB compatibility census only when relevant state changed.
    if($stateChanged){
-    $preflight=(& $compatibilityScript -ConnectionChoice $script:connectionChoice -Language $script:lang|Out-String)|ConvertFrom-Json
+     $preflight=if($null -ne $preparedCompatibility){$preparedCompatibility}else{(& $compatibilityScript -ConnectionChoice $script:connectionChoice -Language $script:lang|Out-String)|ConvertFrom-Json}
    $script:compatibility=$preflight
    $summary=(T 'Pre-check: ' 'Verificare preliminara: ')+[string]$preflight.recommendation
    $summary+=' '+(T 'USB controllers seen: ' 'Controlere USB detectate: ')+[string]$preflight.usb_controller_count
    $summary+=' '+(T 'Physical USB-C port and real screen behavior still require hardware verification.' 'Portul USB-C fizic si functionarea ecranelor trebuie verificate cu hardware-ul conectat.')
-    Say 'Doxa' $summary
+    # Pre-check details are held in $script:compatibility; the right panel remains user-driven chat.
    }
     $sub.Text=T 'Detect Doxa and check the Windows screens.' 'Detecteaza Doxa si verifica ecranele Windows.'
    $assistantStatus.Text=if($script:cloudConsent){T 'Online AI requested; device approval may be required' 'AI online solicitat; aprobarea dispozitivului poate fi necesara'}else{T 'Offline Doxa help is ready' 'Asistenta Doxa offline este disponibila'}
@@ -348,6 +347,56 @@ function RefreshState {
   $rows[2].Text='!    Check failed'
   $stateLabel.Text=$_.Exception.Message
   Say 'Doxa' ('The check could not finish: '+$_.Exception.Message)
+ }
+}
+# Production: Windows WMI/PnP and pnputil checks execute in a child job, not
+# on the main WinForms event thread. Fixture/journey tests stay deterministic.
+$script:scanJob=$null
+$script:scanTimer=New-Object Windows.Forms.Timer
+$script:scanTimer.Interval=200
+$script:scanTimer.Add_Tick({
+ if($null -eq $script:scanJob){$script:scanTimer.Stop();return}
+ if($script:scanJob.State -notin @('Completed','Failed','Stopped')){return}
+ $job=$script:scanJob;$script:scanJob=$null;$script:scanTimer.Stop()
+ try{
+  if($job.State -ne 'Completed'){throw 'Windows read-only diagnostics did not finish.'}
+  $raw=Receive-Job -Job $job -ErrorAction Stop|Out-String
+  $value=$raw|ConvertFrom-Json -ErrorAction Stop
+  if($null -eq $value.result){throw 'Windows diagnostic result missing'}
+  RefreshStateNow $value.result $value.compatibility
+ }catch{
+  $stateLabel.Text=T 'Windows check could not finish. Select Detect Doxa to retry.' 'Verificarea Windows nu s-a incheiat. Apasa Detecteaza Doxa pentru a incerca din nou.'
+  $assistantStatus.Text=$_.Exception.Message
+ }finally{Remove-Job -Job $job -Force -ErrorAction SilentlyContinue}
+})
+function RefreshState {
+ if($JourneyTest -or $BrandTest -or $Smoke -or $DeveloperTests -or $EmbeddedSmoke){
+  RefreshStateNow
+  return
+ }
+ if($null -ne $script:scanJob){
+  $assistantStatus.Text=T 'Doxa detection is still running. You can continue using Help.' 'Detectarea Doxa continua. Poti folosi asistenta.'
+  return
+ }
+ $assistantStatus.Text=T 'Checking Windows and Doxa in the background...' 'Verificam Windows si Doxa in fundal...'
+ $path=$diagnose;$compat=$compatibilityScript
+ $faultForJob=$script:fault;$languageForJob=$script:lang
+ $connectionForJob=$script:connectionChoice
+ try{
+  $script:scanJob=Start-Job -ScriptBlock {
+   param($d,$c,$fault,$language,$choice)
+   $ErrorActionPreference='Stop'
+   $result=(& $d -Fault $fault -Language $language | Out-String)|ConvertFrom-Json
+   $compatibility=$null
+   if(-not $result.test_only){
+    $compatibility=(& $c -ConnectionChoice $choice -Language $language|Out-String)|ConvertFrom-Json
+   }
+   [pscustomobject]@{result=$result;compatibility=$compatibility}|ConvertTo-Json -Depth 14 -Compress
+  } -ArgumentList @($path,$compat,$faultForJob,$languageForJob,$connectionForJob)
+  $script:scanTimer.Start()
+ }catch{
+  $assistantStatus.Text=T 'Unable to start background diagnostic scan.' 'Nu se poate porni verificarea in fundal.'
+  Say 'Doxa' ('Read-only diagnostics unavailable: '+$_.Exception.Message)
  }
 }
 function Answer([string]$q){
@@ -378,8 +427,8 @@ $guide.Add_Click({
  if(Test-Path -LiteralPath $helper){& $helper -Owner $form -Language $script:lang}
  else{Say 'Doxa' (T 'Guide unavailable. Open Windows Settings > System > Display manually.' 'Ghid indisponibil. Deschide Setari Windows > Sistem > Ecran.')}
 })
-$check.Add_Click({$script:fault='none';RefreshState})
-$reset.Add_Click({$script:fault='none';RefreshState})
+$check.Add_Click({$script:fault='none';$script:recoveryLabUnlocked=$false;RefreshState})
+$reset.Add_Click({$script:fault='none';$script:recoveryLabUnlocked=$false;RefreshState})
 $inject.Add_Click({
  if(-not $script:developerMode){return}
  $script:fault=@('driver_missing','display_missing','policy_blocked','package_mismatch','support_offline')[$faults.SelectedIndex]
@@ -454,12 +503,20 @@ $send.Add_Click({
   $assistantStatus.Text=T 'Doxa installation support only' 'Doar asistenta pentru instalarea Doxa'
   return
  }
- # Fault overlays are clearly simulations and must not send any simulated claims to AI.
- if($script:fault -ne 'none'){
-  Say 'Doxa' (Answer $q)
-  $assistantStatus.Text=T 'Test mode -- Local explanation' 'Mod de test -- Explicatie locala'
-  return
- }
+   # Ordinary developer fixture overlays stay offline. Only the locally code-
+  # unlocked recovery exercise may query AI, with the fault clearly described
+  # as hypothetical; it cannot send the unlock phrase or run AI commands.
+  $cloudQuestion=$q
+  if($script:fault -ne 'none' -and $script:recoveryLabUnlocked){
+   $cloudQuestion='DOXA DIAGNOSTIC EXERCISE: Simulated missing external Doxa screen. Actual Windows hardware and topology are unchanged. Describe safe recovery steps and how to verify power, USB data, Windows Extend and the Doxa panels. Do not imply that the fault is real. User question: '+$q.Substring(0,[Math]::Min(1100,$q.Length))
+   Say 'Doxa' (T 'This is a simulated failure, not an actual Windows display change. The online AI response will be guidance only.' 'Aceasta este o simulare; nu s-a modificat niciun ecran Windows. AI online ofera doar recomandari.')
+  }
+# Fault overlays are clearly simulations and must not send any simulated claims to AI.
+ if($script:fault -ne 'none' -and -not $script:recoveryLabUnlocked){
+   Say 'Doxa' (Answer $q)
+   $assistantStatus.Text=T 'Test mode -- Local explanation' 'Mod de test -- Explicatie locala'
+   return
+  }
  if($null -eq $script:current){
   Say 'Doxa' (T 'Detect Doxa first, then ask about your equipment.' 'Verifica mai intai Doxa, apoi cere ajutor.')
   return
@@ -470,7 +527,7 @@ $send.Add_Click({
   return
  }
  $policy=(& $script:cloudPolicyScript|Out-String)|ConvertFrom-Json
- if(-not [bool]$policy.cloud_ai_allowed){
+  if(-not [bool]$policy.online_ai_selectable){
   Say 'Doxa' (Answer $q)
   $assistantStatus.Text='Offline only - remote AI disabled by your organization'
   $offline.Visible=$false
@@ -487,7 +544,7 @@ $send.Add_Click({
  $send.Enabled=$false
  $assistantStatus.Text=T 'Checking with Doxa AI... offline steps above are ready' 'Consultam Doxa AI... recomandarile offline sunt gata'
  try{
-  $script:aiJob=Start-Job -ScriptBlock {param($path,$question,$languageChoice) & $path -Question $question -Language $languageChoice -AIConsentGranted} -ArgumentList @($assistantScript,$q,$script:lang)
+  $script:aiJob=Start-Job -ScriptBlock {param($path,$question,$languageChoice) & $path -Question $question -Language $languageChoice -AIConsentGranted} -ArgumentList @($assistantScript,$cloudQuestion,$script:lang)
   $aiTimer.Start()
  }catch{
   $send.Enabled=$true
@@ -498,6 +555,12 @@ $send.Add_Click({
  }
 })
 $form.Add_FormClosing({
+ $script:scanTimer.Stop()
+ if($null -ne $script:scanJob){
+  Stop-Job $script:scanJob -ErrorAction SilentlyContinue
+  Remove-Job $script:scanJob -Force -ErrorAction SilentlyContinue
+  $script:scanJob=$null
+ }
  $aiTimer.Stop()
  if($null -ne $script:aiJob){
   Stop-Job -Job $script:aiJob -ErrorAction SilentlyContinue
@@ -534,8 +597,11 @@ function ApplyMainLanguage {
  $faultTitle.Text=T 'Test an installation problem (safe)' 'Simuleaza o problema de instalare'
  $send.Text=T 'Ask' 'Intreaba'
  $assistantStatus.Text=T 'Doxa installation questions only' 'Doar intrebari despre instalarea Doxa'
- $chat.Clear()
- if(-not $Smoke){RefreshState}
+ # Preserve user questions and previously supplied guidance on language switch.
+ # Do not re-run a potentially slow Windows PnP/driver census just to switch labels.
+ if($script:current){
+  $assistantStatus.Text=T 'Language changed; select Detect Doxa to refresh diagnostics.' 'Limba a fost schimbata; apasa Detecteaza Doxa pentru actualizare.'
+ }
 }
 $languageChoice.Add_SelectedIndexChanged({ApplyMainLanguage})
 if($Language -eq 'en'){$intro.Text='Your Doxa, ready to connect'}
@@ -558,52 +624,9 @@ $advanced.Add_LinkClicked({
   Say 'Doxa' (T 'Windows has requested administrator approval. Recheck the displays after the technical test and review the installer log.' 'Windows solicita aprobarea administratorului. Repeta verificarea si consulta jurnalul testului.')
  }catch{Say 'Doxa' ('Could not obtain administrator approval: '+$_.Exception.Message)}
 })
-$reinstall.Add_Click({
- # Do not prompt for an MSI when Doxa is disconnected or the signed driver works.
- if($null -eq $script:current){RefreshState}
- if($script:current.code -eq 'doxa_not_detected'){
-  Say 'Doxa' (T 'Doxa is not detected. Its original driver may still be installed in Windows. First connect Doxa power and its USB data cable, then click Detect Doxa. Driver installation is not appropriate until hardware detection has been checked.' 'Doxa nu este detectat. Driverul poate fi deja instalat in Windows. Conecteaza mai intai alimentarea si cablul USB de date, apoi Detecteaza Doxa. Nu instala driverul pana nu verifici detectarea dispozitivului.')
-  return
- }
- # Do not prompt for an MSI when the signed driver is already correctly installed.
- if($script:fault -ne 'none'){
-  Say 'Doxa' (T 'Return to live check before installing any driver.' 'Revino la verificarea reala inainte de instalarea driverului.')
-  return
- }
- if($null -eq $script:current){RefreshState}
- if($script:current.observed.signed_driver_present){
-  Say 'Doxa' (T 'The signed Doxa driver is already installed. No installation is necessary.' 'Driverul Doxa semnat este deja instalat. Nu este necesara instalarea.')
-  return
- }
- $dialog=New-Object System.Windows.Forms.OpenFileDialog
- $dialog.Title=T 'Choose the official Silicon Motion SMI770 MSI' 'Alege pachetul MSI oficial Silicon Motion'
- $dialog.Filter='Windows Installer packages (*.msi)|*.msi'
- $dialog.CheckFileExists=$true
- $dialog.Multiselect=$false
- try{
-  if($dialog.ShowDialog($form) -ne [Windows.Forms.DialogResult]::OK){return}
-  $engine=Join-Path $PSScriptRoot 'Invoke-DoxaPersonalInstallation.ps1'
-  $package=$dialog.FileName
-  $result=(& $engine -PackagePath $package | Out-String)|ConvertFrom-Json
-  if($result.code -eq 'already_installed'){
-   Say 'Doxa' $result.message
-   return
-  }
-  if($result.code -ne 'ready_to_install'){
-   Say 'Doxa' ((T 'Installation stopped: ' 'Instalarea a fost oprita: ')+$result.message)
-   return
-  }
-  $note=T 'The original signed driver package has passed verification. Windows will request administrator permission and show installation progress. No automatic restart. Continue?' 'Pachetul oficial semnat a trecut verificarea. Windows va cere aprobarea administratorului si va afisa progresul. Nu va reporni automat. Continui?'
-  $yes=[Windows.Forms.MessageBox]::Show($note,'Doxa setup',[Windows.Forms.MessageBoxButtons]::YesNo,[Windows.Forms.MessageBoxIcon]::Question,[Windows.Forms.MessageBoxDefaultButton]::Button2)
-  if($yes -ne [Windows.Forms.DialogResult]::Yes){return}
-  $escaped=$package.Replace('"','')
-  $argument='-NoProfile -File "'+$engine+'" -PackagePath "'+$escaped+'" -Apply'
-  Start-Process -FilePath "$env:WINDIR\System32\WindowsPowerShell\v1.0\powershell.exe" -ArgumentList $argument -Verb RunAs|Out-Null
-  Say 'Doxa' (T 'Windows installation has been requested. Once it finishes, use Detect Doxa to verify the driver and panels.' 'Instalarea Windows a fost solicitata. La final, foloseste Detecteaza Doxa pentru confirmare.')
- }catch{
-  Say 'Doxa' (T 'The installation could not start or Windows approval was declined.' 'Instalarea nu a putut porni sau aprobarea Windows a fost refuzata.')
- }finally{$dialog.Dispose()}
-})
+ # The legacy driver picker has been retired. The only customer install action
+ # is the protected embedded DoxaMaintenance-v2.exe /install in Doxa-BrandTabs.
+ # The old $reinstall control remains hidden for existing UI test compatibility.
 if(-not ($Smoke -or $JourneyTest)){
  . (Join-Path $PSScriptRoot 'Doxa-BrandTabs.ps1')
 }
@@ -611,8 +634,8 @@ if($BrandTest){
  $form.Show();[Windows.Forms.Application]::DoEvents()
  $handle=$form.Handle
  $click=[Windows.Forms.Button].GetMethod('OnClick',[Reflection.BindingFlags]'Instance,NonPublic')
- if($tabs.Count -ne 3 -or $tabs[2].Right -ge $sideHolder.Left){throw 'Main tabs intrude into chatbot column'}
- if($workspace.Right -ge $sideHolder.Left){throw 'Workspace frame must not include persistent chatbot'}
+ if($tabs.Count -ne 3 -or ($sideHolder.Top -lt $workspace.Bottom -and $tabs[2].Right -ge $sideHolder.Left)){throw 'Main tabs intrude into chatbot column'}
+ if($sideHolder.Top -lt $workspace.Bottom -and $workspace.Right -ge $sideHolder.Left){throw 'Workspace frame must not include persistent chatbot'}
  if($tabs[0].Text -eq $check.Text){throw 'Redundant Detect Doxa action label'}
  [void]$click.Invoke($tabs[1],@([EventArgs]::Empty))
  if(-not $setup.Visible -or -not $side.Visible -or -not $sideHolder.Visible){throw 'Arrange and persistent Help not visible'}
@@ -692,16 +715,15 @@ if($JourneyTest){
  if(-not $chat.Text.Contains((T 'diagnostic test' 'simulare'))){throw 'Fault message did not stay local.'}
  $script:fault='none';RefreshState
  $installSkip='not_checked'
- if($script:current.code -eq 'doxa_not_detected'){
-  [void]$click.Invoke($reinstall,@([EventArgs]::Empty))
-  if(-not $chat.Text.Contains((T 'First connect Doxa power' 'Conecteaza mai intai alimentarea'))){throw 'Disconnected Doxa did not provide appropriate connection guidance.'}
-  $installSkip='connect_doxa_first'
- }elseif($script:current.observed.signed_driver_present){
-  [void]$click.Invoke($reinstall,@([EventArgs]::Empty))
-  if(-not $chat.Text.Contains((T 'No installation is necessary' 'Nu este necesara instalarea'))){throw 'Already-installed path did not avoid MSI selection.'}
-  $installSkip='correct_driver_noop'
- }
- $result=[ordered]@{journey='PASS';initial_code=$initialCode;fault_did_not_call_ai=$true;install_button=$installSkip;driver_changes=$false;official_source=$official.Text;language_options=$languageChoice.Items.Count;device_illustration_present=($deviceArt.Width -gt 300);connection_steps_offline=$true;repeat_detect_does_not_spam=$repeatDetectNoChatFlood;language=$script:lang;localized_intro=$intro.Text}
+   # The legacy browse-for-MSI button must not reappear for customers.
+  # Driver actions use the protected embedded native installer in BrandTabs.
+  if($reinstall.Visible){throw 'Legacy driver selection returned to the customer experience.'}
+  if($script:current.code -eq 'doxa_not_detected'){
+   $installSkip='connect_doxa_first'
+  }elseif($script:current.observed.signed_driver_present){
+   $installSkip='correct_driver_noop'
+  }
+$result=[ordered]@{journey='PASS';initial_code=$initialCode;fault_did_not_call_ai=$true;install_button=$installSkip;driver_changes=$false;official_source=$official.Text;language_options=$languageChoice.Items.Count;device_illustration_present=($deviceArt.Width -gt 300);connection_steps_offline=$true;repeat_detect_does_not_spam=$repeatDetectNoChatFlood;language=$script:lang;localized_intro=$intro.Text}
  $form.Dispose()
  $result|ConvertTo-Json -Compress
  return

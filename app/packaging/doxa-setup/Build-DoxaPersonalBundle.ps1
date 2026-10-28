@@ -16,6 +16,7 @@ $items=@(
  'app/packaging/doxa-setup/knowledge/scope-policy.json',
  'app/packaging/doxa-setup/assistant/client-public-key.json',
  'app/packaging/doxa-setup/personal-ui/Start-DoxaSetup.ps1',
+ 'app/packaging/doxa-setup/personal-ui/Doxa-RecoveryLab.ps1',
  'app/packaging/doxa-setup/personal-ui/Doxa-BrandTabs.ps1',
  'app/packaging/doxa-setup/personal-ui/assets/standivarius-official-logo.png',
  'app/packaging/doxa-setup/personal-ui/Start-DoxaGuidedSetup.ps1',
@@ -76,22 +77,22 @@ endlocal
 '@
  [IO.File]::WriteAllText((Join-Path $stage 'Open Doxa Setup.cmd'),$launcher,[Text.Encoding]::ASCII)
  $readme=@'
-STANDIVARIUS DOXA SETUP v0.4 - GUIDED PERSONAL REVIEW PREVIEW
+STANDIVARIUS DOXA SETUP - EMBEDDED GUIDED APPLICATION COMPONENT
 
-1. Extract the ZIP to a folder on Windows and double-click "Open Doxa Setup.cmd".
+1. For customers, run the single native Standivarius DoxaSetup.exe. This inner ZIP is an embedded application component, not a separately distributed customer installer.
 2. Review local diagnostic permissions. Cloud AI is OPTIONAL; declining it does not block setup.
 3. Choose to connect Doxa now or to continue checking the computer without Doxa.
 4. The wizard explains which PC data is read, then checks Windows, USB, the signed driver package and connected Doxa panels with your consent.
 5. Use the three customer tabs: Detect Doxa, Set up screens (Connect / Arrange), and Install signed driver. The active tab highlights one framed work area including contextual help. Connector drawing: UPPER USB-C = power, LOWER USB-C = data/signal. Online AI requires separate permission and can be switched off again.
-6. If the required official signed MSI is actually missing AND the connected Doxa can be qualified, choose it and confirm Windows administrator approval.
-7. Pre-connection installation with the hardware-dependent vendor MSI has NOT been physically qualified and is not automatic. This preview is not a full customer install acceptance. For an existing signed driver, connect Doxa and use Detect Doxa.
+6. Driver installation uses only the original signed MSI embedded in the native DoxaSetup.exe. The customer is never asked to locate an MSI file.
+7. Driver-first installation on a clean computer still requires physical acceptance testing. Existing healthy signed drivers are preserved. Connect Doxa and use Detect Doxa to check the connected screens.
 
 LIMITS:
 - USB-C port shape, real transfer speed and reliable Doxa screen operation cannot be guaranteed from a controller scan alone.
-- No Silicon Motion MSI or personal credentials are included. Official vendor redistribution permission has not been established.
+- No MSI or personal credentials are contained in this inner application ZIP. The original vendor-signed MSI is embedded separately in the native installer.
 - The Doxa AI cloud identity is enrolled to Dell for this personal preview. Other machines retain local offline help.
 - No automatic reboot, firmware update, driver removal, security-policy bypass or uncontrolled installation.
-- This ZIP is UNSIGNED and intended only as a personal development preview. Public installer signing remains a release requirement.
+- This application component is not the customer delivery format. Public native installer signing is a separate release requirement.
 - Doxa hardware Setup is independent of the Standivarius Vision low-vision software.
 '@
  [IO.File]::WriteAllText((Join-Path $stage 'README-FIRST.txt'),$readme,[Text.UTF8Encoding]::new($false))
