@@ -1,4 +1,4 @@
-param([switch]$Smoke,[switch]$JourneyTest,[switch]$SeamlessTest,[ValidateSet('connected','without_doxa')][string]$TestConnectionChoice='without_doxa',[switch]$TestAIAllowed,[switch]$LocalConsentAlreadyGranted,[ValidateSet('en','ro')][string]$Language='en')
+param([switch]$Smoke,[switch]$JourneyTest,[switch]$SeamlessTest,[ValidateSet('connected','without_doxa')][string]$TestConnectionChoice='without_doxa',[switch]$TestAIAllowed,[switch]$LocalConsentAlreadyGranted,[switch]$PermissionsGrantedInHost,[switch]$OnlineAIAllowedInHost,[ValidateSet('en','ro')][string]$Language='en')
 # Consent-first welcome. No hardware enumeration or remote AI call occurs before consent.
 # Reading the organization cloud-AI prohibition is a local policy check only.
 $ErrorActionPreference='Stop'
@@ -135,10 +135,10 @@ $next.TabIndex=8
 $next.AccessibleName='Continue'
 $form.AcceptButton=$next
 $form.Controls.Add($next)
-$script:page=1
+$script:page=if($PermissionsGrantedInHost){2}else{1}
 $script:choice=''
-$script:localAllowed=$false
-$script:aiAllowed=$false
+$script:localAllowed=[bool]$PermissionsGrantedInHost
+$script:aiAllowed=([bool]$PermissionsGrantedInHost -and [bool]$OnlineAIAllowedInHost -and [bool]$policy.online_ai_selectable)
 $script:finished=$false
 function ShowStep {
  $first=$script:page -eq 1
@@ -170,7 +170,7 @@ $languageChoice.Add_SelectedIndexChanged({
  ShowStep
 })
 
-$back.Add_Click({$script:page=1;ShowStep})
+$back.Add_Click({$script:page=if($PermissionsGrantedInHost){2}else{1};ShowStep})
 $next.Add_Click({
  if($script:page -eq 1){
   if(-not $local.Checked){

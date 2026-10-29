@@ -434,7 +434,7 @@ internal class DoxaHost {
   Trace(result+"; signed display driver preserved");
   return result+"; DisplayDriverRetained";
  }
-  static void Open(bool localConsentAlreadyGranted=false){
+  static void Open(bool localConsentAlreadyGranted=false,bool onlineAiAllowed=false){
    Require(IsValidApp(AppRoot),"Doxa application not installed or modified");
   string script=Path.Combine(AppRoot,"app","packaging","doxa-setup","personal-ui","Start-DoxaGuidedSetup.ps1");
   Require(File.Exists(script),"Guided setup is absent");
@@ -442,7 +442,7 @@ internal class DoxaHost {
   // Enterprise GPO/WDAC can override -ExecutionPolicy. Report an early failure
   // rather than silently doing nothing in a hidden window.
    var info=new ProcessStartInfo(exe,"-NoProfile -ExecutionPolicy Bypass -File \""+script+"\""+
-    (localConsentAlreadyGranted?" -LocalConsentAlreadyGranted":"")){
+    (localConsentAlreadyGranted?" -LocalConsentAlreadyGranted -PermissionsGrantedInHost":"")+(onlineAiAllowed?" -OnlineAIAllowedInHost":"")){
    UseShellExecute=false,CreateNoWindow=true,WorkingDirectory=AppRoot};
   using(var process=Process.Start(info)){
    Require(process!=null,"Windows could not launch Doxa guided setup");
@@ -544,95 +544,114 @@ internal class DoxaHost {
   if(arg=="/open"){Open();return 0;}
   throw new ArgumentException("Unknown command");
  }
- static void UI(){
+  static void UI(){
   Application.EnableVisualStyles();
-  var form=new Form{Text="Standivarius | Doxa Setup",ClientSize=new Size(650,430),MinimumSize=new Size(570,425),StartPosition=FormStartPosition.CenterScreen,
-   BackColor=Color.White,Font=new Font("Segoe UI",11),AutoScaleMode=AutoScaleMode.Dpi};
-  var title=new Label{Text="Doxa Setup",Font=new Font("Segoe UI",24,FontStyle.Bold),Location=new Point(30,22),Size=new Size(440,52),Anchor=AnchorStyles.Top|AnchorStyles.Left};
-  var help=new Label{Location=new Point(30,90),Size=new Size(575,75),Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right};
-  var status=new Label{Text="Local check not yet permitted",Location=new Point(30,225),Size=new Size(575,45),ForeColor=Color.FromArgb(45,63,80),Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right};
-  var install=new Button{Location=new Point(30,310),Size=new Size(197,46),Anchor=AnchorStyles.Bottom|AnchorStyles.Left,TabIndex=1};
-  var launch=new Button{Location=new Point(240,310),Size=new Size(175,46),Anchor=AnchorStyles.Bottom|AnchorStyles.Left,TabIndex=2};
-  var refresh=new Button{Location=new Point(430,310),Size=new Size(170,46),Anchor=AnchorStyles.Bottom|AnchorStyles.Left,TabIndex=3};
-  var language=new Button{Location=new Point(501,24),Size=new Size(119,36),Anchor=AnchorStyles.Top|AnchorStyles.Right,TabIndex=0};
-   var localConsent=new CheckBox{Location=new Point(30,167),Size=new Size(575,52),AutoSize=false,TabIndex=1,
-    AccessibleRole=AccessibleRole.CheckButton};
-   bool ro=false;
-  string lastState=null;
-  Action updateText=()=>{
-   form.Text=ro?"Standivarius | Configurare Doxa":"Standivarius | Doxa Setup";
-   help.Text=ro?"Conecteaza alimentarea Doxa si apoi cablul USB de date. Instaleaza componentele Windows si configureaza ecranele.":"Connect Doxa power, then the USB data cable. Install Windows components and configure your screens.";
-   install.Text=ro?"Pregateste Doxa":"Set up Doxa";
-   launch.Text=ro?"Deschide configurarea":"Open Doxa setup";
-   refresh.Text=ro?"Actualizeaza":"Refresh status";
-   language.Text=ro?"English":"Romana";
-    install.AccessibleName=ro?"Instaleaza aplicatia si deschide ghidul Doxa":"Prepare Doxa software and open the guided connection setup";
-   launch.AccessibleName=ro?"Deschide configurarea asistata Doxa":"Open Doxa guided setup";
-   refresh.AccessibleName=ro?"Verifica din nou starea Doxa":"Refresh Doxa Windows status";
-   language.AccessibleName=ro?"Schimba limba in engleza":"Change language to Romanian";
-    localConsent.Text=ro?"Permit verificarea locala a dispozitivelor USB, ecranelor si driverelor Windows.":"I allow local read-only checks of USB devices, displays and Windows drivers.";
-    localConsent.AccessibleName=localConsent.Text;
-    status.Text=!localConsent.Checked?(ro?"Verificarea locala necesita acordul tau.":"Local device checks require your consent."):lastState==null?(ro?"Poti incepe configurarea Doxa; nu am verificat inca ecranele.":"Ready to set up Doxa. No screen check has run yet."):FriendlyState(lastState,ro);
-    install.Enabled=localConsent.Checked;
-    refresh.Enabled=localConsent.Checked;
+  var form=new Form{Text="Standivarius | Doxa Triple Monitor Setup",ClientSize=new Size(830,590),MinimumSize=new Size(790,580),StartPosition=FormStartPosition.CenterScreen,Font=new Font("Segoe UI",10),BackColor=Color.White,AutoScaleMode=AutoScaleMode.Dpi};
+  bool ro=false,accepted=false,running=false;string snapshot=null;
+  var brand=new Label{Text="STANDIVARIUS",Location=new Point(30,15),Size=new Size(220,30),Font=new Font("Segoe UI",11,FontStyle.Bold)};
+  var langLabel=new Label{Text="Language",Location=new Point(538,20),Size=new Size(75,28)};
+  var lang=new ComboBox{Location=new Point(622,16),Size=new Size(175,32),DropDownStyle=ComboBoxStyle.DropDownList,AccessibleName="Current setup language"};
+  lang.Items.Add("English");lang.Items.Add("Română");lang.SelectedIndex=0;
+  var photo=new PictureBox{Location=new Point(30,54),Size=new Size(160,142),SizeMode=PictureBoxSizeMode.Zoom,AccessibleName="Doxa Pro 3 product photograph"};
+  try{using(var stream=System.Reflection.Assembly.GetExecutingAssembly().GetManifestResourceStream("Doxa.ProductPhoto")){if(stream!=null)using(var im=Image.FromStream(stream))photo.Image=new Bitmap(im);}}catch(Exception ex){Trace("Photo unavailable: "+ex.GetType().Name);}
+  var title=new Label{Text="Doxa Triple Monitor Setup",Location=new Point(211,67),Size=new Size(575,60),Font=new Font("Segoe UI",24,FontStyle.Bold)};
+  var subtitle=new Label{Location=new Point(213,137),Size=new Size(575,55)};
+  var separator=new Panel{Location=new Point(30,209),Size=new Size(765,2),BackColor=Color.LightGray};
+  var step=new Label{Location=new Point(31,225),Size=new Size(750,45),Font=new Font("Segoe UI",15,FontStyle.Bold)};
+  var terms=new CheckBox{Location=new Point(31,285),Size=new Size(740,30),TabIndex=1};
+  var termsDetails=new LinkLabel{Location=new Point(57,319),Size=new Size(600,27),TabIndex=2};
+  var local=new CheckBox{Location=new Point(31,366),Size=new Size(743,51),TabIndex=3};
+  var cloud=new CheckBox{Location=new Point(31,438),Size=new Size(744,42),TabIndex=4};
+  var status=new Label{Location=new Point(32,279),Size=new Size(740,45),Visible=false};
+  var usb=new Label{Location=new Point(32,340),Size=new Size(740,36),Visible=false};
+  var driver=new Label{Location=new Point(32,391),Size=new Size(740,46),Visible=false};
+  var app=new Label{Location=new Point(32,454),Size=new Size(740,29),Visible=false};
+  var back=new Button{Text="Back",Location=new Point(31,516),Size=new Size(124,45),Visible=false};
+  var refresh=new Button{Location=new Point(164,516),Size=new Size(170,45),Visible=false};
+  var install=new Button{Location=new Point(344,516),Size=new Size(213,45),Visible=false};
+  var open=new Button{Location=new Point(568,516),Size=new Size(228,45),Visible=false};
+  var next=new Button{Location=new Point(568,516),Size=new Size(228,45),TabIndex=5};
+  form.Controls.AddRange(new Control[]{brand,langLabel,lang,photo,title,subtitle,separator,step,terms,termsDetails,local,cloud,status,usb,driver,app,back,refresh,install,open,next});
+  string termsEn="DOXA SETUP PRIVATE PILOT TERMS - 29 OCTOBER 2026\r\n\r\n"+
+   "Publisher: DMR ERGONOMICS S.R.L. (Standivarius).\r\n\r\n"+
+   "1. This early access application helps configure the Doxa Pro 3 triple monitor. Driver changes require separate Windows approval. The first personal setup installs the application only; an existing healthy signed display driver is preserved.\r\n\r\n"+
+   "2. With separate consent, local checks inspect Windows version, USB and display presence and driver status. No local checks run before approval.\r\n\r\n"+
+   "3. Optional Doxa AI assistance may transmit a typed question and restricted diagnostic details over HTTPS if this device is enrolled. It is off by default. No screen images or passwords are uploaded by the current assistant.\r\n\r\n"+
+   "4. This is a private evaluation build, not a final public release. You can stop setup at any time or uninstall the application in Windows Settings. The display driver remains installed during application uninstall.";
+  string termsRo="CONDITII DOXA SETUP - TEST PRIVAT - 29 OCTOMBRIE 2026\r\n\r\n"+
+   "Editor: DMR ERGONOMICS S.R.L. (Standivarius).\r\n\r\n"+
+   "1. Aplicatia ajuta la configurarea Doxa Pro 3. Driverul necesita aprobare Windows separata, iar driverul functional este pastrat.\r\n\r\n"+
+   "2. Cu acord separat, verificarile locale examineaza Windows, dispozitivele USB, ecranele si driverele. Nicio verificare nu ruleaza fara permisiune.\r\n\r\n"+
+   "3. Asistenta AI este optionala, dezactivata implicit si necesita un dispozitiv autorizat. Poate trimite intrebari si date limitate de diagnostic prin HTTPS, fara capturi sau parole.\r\n\r\n"+
+   "4. Este o versiune privata de test. Poti opri sau dezinstala aplicatia din Windows, fara a elimina driverul de afisare.";
+  Action render=()=>{
+    ro=lang.SelectedIndex==1;
+    form.Text=ro?"Standivarius | Configurare Doxa Triple Monitor":"Standivarius | Doxa Triple Monitor Setup";
+    langLabel.Text=ro?"Limbă":"Language";
+    title.Text=ro?"Configurare Doxa Triple Monitor":"Doxa Triple Monitor Setup";
+    subtitle.Text=ro?"Conecteaza Doxa Pro 3 si configureaza ecranele Windows.\r\nPoti continua si fara Doxa conectat.":"Connect Doxa Pro 3 and configure your Windows displays.\r\nYou can also prepare this computer without Doxa connected.";
+    step.Text=accepted?(ro?"Pasul 2 - Verificare dispozitive":"Step 2 - Check this computer"):(ro?"Pasul 1 - Conditii si permisiuni":"Step 1 - Terms and permissions");
+    terms.Text=ro?"Accept conditiile pentru testul privat Doxa Setup.":"I agree to the Doxa Setup private pilot terms.";
+    termsDetails.Text=ro?"Citeste conditiile complete":"Read the full terms";
+    local.Text=ro?"Permit verificarea locala, fara modificari, a Windows, USB, ecranelor si driverelor.":"I allow local read-only checks of Windows, USB, displays and installed drivers.";
+    cloud.Text=ro?"Optional: doresc asistenta Doxa AI online daca este disponibila pe acest PC.":"Optional: enable Doxa AI online help if this computer is enrolled.";
+    terms.Visible=termsDetails.Visible=local.Visible=cloud.Visible=!accepted;
+    next.Visible=!accepted;next.Enabled=terms.Checked&&local.Checked;next.Text=ro?"Accept si continua":"Agree and continue";
+    status.Visible=usb.Visible=driver.Visible=app.Visible=back.Visible=refresh.Visible=install.Visible=open.Visible=accepted;
+    back.Text=ro?"Inapoi":"Back";refresh.Text=ro?"Verifica din nou":"Refresh checks";
+    install.Text=ro?"Instaleaza Doxa Setup":"Install Doxa Setup";open.Text=ro?"Deschide ghidul Doxa":"Open Doxa guided setup";
+    if(accepted&&snapshot!=null){
+      status.Text=ro?"Verificarile locale sunt permise.":"Local checks permitted.";
+      usb.Text=snapshot.Contains("USBDetected")?(ro?"Doxa: conexiune USB detectata":"Doxa: USB connection detected"):(ro?"Doxa: niciun dispozitiv conectat detectat":"Doxa: no connected device detected");
+      driver.Text=snapshot.Contains("DriverUntrusted")?(ro?"Driver: necunoscut, instalarea blocata":"Driver: unrecognized; driver installation blocked"):snapshot.Contains("DriverValid")?(ro?"Driver: semnat si compatibil":"Driver: compatible signed driver detected"):(ro?"Driver: nu am detectat un driver compatibil":"Driver: no compatible signed driver detected");
+      app.Text=snapshot.Contains("AppInstalled")?(ro?"Aplicatia Doxa este instalata.":"Doxa application is installed."):(ro?"Aplicatia Doxa poate fi instalata acum.":"Doxa application can now be installed.");
+    }
+    refresh.Enabled=!running;install.Enabled=!running&&snapshot!=null&&!snapshot.Contains("DriverUntrusted");open.Enabled=!running&&snapshot!=null&&snapshot.Contains("AppInstalled");
   };
-  language.Click+=(sender,e)=>{ro=!ro;updateText();};
-     Action checkPending=()=>{lastState=null;status.Text=ro?"Aplicatia este pregatita. Conecteaza Doxa si verifica driverul in ghid.":"Application prepared. Connect Doxa and check the driver in the guided setup.";};
-   install.Click+=(sender,e)=>{
-    if(!localConsent.Checked)return;
-    install.Enabled=false;refresh.Enabled=false;localConsent.Enabled=false;
-     status.Text=ro?"Pregatim aplicatia. Aproba permisiunea Windows daca apare.":"Preparing the Doxa application. Approve Windows permission if requested.";
-     var worker=new BackgroundWorker();
-     worker.DoWork+=(workerSender,workerArgs)=>{
-      int resultCode=0;
-      if(!Elevated){
-       using(var p=Process.Start(new ProcessStartInfo(SourceExe,"/prepare"){UseShellExecute=true,Verb="runas"})){
-        Require(p!=null,"Windows setup could not start");
-        Require(p.WaitForExit(720000),"Elevated setup is still running. Check installer status before trying again");
-        resultCode=p.ExitCode;
-       }
-      }else{Apply(true);}
-      workerArgs.Result=resultCode;
-     };
-    worker.RunWorkerCompleted+=(completedSender,completedArgs)=>{
-     try{
-      if(form.IsDisposed)return;
-      if(completedArgs.Error!=null)MessageBox.Show(completedArgs.Error.GetBaseException().Message,"Doxa Setup");
-       else if(Convert.ToInt32(completedArgs.Result)!=0)MessageBox.Show(ro?"Instalarea aplicatiei nu s-a incheiat. Verifica jurnalul Doxa.":"Application installation did not complete. Check Doxa logs.","Doxa Setup");
-       else if(IsValidApp(AppRoot))Open(true);
-     }catch(Exception ex){MessageBox.Show(ex.Message,"Doxa Setup");}
-     finally{
-      if(!form.IsDisposed){
-       localConsent.Enabled=true;
-       install.Enabled=localConsent.Checked;refresh.Enabled=localConsent.Checked;
-       if(localConsent.Checked)checkPending();
-      }
-      worker.Dispose();
-     }
+  termsDetails.Click+=(s,e)=>{
+    var dialog=new Form{Text=ro?"Conditii Doxa":"Doxa Setup terms",ClientSize=new Size(660,460),StartPosition=FormStartPosition.CenterParent};
+    dialog.Controls.Add(new TextBox{Dock=DockStyle.Fill,Multiline=true,ScrollBars=ScrollBars.Vertical,WordWrap=true,ReadOnly=true,Text=ro?termsRo:termsEn});
+    dialog.ShowDialog(form);dialog.Dispose();
+  };
+  Action scan=()=>{
+    if(!accepted||running)return;
+    running=true;snapshot=null;status.Text=ro?"Verificare...":"Checking...";
+    usb.Text=driver.Text=ro?"Verificare in curs...":"Checking...";app.Text="";render();
+    var w=new BackgroundWorker();w.DoWork+=(s,e)=>e.Result=State();
+    w.RunWorkerCompleted+=(s,e)=>{
+      running=false;if(form.IsDisposed){w.Dispose();return;}
+      if(e.Error!=null){usb.Text=driver.Text=ro?"Indisponibil":"Unavailable";app.Text=e.Error.GetBaseException().Message;}
+      else snapshot=Convert.ToString(e.Result);
+      render();w.Dispose();
     };
-    worker.RunWorkerAsync();
-   };
-launch.Click+=(sender,e)=>{try{Open();}catch(Exception ex){MessageBox.Show(ex.Message,"Doxa Setup");}};
-  Action checkState=()=>{
-   if(!localConsent.Checked){updateText();return;}
-    status.Text=ro?"Se verifica Doxa...":"Checking Doxa...";
-   var work=new BackgroundWorker();
-   work.DoWork+=(sender,e)=>{e.Result=State();};
-   work.RunWorkerCompleted+=(sender,e)=>{
-    if(!status.IsDisposed)status.Text=e.Error==null?FriendlyState(Convert.ToString(e.Result),ro):(ro?"Verificare indisponibila":"Status unavailable");
-    if(e.Error==null)lastState=Convert.ToString(e.Result);
-    work.Dispose();
-   };
-   work.RunWorkerAsync();
+    w.RunWorkerAsync();
   };
-  refresh.Click+=(sender,e)=>checkState();
-   localConsent.CheckedChanged+=(sender,e)=>{lastState=null;updateText();};
-  // do not scan on window shown before consent
-  form.Controls.AddRange(new Control[]{title,help,localConsent,status,install,launch,refresh,language});
-  updateText();
-  Application.Run(form);
+  next.Click+=(s,e)=>{if(!terms.Checked||!local.Checked)return;accepted=true;render();scan();};
+  back.Click+=(s,e)=>{if(running)return;accepted=false;render();};
+  refresh.Click+=(s,e)=>scan();
+  install.Click+=(s,e)=>{
+    if(!accepted||running||snapshot==null||snapshot.Contains("DriverUntrusted"))return;
+    running=true;render();app.Text=ro?"Pregatim aplicatia. Aproba permisiunea Windows daca apare.":"Preparing application. Approve Windows permission if requested.";
+    var w=new BackgroundWorker();w.DoWork+=(s2,e2)=>{
+      int code=0;
+      if(!Elevated)using(var p=Process.Start(new ProcessStartInfo(SourceExe,"/prepare"){UseShellExecute=true,Verb="runas"})){
+        Require(p!=null,"Cannot start Windows setup");Require(p.WaitForExit(720000),"Windows installation timed out");code=p.ExitCode;
+      }else Apply(true);
+      e2.Result=code;
+    };
+    w.RunWorkerCompleted+=(s2,e2)=>{
+      running=false;if(form.IsDisposed){w.Dispose();return;}
+      if(e2.Error!=null)MessageBox.Show(e2.Error.GetBaseException().Message,"Doxa Setup");
+      else if(Convert.ToInt32(e2.Result)!=0)MessageBox.Show("Doxa application installation did not complete.","Doxa Setup");
+      else try{Open(true,cloud.Checked);}catch(Exception ex){MessageBox.Show(ex.Message,"Doxa Setup");}
+      render();scan();w.Dispose();
+    };w.RunWorkerAsync();
+  };
+  open.Click+=(s,e)=>{if(!accepted||running)return;try{Open(true,cloud.Checked);}catch(Exception ex){MessageBox.Show(ex.Message,"Doxa Setup");}};
+  lang.SelectedIndexChanged+=(s,e)=>render();terms.CheckedChanged+=(s,e)=>render();local.CheckedChanged+=(s,e)=>render();
+  form.AcceptButton=next;render();Application.Run(form);if(photo.Image!=null)photo.Image.Dispose();
  }
- [STAThread] public static int Main(string[] args){
+[STAThread] public static int Main(string[] args){
   string arg=args.Length>0?args[0].ToLowerInvariant():"";
   try{
    if(arg==""){UI();return 0;}
