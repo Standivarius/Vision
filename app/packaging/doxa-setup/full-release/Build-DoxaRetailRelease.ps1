@@ -19,6 +19,8 @@ $toolSig=Get-AuthenticodeSignature $ContentPrepTool
 if($toolSig.Status -ne 'Valid' -or $toolSig.SignerCertificate.Subject -notmatch 'Microsoft Corporation'){throw 'Microsoft content prep not signed correctly'}
 $stage=Join-Path $env:TEMP ('DoxaRetail-'+[guid]::NewGuid().ToString('N'))
 $source=Join-Path $PSScriptRoot 'DoxaSetupHost.cs'
+$productPhoto=Join-Path $PSScriptRoot '..\personal-ui\assets\doxa-pro3-front.jpg'
+if(-not(Test-Path -LiteralPath $productPhoto -PathType Leaf)){throw 'Doxa product photo missing'}
 if(-not(Test-Path $source -PathType Leaf)){throw 'Missing native installer source'}
 $sourceHash=(Get-FileHash $source -Algorithm SHA256).Hash
 $sourceCommit=((& git -C $root rev-parse HEAD)|Out-String).Trim()
@@ -42,7 +44,7 @@ try {
  New-Item $personal,$managed,$intune,$tests -ItemType Directory -Force|Out-Null
  foreach($pair in @(@('winexe','DoxaSetup.exe'),@('exe','DoxaDeploy.exe'))){
    $target=if($pair[0] -eq 'winexe'){$personal}else{$managed}
-   & $csc @ref ("/target:$($pair[0])") ("/out:$(Join-Path $target $pair[1])") ("/resource:$msi,Doxa.Driver") ("/resource:$app,Doxa.App") $source
+   & $csc @ref ("/target:$($pair[0])") ("/out:$(Join-Path $target $pair[1])") ("/resource:$msi,Doxa.Driver") ("/resource:$app,Doxa.App") ("/resource:$productPhoto,Doxa.ProductPhoto") $source
    if($LASTEXITCODE){throw "Compiler failed for $($pair[1])"}
  }
  if((Get-FileHash $source -Algorithm SHA256).Hash -ne $sourceHash){throw 'Installer source changed during compilation; refusing release'}
