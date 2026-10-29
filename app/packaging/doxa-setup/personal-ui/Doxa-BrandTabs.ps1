@@ -12,7 +12,7 @@ $form.BackColor=$white
 $form.ClientSize=New-Object Drawing.Size(1060,610)
 $form.MinimumSize=New-Object Drawing.Size(745,520)
 $form.AutoScroll=$true
-$form.Text='Standivarius | Doxa Setup'
+$form.Text='Standivarius | Doxa Triple Monitor Setup'
 function UXLabel([string]$t,[int]$x,[int]$y,[int]$w,[int]$h,[float]$pt=10,[bool]$bold=$false){
  $c=New-Object Windows.Forms.Label;$c.Text=$t;$c.SetBounds($x,$y,$w,$h)
  $c.ForeColor=$ink
@@ -42,9 +42,9 @@ if(Test-Path -LiteralPath $logoFile){
 $form.Controls.Add((UXLabel '|' 265 17 17 37 20))
 $productName=UXLabel 'Doxa' 288 9 112 47 27 $true
 $form.Controls.Add($productName)
-$productQualifier=UXLabel 'Setup' 399 25 118 30 13
+$productQualifier=UXLabel 'Triple Monitor Setup' 408 25 252 30 13
 $productQualifier.ForeColor=$muted;$form.Controls.Add($productQualifier)
-$languageChoice.SetBounds(894,22,145,30);$languageChoice.TabIndex=0
+$languageHeading=UXLabel (T 'Language' 'Limbă') 812 27 77 28 9
 $form.Controls.Add($languageChoice)
 
 # Three task areas, entirely aligned with LEFT workspace. Doxa Help is persistent.

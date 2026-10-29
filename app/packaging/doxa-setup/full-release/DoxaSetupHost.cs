@@ -570,15 +570,15 @@ internal class DoxaHost {
   var refresh=new Button{Location=new Point(164,516),Size=new Size(170,45),Visible=false};
   var install=new Button{Location=new Point(344,516),Size=new Size(213,45),Visible=false};
   var open=new Button{Location=new Point(568,516),Size=new Size(228,45),Visible=false};
-  var next=new Button{Location=new Point(568,516),Size=new Size(228,45),TabIndex=5};
+  var next=new Button{Location=new Point(568,516),Size=new Size(228,45),TabIndex=5,BackColor=Color.FromArgb(165,27,51),ForeColor=Color.White};
   form.Controls.AddRange(new Control[]{brand,langLabel,lang,photo,title,subtitle,separator,step,terms,termsDetails,local,cloud,status,usb,driver,app,back,refresh,install,open,next});
-  string termsEn="DOXA SETUP PRIVATE PILOT TERMS - 29 OCTOBER 2026\r\n\r\n"+
+  string termsEn="DOXA SETUP PREVIEW TERMS - 29 OCTOBER 2026\r\n\r\n"+
    "Publisher: DMR ERGONOMICS S.R.L. (Standivarius).\r\n\r\n"+
    "1. This early access application helps configure the Doxa Pro 3 triple monitor. Driver changes require separate Windows approval. The first personal setup installs the application only; an existing healthy signed display driver is preserved.\r\n\r\n"+
    "2. With separate consent, local checks inspect Windows version, USB and display presence and driver status. No local checks run before approval.\r\n\r\n"+
    "3. Optional Doxa AI assistance may transmit a typed question and restricted diagnostic details over HTTPS if this device is enrolled. It is off by default. No screen images or passwords are uploaded by the current assistant.\r\n\r\n"+
    "4. This is a private evaluation build, not a final public release. You can stop setup at any time or uninstall the application in Windows Settings. The display driver remains installed during application uninstall.";
-  string termsRo="CONDITII DOXA SETUP - TEST PRIVAT - 29 OCTOMBRIE 2026\r\n\r\n"+
+  string termsRo="CONDITII DOXA SETUP - VERSIUNE DE EVALUARE - 29 OCTOMBRIE 2026\r\n\r\n"+
    "Editor: DMR ERGONOMICS S.R.L. (Standivarius).\r\n\r\n"+
    "1. Aplicatia ajuta la configurarea Doxa Pro 3. Driverul necesita aprobare Windows separata, iar driverul functional este pastrat.\r\n\r\n"+
    "2. Cu acord separat, verificarile locale examineaza Windows, dispozitivele USB, ecranele si driverele. Nicio verificare nu ruleaza fara permisiune.\r\n\r\n"+
@@ -591,7 +591,7 @@ internal class DoxaHost {
     title.Text=ro?"Configurare Doxa Triple Monitor":"Doxa Triple Monitor Setup";
     subtitle.Text=ro?"Conecteaza Doxa Pro 3 si configureaza ecranele Windows.\r\nPoti continua si fara Doxa conectat.":"Connect Doxa Pro 3 and configure your Windows displays.\r\nYou can also prepare this computer without Doxa connected.";
     step.Text=accepted?(ro?"Pasul 2 - Verificare dispozitive":"Step 2 - Check this computer"):(ro?"Pasul 1 - Conditii si permisiuni":"Step 1 - Terms and permissions");
-    terms.Text=ro?"Accept conditiile pentru testul privat Doxa Setup.":"I agree to the Doxa Setup private pilot terms.";
+    terms.Text=ro?"Accept conditiile pentru versiunea de evaluare Doxa Setup.":"I agree to the Doxa Setup preview terms.";
     termsDetails.Text=ro?"Citeste conditiile complete":"Read the full terms";
     local.Text=ro?"Permit verificarea locala, fara modificari, a Windows, USB, ecranelor si driverelor.":"I allow local read-only checks of Windows, USB, displays and installed drivers.";
     cloud.Text=ro?"Optional: doresc asistenta Doxa AI online daca este disponibila pe acest PC.":"Optional: enable Doxa AI online help if this computer is enrolled.";
