@@ -13,7 +13,7 @@ $checks=@{
   'proper_brand_title'=$hostText.Contains('Doxa Triple Monitor Setup')
   'language_current_value'=$hostText.Contains('lang.Items.Add("English")') -and $hostText.Contains('lang.Items.Add("Română")')
   'official_embedded_photo'=$hostText.Contains('GetManifestResourceStream("Doxa.ProductPhoto")') -and $builderText.Contains('Doxa.ProductPhoto')
-  'terms_explicit'=$hostText.Contains('private pilot terms') -and $hostText.Contains('terms.Checked&&local.Checked')
+  'terms_explicit'=$hostText.Contains('preview terms') -and $hostText.Contains('terms.Checked&&local.Checked')
   'local_checks_gated'=$hostText.Contains('if(!accepted||running)return;') -and $hostText.Contains('accepted=true;render();scan();')
   'remote_ai_optional'=$hostText.Contains('Optional: enable Doxa AI') -and $hostText.Contains('Open(true,cloud.Checked)')
   'two_distinct_observations'=$hostText.Contains('no connected device detected') -and $hostText.Contains('no compatible signed driver detected')

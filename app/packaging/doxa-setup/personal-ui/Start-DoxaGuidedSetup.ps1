@@ -8,18 +8,18 @@ Add-Type -AssemblyName System.Drawing
 $form=New-Object Windows.Forms.Form
 $script:lang=$Language
 function T([string]$en,[string]$ro){if($script:lang -eq 'ro'){$ro}else{$en}}
-$form.Text='Standivarius Doxa Setup'
+$form.Text='Standivarius | Doxa Triple Monitor Setup'
 $form.StartPosition='CenterScreen'
 $form.ClientSize=New-Object Drawing.Size(750,510)
 $form.FormBorderStyle='FixedDialog'
 $form.MaximizeBox=$false
 $form.Font=New-Object Drawing.Font('Segoe UI',11)
-$form.BackColor=[Drawing.Color]::FromArgb(249,250,252)
-$navy=[Drawing.Color]::FromArgb(17,35,59)
-$teal=[Drawing.Color]::FromArgb(16,140,137)
+$form.BackColor=[Drawing.Color]::White
+$navy=[Drawing.Color]::FromArgb(24,43,61)
+$teal=[Drawing.Color]::FromArgb(165,27,51)
 $title=New-Object Windows.Forms.Label
-$title.Text='Welcome to Doxa Setup'
-$title.Font=New-Object Drawing.Font('Segoe UI',22,[Drawing.FontStyle]::Bold)
+$title.Text='Doxa Triple Monitor Setup'
+$title.Font=New-Object Drawing.Font('Segoe UI',20,[Drawing.FontStyle]::Bold)
 $title.ForeColor=$navy
 $title.SetBounds(32,28,493,56)
 $languageChoice=New-Object Windows.Forms.ComboBox
@@ -27,10 +27,16 @@ $languageChoice.SetBounds(549,39,168,31)
 $languageChoice.DropDownStyle='DropDownList'
 $languageChoice.AccessibleName='Setup language / Limba instalarii'
 [void]$languageChoice.Items.Add('English')
-[void]$languageChoice.Items.Add('Romana')
+[void]$languageChoice.Items.Add('Română')
 $languageChoice.SelectedIndex=if($Language -eq 'ro'){1}else{0}
 $languageChoice.TabIndex=0
 $form.Controls.Add($languageChoice)
+$languageLabel=New-Object Windows.Forms.Label
+$languageLabel.Text='Language'
+$languageLabel.SetBounds(549,14,168,22)
+$languageLabel.ForeColor=$navy
+$languageLabel.Font=New-Object Drawing.Font('Segoe UI',9)
+$form.Controls.Add($languageLabel)
 $form.Controls.Add($title)
 $step=New-Object Windows.Forms.Label
 $step.SetBounds(35,93,650,31)
@@ -142,8 +148,8 @@ $script:aiAllowed=([bool]$PermissionsGrantedInHost -and [bool]$OnlineAIAllowedIn
 $script:finished=$false
 function ShowStep {
  $first=$script:page -eq 1
- $form.Text=T 'Doxa Setup' 'Doxa'
- $title.Text=T 'Welcome to Doxa Setup' 'Bine ai venit la Doxa'
+ $form.Text=T 'Standivarius | Doxa Triple Monitor Setup' 'Standivarius | Configurare Doxa Triple Monitor'
+ $title.Text='Doxa Triple Monitor Setup';$languageLabel.Text=T 'Language' 'Limbă'
  $step.Text=if($first){T 'Step 1 - permissions' 'Pasul 1 - permisiuni'}else{T 'Step 2 - connect Doxa or continue' 'Pasul 2 - conecteaza Doxa sau continua'}
  $explanation.Text=if($first){
   T 'Before checking this PC, Doxa asks permission for local read-only diagnostics. Remote AI assistance is separate and optional. Driver installation will request its own Windows approval later.' 'Doxa cere acordul pentru verificari locale fara modificari. Asistenta AI online este separata si optionala. Instalarea driverului necesita ulterior aprobare Windows.'
@@ -223,7 +229,7 @@ if(-not ($Smoke -or $JourneyTest -or $SeamlessTest)){
  $height=[Math]::Min(615,[Math]::Max(510,[Windows.Forms.Screen]::PrimaryScreen.WorkingArea.Height-48))
  $form.ClientSize=New-Object Drawing.Size(1060,$height)
  $form.BackColor=[Drawing.Color]::White
- foreach($ctl in @($title,$step,$explanation,$local,$localDetails,$cloud,$privacy,$connect,$without,$back,$next,$languageChoice)){
+ foreach($ctl in @($title,$step,$explanation,$local,$localDetails,$cloud,$privacy,$connect,$without,$back,$next,$languageChoice,$languageLabel)){
   $ctl.Left+=155;$ctl.Top+=42
  }
  $logoFile=Join-Path $PSScriptRoot 'assets\standivarius-official-logo.png'
