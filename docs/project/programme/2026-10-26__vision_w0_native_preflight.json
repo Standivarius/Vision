@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "timestamp_utc": "2026-10-26T14:20:33.176194+00:00",
+  "machine_expected": "MARIUS-DELL",
+  "os_version": "10.0.26300",
+  "physical_console": true,
+  "display_count": 4,
+  "displays": [
+    {
+      "gdi_name": "\\\\.\\DISPLAY1",
+      "adapter_friendly_name": "Intel(R) UHD Graphics",
+      "physical_id_hash": "8856d62397dfb349de64",
+      "has_physical_interface": true,
+      "primary": true
+    },
+    {
+      "gdi_name": "\\\\.\\DISPLAY7",
+      "adapter_friendly_name": "SMI770 USB Display",
+      "physical_id_hash": "a6ee4fc79cf2ff1a034d",
+      "has_physical_interface": true,
+      "primary": false
+    },
+    {
+      "gdi_name": "\\\\.\\DISPLAY8",
+      "adapter_friendly_name": "SMI770 USB Display",
+      "physical_id_hash": "3ab260b0f0377336e0fd",
+      "has_physical_interface": true,
+      "primary": false
+    },
+    {
+      "gdi_name": "\\\\.\\DISPLAY9",
+      "adapter_friendly_name": "SMI770 USB Display",
+      "physical_id_hash": "7088040ef0509dadc356",
+      "has_physical_interface": true,
+      "primary": false
+    }
+  ],
+  "active_magnifier_processes": [],
+  "present_nonmagnifier_helpers": [
+    "ztuac.exe"
+  ],
+  "audio_muted": "NOT_CHECKED_NO_AUDIO_PLAYED",
+  "visual_quality": "NOT_TESTED_HUMAN_REQUIRED",
+  "changes_to_windows": false,
+  "changes_to_driver": false,
+  "verdict": "PASS_READ_ONLY_PREP"
+}
