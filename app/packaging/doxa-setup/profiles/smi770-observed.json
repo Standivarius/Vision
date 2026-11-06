@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "profile_id": "doxa-smi770-observed-dell-2026-10-16",
+  "qualification": "observed_not_oem_approved",
+  "hardware_id_prefix": "USB\\VID_090C&PID_770A",
+  "minimum_windows_build": 19041,
+  "expected_driver_provider": "SiliconMotion",
+  "expected_driver_signer": "Microsoft Windows Hardware Compatibility Publisher",
+  "observed_driver_version": "4.7.6.0",
+  "observed_inf": "oem101.inf",
+  "expected_monitor_names": [
+    "Generic Monitor (L)",
+    "Generic Monitor (T)",
+    "Generic Monitor (R)"
+  ],
+  "description": "Observed Dell identity only; observed versions are NOT approved enterprise packages.",
+  "observed_driver_versions": [
+    "4.7.6.0",
+    "4.7.6.8001"
+  ],
+  "driver_version_policy": "Signed Silicon Motion driver for the verified SMI770 device can be treated as present regardless of version; unknown versions need compatibility review, never an automatic downgrade. Enterprise MSI always requires independent approved manifest."
+}

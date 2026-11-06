@@ -1,0 +1,52 @@
+name: Doxa Setup source contracts
+
+on:
+  pull_request:
+    paths:
+      - 'app/packaging/doxa-setup/**'
+      - '.github/workflows/doxa-setup-contract.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  read-only-contracts:
+    name: Doxa installer, AI and bilingual contract checks
+    runs-on: windows-2022
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Check Worker JavaScript and unit tests (no paid AI)
+        shell: pwsh
+        run: |
+          node --check app/packaging/doxa-setup/assistant/worker.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'Worker syntax failed' }
+          node --test app/packaging/doxa-setup/assistant/worker.test.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'Worker tests failed' }
+      - name: Signed client and optional-AI permission contracts
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & .\app\packaging\doxa-setup\personal-ui\Test-DoxaGatewayClient.ps1
+          if (-not $?) { throw 'AI signing client contract failed' }
+          & .\app\packaging\doxa-setup\personal-ui\Test-DoxaCloudAIPolicy.ps1
+          if (-not $?) { throw 'Opt-in and enterprise policy contract failed' }
+      - name: Branding and English/Romanian single-window checks
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & .\app\packaging\doxa-setup\personal-ui\Start-DoxaSetup.ps1 -BrandTest
+          if (-not $?) { throw 'Branded UI test failed' }
+          foreach ($language in @('en','ro')) {
+            & .\app\packaging\doxa-setup\personal-ui\Start-DoxaGuidedSetup.ps1 -SeamlessTest -Language $language
+            if (-not $?) { throw "One-window test failed for $language" }
+          }
+      - name: Explain missing commercial gates
+        shell: pwsh
+        run: |
+          'Source contracts passed. No driver, publisher signing, commercial redistribution, live model inference, Intune or ManageEngine deployment is performed in CI.' | Write-Output
+          'Production release still requires a signed release manifest, vendor rights and physical/managed pilot evidence.' | Write-Output

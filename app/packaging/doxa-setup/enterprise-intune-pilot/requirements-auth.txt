@@ -1,0 +1,5 @@
+# Microsoft-supported encrypted delegated cache, Windows DPAPI only.
+# Installed on MARIUS-DELL into the current user's Python environment.
+requests>=2.32,<3
+msal>=1.38,<2
+msal-extensions>=1.3,<2

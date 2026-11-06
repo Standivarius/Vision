@@ -1,0 +1,257 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-24",
+  "branch": "doxa/installer-ai-enterprise-20261024",
+  "origin": "MARIUS-DELL read-only audited user-owned Vision repo",
+  "scope": "Doxa installer only; primary dirty worktree untouched",
+  "source_file_count": 61,
+  "excluded_generated_files": [
+    "app\\packaging\\doxa-setup\\enterprise-intune-pilot\\DoxaSetupPayload.zip"
+  ],
+  "source_sha256": [
+    {
+      "path": "app/packaging/doxa-setup/Build-DoxaPersonalBundle.ps1",
+      "sha256": "c567351bcd9d113a30f919843e4993ccd7b55ce8a0a6d2dd803800c1ba21da72"
+    },
+    {
+      "path": "app/packaging/doxa-setup/Deploy-DoxaDriverPackage.ps1",
+      "sha256": "537e858b5f875dfe1b501a78db6117ee1cef676cee7308e497b58f270bb7ba7d"
+    },
+    {
+      "path": "app/packaging/doxa-setup/Get-DoxaDriverState.ps1",
+      "sha256": "891247a5f32cf2d466fad2a054dc630b7cfa3b005c1cf279ca2c7b484c96bcaa"
+    },
+    {
+      "path": "app/packaging/doxa-setup/README.md",
+      "sha256": "c6fccf365927c4a8457a76ad9f330f43fb9b4f34507a196605966dc0b06b1424"
+    },
+    {
+      "path": "app/packaging/doxa-setup/Test-DoxaPersonalBundle.ps1",
+      "sha256": "96de3917418031e0152cc46cd2d5f510c0ccee9a9e0010067bf0dcd91e6a4d7d"
+    },
+    {
+      "path": "app/packaging/doxa-setup/approved-actions.json",
+      "sha256": "2a106c243720e603ad84df326fde061c2d3e540b37695ac89fddfb8203e2ceae"
+    },
+    {
+      "path": "app/packaging/doxa-setup/assistant/README.md",
+      "sha256": "eb8c849386651eeb7c74029f8b4e1662a89c928962479c6e59403780fcc44396"
+    },
+    {
+      "path": "app/packaging/doxa-setup/assistant/client-public-key.json",
+      "sha256": "3b25db041110972dcfe9eb4c7b928abe3ef85f153b2b7f89412f722f81025942"
+    },
+    {
+      "path": "app/packaging/doxa-setup/assistant/curated-kb.mjs",
+      "sha256": "3cd1db0bf5f5175e20acab73e7521e7be5fe0091cddfae5633b0fbd1761dd6e8"
+    },
+    {
+      "path": "app/packaging/doxa-setup/assistant/scope.mjs",
+      "sha256": "c55f5e429aa094629aec12d4023e2c233914a2d43ef76c3daa8d971500301eb4"
+    },
+    {
+      "path": "app/packaging/doxa-setup/assistant/worker.mjs",
+      "sha256": "56c3eae7ed2a8d06d7c3b123d12293223a75f4329b6a48504fbe3edd7d8da54a"
+    },
+    {
+      "path": "app/packaging/doxa-setup/assistant/worker.test.mjs",
+      "sha256": "fc3a931e577a4ea9727140e3d04421da2d5710da39aacb8bc2ba29adf12f7038"
+    },
+    {
+      "path": "app/packaging/doxa-setup/assistant/wrangler.toml",
+      "sha256": "5eb88531404aac5158bc7ee58baab9480ae607bea6b09ed6cafe60f3fff2bf5c"
+    },
+    {
+      "path": "app/packaging/doxa-setup/enterprise-intune-pilot/DoxaPilot.ps1",
+      "sha256": "adf109af0f54792ce27710e02ca94c2e105cb23a8d57f11b3083c5eb1985c0ab"
+    },
+    {
+      "path": "app/packaging/doxa-setup/enterprise-intune-pilot/README.md",
+      "sha256": "87392c7b78185efb194fef10ec49daf650011800d0488922cb5d45e56ec45b62"
+    },
+    {
+      "path": "app/packaging/doxa-setup/enterprise-intune-pilot/Test-DoxaPilot.py",
+      "sha256": "4ab45a6f477eba9b56b6ca08ae1bd33f6ac8226eb73083618f93fcbde3cc8756"
+    },
+    {
+      "path": "app/packaging/doxa-setup/knowledge/README.md",
+      "sha256": "4fce77374053d7f53e8e007a533e4d1a35e9a334292bc351ee702468664d223c"
+    },
+    {
+      "path": "app/packaging/doxa-setup/knowledge/entries.json",
+      "sha256": "02f32f05e65c3c5aa817e66a4cb8adf6e3d03f9b9e5d21e3eef8f2d300c04f8f"
+    },
+    {
+      "path": "app/packaging/doxa-setup/knowledge/scope-policy.json",
+      "sha256": "31a05379bc189f6d26108d62321db7947a5ee2cf43d5dd8d220b56f8a604673f"
+    },
+    {
+      "path": "app/packaging/doxa-setup/personal-ui/AI-PRIVACY-NOTICE.txt",
+      "sha256": "e65da3046cca68bbc40daa293b91b414a6e26bc6cdec774069d59dcd46b79ec6"
+    },
+    {
+      "path": "app/packaging/doxa-setup/personal-ui/Ask-DoxaInstaller.ps1",
+      "sha256": "eca8f0f746cb4ede1a299029cc7bff139c984c6a8a65734a5bb81b721d1336c4"
+    },
+    {
+      "path": "app/packaging/doxa-setup/personal-ui/Get-DoxaCloudAIPolicy.ps1",
+      "sha256": "021623a3e766c6e74ff6db7668a678a0e5a51a96c1a3570d4a28f080e8b91419"
+    },
+    {
+      "path": "app/packaging/doxa-setup/personal-ui/Get-DoxaCompatibility.ps1",
+      "sha256": "782d9c2ec55f0a0c65fbcbe20f758378be198634b9de880fdef1923c059578bc"
+    },
+    {
+      "path": "app/packaging/doxa-setup/personal-ui/Get-DoxaDeviceSignature.ps1",
+      "sha256": "471f1f25366322047237da11a53bf10ec8dd79162ee4db393a3dec34e5fd7c1c"
+    },
+    {
+      "path": "app/packaging/doxa-setup/personal-ui/Get-DoxaEnterprisePreflight.ps1",
+      "sha256": "af2fec0a9dc4520de61874de4b567137f58bbbee5e09a2eeae45400a37ec1ad3"
+    },
+    {
+      "path": "app/packaging/doxa-setup/personal-ui/Get-DoxaKnowledgeAnswer.ps1",
+      "sha256": "add98c24b55d9619e021096600134cc2e29d51f51d0066f2797965de07b1266a"
+    },
+    {
+      "path": "app/packaging/doxa-setup/personal-ui/Get-DoxaSetupExperience.ps1",
+      "sha256": "bd361e68ec3a763041655d0cba3e970119f8de0c314e0d6a279a4d99e1d332f5"
+    },
+    {
+      "path": "app/packaging/doxa-setup/personal-ui/Invoke-DoxaPersonalInstallation.ps1",
+      "sha256": "49e47483bd9a49fb94cf0eadb13e6f747a2bd9479ef36edd0b146800359a98f5"
+    },
+    {
+      "path": "app/packaging/doxa-setup/personal-ui/README.md",
+      "sha256": "3e2588a05cf156919ba70e8e280b3b409c29f4cea66b148415728df5a7f8c7e9"
+    },
+    {
+      "path": "app/packaging/doxa-setup/personal-ui/Start-DoxaGuidedSetup.ps1",
+      "sha256": "7ce975b61cee76f92ef41a835b9015443ca474948812d8597e627df620b75d3a"
+    },
+    {
+      "path": "app/packaging/doxa-setup/personal-ui/Start-DoxaSetup.ps1",
+      "sha256": "5abd115cf7120a16b0cba1c8068453185c6c26e64c5d19b8eb84bafccc88b1cf"
+    },
+    {
+      "path": "app/packaging/doxa-setup/personal-ui/Test-DoxaCloudAIPolicy.ps1",
+      "sha256": "7cfb9efb3cd3e7ef6fd2f6ae162b26ee0aff67dfbf1868a704c8c2aa2f4b0e2a"
+    },
+    {
+      "path": "app/packaging/doxa-setup/personal-ui/Test-DoxaCompatibility.ps1",
+      "sha256": "b34a2a18dc9778cd71cdd29cb26403f1fd297b63f33972baa007c3cb60165841"
+    },
+    {
+      "path": "app/packaging/doxa-setup/personal-ui/Test-DoxaGatewayClient.ps1",
+      "sha256": "5793fc8c9d8459a48577e3900bea582e71779ccdc79a25950551ef097a5775c6"
+    },
+    {
+      "path": "app/packaging/doxa-setup/personal-ui/Test-DoxaPackageGate.ps1",
+      "sha256": "a63b960c10346a9ce7e82bb853c1c452eff82cb1fc81a815e668e7d223f0fc8d"
+    },
+    {
+      "path": "app/packaging/doxa-setup/personal-ui/Test-DoxaSetupExperience.ps1",
+      "sha256": "4d41e28563a2a71af5323913c3738d7692f6712df9fa63bb89d923d0197641c4"
+    },
+    {
+      "path": "app/packaging/doxa-setup/profiles/smi770-observed.json",
+      "sha256": "9200cd0aaa67da61c5aff57f92fd49b0ab3f17d9340f5d80c00b9e649af8ca01"
+    },
+    {
+      "path": "app/packaging/doxa-setup/profiles/vendor-msi-approval.TEMPLATE.json",
+      "sha256": "26aa15329a9cba2c4aaccf7237d12b85a8db3a438684a793ba049ea07b7264e5"
+    },
+    {
+      "path": "app/packaging/doxa-setup/profiles/vendor-msi-reviewed.NOT_APPROVED.json",
+      "sha256": "3343c3c59da29b1bfcae197c49d0b264b4b273cb5b51e0ffd851ee94049489c4"
+    },
+    {
+      "path": "app/packaging/doxa-setup/run-surrogate.ps1",
+      "sha256": "cca676aa81267af96ca7ea7d0d48e4aa4dae8c4e475e310bed718fd3caae9b84"
+    },
+    {
+      "path": "app/packaging/doxa-setup/scenarios/01-enterprise-happy.json",
+      "sha256": "29f028a3f551c4027f37cea83219d08298ddf8a658f585a9d7dc9790eabcc51b"
+    },
+    {
+      "path": "app/packaging/doxa-setup/scenarios/02-enterprise-installed-healthy.json",
+      "sha256": "d6e7f0202be925fcb79e32d5aa4cded9f044803ffb25ed1217ace88384b160b0"
+    },
+    {
+      "path": "app/packaging/doxa-setup/scenarios/03-restricted-user.json",
+      "sha256": "bd8d5b4e7953ed5cd074eea73a3e4b84001d66c4c4929782f5ad4b70a1fbbfb5"
+    },
+    {
+      "path": "app/packaging/doxa-setup/scenarios/04-app-control-block.json",
+      "sha256": "ae1dba167495c9b77fda487e97e518d89fccce646b2af5db72b91634655a90fb"
+    },
+    {
+      "path": "app/packaging/doxa-setup/scenarios/05-display-missing.json",
+      "sha256": "9e0b97ad3cca091ce407dc4e5e43bbe2a3cf8f51b3cdf66fdc83254a5e4f35cf"
+    },
+    {
+      "path": "app/packaging/doxa-setup/scenarios/06-approved-driver-missing.json",
+      "sha256": "0b531aebc27a4bd711f71a9d022960b118a3a831e8d85077928637ae13c725c9"
+    },
+    {
+      "path": "app/packaging/doxa-setup/scenarios/07-ambiguous-capture-failure.json",
+      "sha256": "11c64c3959e914ca79ea9422564205cfd9dfb15ec8dbb3ad51cf8afd9604a3ac"
+    },
+    {
+      "path": "app/packaging/doxa-setup/scenarios/08-cloud-blocked.json",
+      "sha256": "90ba5cf38cef7a28629f8f400b6cb6da03ae0c9f5fc541469e6b1e35ab04bc5c"
+    },
+    {
+      "path": "app/packaging/doxa-setup/scenarios/09-pending-reboot.json",
+      "sha256": "892df3ff13f5bffb4b6ae052ec477ed42cea9780c2012f9112369b344e6e0f9c"
+    },
+    {
+      "path": "app/packaging/doxa-setup/simulate.ps1",
+      "sha256": "115411345e01b7db33f1c43cdc9573c053f4878e28da8ab09312e77cc12f6d53"
+    },
+    {
+      "path": "app/packaging/doxa-setup/smoke.ps1",
+      "sha256": "b5e31dbe06605ffff6e6d91f8f0fbf6d21e9340778701bb92e150554f5d361b5"
+    },
+    {
+      "path": "app/packaging/doxa-setup/tests/Test-DoxaDriverReadOnly.ps1",
+      "sha256": "af2f70e05f5a2360c61f444995aa7960d14704d15972f84170c4b61ea8dfad3b"
+    },
+    {
+      "path": "app/packaging/doxa-setup/tests/missing-doxa-panel.json",
+      "sha256": "b35ffa2c74f690abb9aeb88a576210b25d1ab783a97818b26e87cae892308ac8"
+    },
+    {
+      "path": "app/packaging/doxa-setup/tests/missing-driver.json",
+      "sha256": "5f576555e693fc0a884d0aaa5796cc6645d07643df1f1b3f4aef82c205ed3f8a"
+    },
+    {
+      "path": "app/packaging/doxa-setup/tests/signed-complete.json",
+      "sha256": "31d904e66a820baf65807b52248eff99d31883c4056207075778909df151a8dc"
+    },
+    {
+      "path": "app/packaging/doxa-setup/tests/unsigned-rejected.json",
+      "sha256": "e4e3bb4b2a134763078d473b26cc8ef124903ba8f40d3a06c8d6735113edd6d2"
+    },
+    {
+      "path": "docs/project/hardware/2026-10-16__doxa_four_independent_windows_desktops_qualification_v0.1.md",
+      "sha256": "cd9dc5eeb890f1cad14f7ec901430886488b91f0a6f05bc6c64e2b1114dfff3d"
+    },
+    {
+      "path": "docs/project/hardware/2026-10-16__doxa_real_smi770_enterprise_driver_baseline_v0.1.md",
+      "sha256": "b05db6591c0d09a5e0da1ede2d9c7a685cec63af86839b2f708ea4e4827e3bcb"
+    },
+    {
+      "path": "docs/project/hardware/2026-10-16__doxa_signed_vendor_msi_candidate_review_v0.1.md",
+      "sha256": "a62690bf4472650ba53a51b19d7650ca7a5490afd61768514406e7bf9deaff30"
+    },
+    {
+      "path": "docs/project/hardware/2026-10-24__doxa_installer_ai_vendor_signing_release_gates_v0.1.md",
+      "sha256": "dcfc3d66a3d887928a3f392e706c9628b9d4a958c282e05f04b030757c739c81"
+    },
+    {
+      "path": "docs/project/hardware/2026-10-24__doxa_siliconmotion_licensing_request_draft_v0.1.md",
+      "sha256": "82dc10973b57186000e7ab03316609694509fe3c8fe3ebc7d4d45397950b4f5b"
+    }
+  ]
+}

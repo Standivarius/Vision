@@ -1,0 +1,539 @@
+# Standivarius Doxa Setup Preview.12 - task-based one-window interface.
+# This file reuses real diagnostics, hardware policy and assistant handlers
+# from Start-DoxaSetup.ps1; it never changes display topology or drivers.
+$red=[Drawing.Color]::FromArgb(165,27,51)
+$ink=[Drawing.Color]::FromArgb(24,32,50)
+$muted=[Drawing.Color]::FromArgb(92,101,117)
+$line=[Drawing.Color]::FromArgb(217,224,231)
+$white=[Drawing.Color]::White
+$green=[Drawing.Color]::FromArgb(20,146,80)
+$form.Controls.Clear()
+$form.BackColor=$white
+$form.ClientSize=New-Object Drawing.Size(1060,710)
+$form.MinimumSize=New-Object Drawing.Size(745,520)
+$form.AutoScroll=$true
+$form.Text='Standivarius | Doxa Triple Monitor Setup'
+function UXLabel([string]$t,[int]$x,[int]$y,[int]$w,[int]$h,[float]$pt=10,[bool]$bold=$false){
+ $c=New-Object Windows.Forms.Label;$c.Text=$t;$c.SetBounds($x,$y,$w,$h)
+ $c.ForeColor=$ink
+ $c.Font=New-Object Drawing.Font('Segoe UI',$pt,$(if($bold){[Drawing.FontStyle]::Bold}else{[Drawing.FontStyle]::Regular}))
+ return $c
+}
+function UXButton([string]$t,[int]$x,[int]$y,[int]$w,[int]$h){
+ $b=New-Object Windows.Forms.Button;$b.Text=$t;$b.SetBounds($x,$y,$w,$h)
+ $b.FlatStyle='Flat';$b.FlatAppearance.BorderColor=$line;$b.FlatAppearance.BorderSize=1
+ $b.BackColor=$white;$b.ForeColor=$ink;$b.Cursor='Hand'
+ return $b
+}
+# Brand and product are intentionally two distinct typographic levels.
+$logo=UXLabel 'standivarius' 22 12 242 42 22 $true
+$logo.ForeColor=$red;$form.Controls.Add($logo)
+$logoFile=Join-Path $PSScriptRoot 'assets\standivarius-official-logo.png'
+if(Test-Path -LiteralPath $logoFile){
+ $logo.Visible=$false
+ $logoPicture=New-Object Windows.Forms.PictureBox
+ $st=New-Object IO.MemoryStream(,[IO.File]::ReadAllBytes($logoFile))
+ $img=[Drawing.Image]::FromStream($st);$logoPicture.Image=New-Object Drawing.Bitmap($img)
+ $img.Dispose();$st.Dispose()
+ $logoPicture.SizeMode='Zoom';$logoPicture.SetBounds(22,13,235,36)
+ $logoPicture.AccessibleName='Standivarius official logo'
+ $form.Controls.Add($logoPicture)
+}
+$form.Controls.Add((UXLabel '|' 265 17 17 37 20))
+$productName=UXLabel 'Doxa' 288 9 112 47 27 $true
+$form.Controls.Add($productName)
+$productQualifier=UXLabel 'Setup' 408 25 252 30 13
+$productQualifier.ForeColor=$muted;$form.Controls.Add($productQualifier)
+$languageHeading=UXLabel (T 'Language' 'Limbă') 812 27 77 28 9
+$form.Controls.Add($languageChoice)
+
+# Three task areas, entirely aligned with LEFT workspace. Doxa Help is persistent.
+$tabs=@((UXButton '1. Connect and Detect Doxa' 19 72 213 48),(UXButton '2. Set up screens' 236 72 213 48),(UXButton '3. Install signed driver' 453 72 213 48))
+foreach($tab in $tabs){$tab.Font=New-Object Drawing.Font('Segoe UI',9)}
+$form.Controls.AddRange($tabs)
+$workspace=New-Object Windows.Forms.Panel
+$workspace.SetBounds(19,119,663,578)
+$workspace.BackColor=$white
+$workspace.Add_Paint({
+ param($s,$e)
+ $p=New-Object Drawing.Pen ([Drawing.Color]::FromArgb(165,27,51)),1.4
+ try{$e.Graphics.DrawRectangle($p,1,1,$s.Width-3,$s.Height-3)}finally{$p.Dispose()}
+})
+$workspace.AccessibleName='Current Doxa setup task'
+$form.Controls.Add($workspace)
+$main=New-Object Windows.Forms.Panel;$main.SetBounds(10,10,643,552)
+$workspace.Controls.Add($main)
+$sideHolder=New-Object Windows.Forms.Panel
+$sideHolder.SetBounds(699,119,341,578)
+$sideHolder.BorderStyle='FixedSingle'
+$sideHolder.BackColor=$white
+$sideHolder.AccessibleName='Doxa help chatbot, always available'
+$form.Controls.Add($sideHolder)
+
+# Detection: connection comes FIRST; physical Doxa connection must precede verification.
+$detect=New-Object Windows.Forms.Panel;$detect.Dock='Fill';$main.Controls.Add($detect)
+$detect.Controls.Add((UXLabel 'Connect and Detect Doxa' 11 1 620 38 17 $true))
+$detect.Controls.Add((UXLabel 'If not yet done, connect Doxa to the computer.' 11 40 620 26 10))
+$detect.Controls.Add((UXLabel 'Connect Doxa' 21 76 407 31 14 $true))
+$detect.Controls.Add((UXLabel 'Rear of the central Doxa screen:' 21 111 397 26 10))
+$detect.Controls.Add((UXLabel 'POWER  -  upper USB-C socket' 24 145 390 29 11 $true))
+$detect.Controls.Add((UXLabel 'DATA  -  lower USB-C socket' 24 179 390 29 11 $true))
+# Rounded rectangular USB-C female receptacles, with cavity and internal tongue.
+$ports=New-Object Windows.Forms.Panel;$ports.SetBounds(422,79,211,138)
+$ports.AccessibleName='Rear view, central Doxa panel: upper oval rectangular USB-C female is power, lower USB-C female is data'
+$ports.Add_Paint({
+ param($s,$e)
+ $g=$e.Graphics;$g.SmoothingMode=[Drawing.Drawing2D.SmoothingMode]::AntiAlias
+ $body=New-Object Drawing.SolidBrush ([Drawing.Color]::FromArgb(72,79,90))
+ $hole=New-Object Drawing.SolidBrush ([Drawing.Color]::FromArgb(15,19,25))
+ $steel=New-Object Drawing.Pen ([Drawing.Color]::FromArgb(182,190,197)),2.5
+ $tongue=New-Object Drawing.SolidBrush ([Drawing.Color]::FromArgb(140,144,150))
+ $whiteText=New-Object Drawing.SolidBrush ([Drawing.Color]::White)
+ $font=New-Object Drawing.Font('Segoe UI',8,[Drawing.FontStyle]::Bold)
+ try{
+  $g.FillRectangle($body,10,4,192,130)
+  foreach($y in @(32,86)){
+   # Actual USB-C socket silhouette is a capsule, not a circular hole.
+   $shape=New-Object Drawing.Drawing2D.GraphicsPath
+   try{
+    $shape.AddArc(74,$y,14,16,90,180)
+    $shape.AddArc(104,$y,14,16,270,180)
+    $shape.CloseFigure()
+    $g.FillPath($hole,$shape);$g.DrawPath($steel,$shape)
+    $g.FillRectangle($tongue,82,$y+6,27,4)
+   }finally{$shape.Dispose()}
+  }
+  $g.DrawString('P O W E R',$font,$whiteText,15,33)
+  $g.DrawString('D A T A',$font,$whiteText,17,88)
+ }finally{foreach($r in @($body,$hole,$steel,$tongue,$whiteText,$font)){$r.Dispose()}}
+})
+$detect.Controls.Add($ports)
+$detect.Controls.Add((UXLabel 'Detect Doxa' 21 241 392 31 14 $true))
+$connectionBadge.SetBounds(421,244,209,24)
+$detect.Controls.Add($connectionBadge)
+# Decorative screen positions, but checks come EXCLUSIVELY from live PnP identities.
+$script:doxaScreenChecks=@($false,$false,$false)
+$screenDiagram=New-Object Windows.Forms.Panel
+$screenDiagram.Tag=$script:doxaScreenChecks # Captured live result array survives New-Module event callback
+$screenDiagram.SetBounds(8,273,627,145)
+$screenDiagram.BackColor=[Drawing.Color]::FromArgb(249,250,252)
+$screenDiagram.AccessibleName='Illustration: Screens 2, 3, 4 above laptop Screen 1. A green tick means Windows identified that Doxa PnP monitor, not verified Extend mode.'
+$screenDiagram.Add_Paint({
+ param($s,$e)
+ $g=$e.Graphics;$g.SmoothingMode=[Drawing.Drawing2D.SmoothingMode]::AntiAlias
+ $pen=New-Object Drawing.Pen ([Drawing.Color]::FromArgb(57,63,71)),2.5
+ $fill=New-Object Drawing.SolidBrush ([Drawing.Color]::FromArgb(238,243,247))
+ $font=New-Object Drawing.Font('Segoe UI',11,[Drawing.FontStyle]::Bold)
+ $statusFont=New-Object Drawing.Font('Segoe UI',8,[Drawing.FontStyle]::Bold)
+ $small=New-Object Drawing.Font('Segoe UI',8)
+ $inkBrush=New-Object Drawing.SolidBrush ([Drawing.Color]::FromArgb(24,32,50))
+ $greenBrush=New-Object Drawing.SolidBrush ([Drawing.Color]::FromArgb(20,146,80))
+ $redBrush=New-Object Drawing.SolidBrush ([Drawing.Color]::FromArgb(189,31,42))
+ try{
+  for($i=0;$i -lt 3;$i++){
+   $x=11+($i*209)
+   $g.FillRectangle($fill,$x,8,195,73);$g.DrawRectangle($pen,$x,8,195,73)
+   $g.DrawString((T ('Screen '+($i+2)) ('Ecran '+($i+2))),$font,$inkBrush,$x+43,16)
+   $found=[bool](@($s.Tag)[$i])
+   $label=if($found){T 'DETECTED' 'DETECTAT'}else{T 'NOT DETECTED' 'NEDETECTAT'}
+   $g.DrawString($label,$statusFont,$(if($found){$greenBrush}else{$redBrush}),$x+43,46)
+  }
+  $g.FillRectangle($fill,241,96,147,40);$g.DrawRectangle($pen,241,96,147,40)
+  $g.DrawString('Screen 1',$small,$inkBrush,288,99)
+  $g.DrawString('Laptop',$small,$inkBrush,290,116)
+ }finally{foreach($item in @($pen,$fill,$font,$statusFont,$small,$inkBrush,$greenBrush,$redBrush)){$item.Dispose()}}
+})
+$detect.Controls.Add($screenDiagram)
+$screenCaption=UXLabel 'Green labels = Windows sees Doxa monitor identities; this does not confirm Extend mode.' 21 419 600 20 8
+$screenCaption.ForeColor=$muted;$detect.Controls.Add($screenCaption)
+# Read-only hardware status from the existing diagnostic engine.
+$rows[0].SetBounds(21,438,600,20)
+$rows[1].SetBounds(21,461,600,19)
+$rows[2].Visible=$false
+foreach($v in @($rows[0],$rows[1])){$v.Font=New-Object Drawing.Font('Segoe UI',9);$detect.Controls.Add($v)}
+$stateLabel.SetBounds(21,486,411,55);$stateLabel.Font=New-Object Drawing.Font('Segoe UI',9)
+$detect.Controls.Add($stateLabel)
+$check.SetBounds(445,494,176,44)
+$check.BackColor=$red;$check.ForeColor=$white
+$detect.Controls.Add($check)
+# Two quiet card boundaries separate the physical connection from Windows detection.
+# Behind the interactive controls: both sections stay on the same task page.
+$connectCard=New-Object Windows.Forms.Panel
+$connectCard.SetBounds(8,70,627,151);$connectCard.BackColor=$white
+$connectCard.BorderStyle='FixedSingle';$detect.Controls.Add($connectCard);$connectCard.SendToBack()
+$detectCard=New-Object Windows.Forms.Panel
+$detectCard.SetBounds(8,230,627,317);$detectCard.BackColor=$white
+$detectCard.BorderStyle='FixedSingle';$detect.Controls.Add($detectCard);$detectCard.SendToBack()
+# Only one Detect Doxa button, not a duplicate navigation button.
+
+# Arrange screens is ONLY a post-detection Windows task.
+$setup=New-Object Windows.Forms.Panel;$setup.Dock='Fill';$setup.Visible=$false;$main.Controls.Add($setup)
+$setup.Controls.Add((UXLabel 'Recommended screen setup in Windows' 13 8 620 45 18 $true))
+$setup.Controls.Add((UXLabel 'After Doxa is detected, arrange the laptop and three external screens in Windows.' 13 59 615 47 10))
+$layoutDiagram=New-Object Windows.Forms.Panel
+$layoutDiagram.SetBounds(12,117,617,220)
+$layoutDiagram.Tag=$script:doxaScreenChecks
+$layoutDiagram.AccessibleName='Suggested physical layout: Doxa screens 2, 3 and 4 in a horizontal row, laptop screen 1 below the centre.'
+$layoutDiagram.Add_Paint({
+ param($s,$e)
+ $g=$e.Graphics;$g.SmoothingMode=[Drawing.Drawing2D.SmoothingMode]::AntiAlias
+ $pen=New-Object Drawing.Pen ([Drawing.Color]::FromArgb(49,53,61)),3
+ $fill=New-Object Drawing.SolidBrush ([Drawing.Color]::FromArgb(238,243,247))
+ $inkBrush=New-Object Drawing.SolidBrush ([Drawing.Color]::FromArgb(24,32,50))
+ $font=New-Object Drawing.Font('Segoe UI',13,[Drawing.FontStyle]::Bold)
+ $statusFont=New-Object Drawing.Font('Segoe UI',9,[Drawing.FontStyle]::Bold)
+ $greenBrush=New-Object Drawing.SolidBrush ([Drawing.Color]::FromArgb(20,146,80))
+ $redBrush=New-Object Drawing.SolidBrush ([Drawing.Color]::FromArgb(189,31,42))
+ try{
+  for($i=0;$i -lt 3;$i++){
+   $x=8+$i*204
+   $g.FillRectangle($fill,$x,9,195,100);$g.DrawRectangle($pen,$x,9,195,100)
+   $g.DrawString((T ('Screen '+($i+2)) ('Ecran '+($i+2))),$font,$inkBrush,$x+44,29)
+   $found=[bool](@($s.Tag)[$i])
+   $label=if($found){T 'DETECTED' 'DETECTAT'}else{T 'NOT DETECTED' 'NEDETECTAT'}
+   $g.DrawString($label,$statusFont,$(if($found){$greenBrush}else{$redBrush}),$x+43,65)
+  }
+  $g.FillRectangle($fill,233,134,153,66);$g.DrawRectangle($pen,233,134,153,66)
+  $g.DrawString('Screen 1',$font,$inkBrush,262,144)
+  $g.DrawString('Laptop',$font,$inkBrush,279,170)
+ }finally{foreach($item in @($pen,$fill,$inkBrush,$font,$statusFont,$greenBrush,$redBrush)){$item.Dispose()}}
+})
+$setup.Controls.Add($layoutDiagram)
+$setup.Controls.Add((UXLabel '1. In Windows Display settings, select Identify to see the real monitor numbers.' 13 367 616 35 10))
+$setup.Controls.Add((UXLabel '2. Select Extend, then drag each Windows rectangle to match your desk.' 13 401 615 36 10))
+$settingsButton=UXButton 'Open Windows Display settings' 13 471 323 43
+$settingsButton.AccessibleDescription='Opens Windows settings. Does not automatically change displays.'
+$setup.Controls.Add($settingsButton)
+$settingsButton.Add_Click({
+ try{Start-Process 'ms-settings:display'|Out-Null}
+ catch{[Windows.Forms.MessageBox]::Show((T 'Use Win+I, then System > Display.' 'Foloseste Win+I, apoi Sistem > Ecran.'),'Doxa')|Out-Null}
+})
+
+# Signed driver is conditional troubleshooting, not a normal mandatory step.
+$install=New-Object Windows.Forms.Panel;$install.Dock='Fill';$install.Visible=$false;$main.Controls.Add($install)
+$install.Controls.Add((UXLabel 'Doxa display driver' 21 19 600 43 18 $true))
+$install.Controls.Add((UXLabel 'The signed Silicon Motion driver for Doxa is included in this installer. You do not need to download it.' 21 83 590 65 11))
+$driverStatus=UXLabel 'Driver status: select Detect Doxa to check.' 21 164 585 66 12 $true
+$install.Controls.Add($driverStatus)
+$install.Controls.Add((UXLabel 'For a separate copy, use the official Doxa-compatible Silicon Motion driver link below.' 21 249 595 52 11))
+$driverAction=UXButton 'Install included driver' 21 342 300 45
+$driverAction.AccessibleName='Install or verify the signed Doxa Windows display driver'
+$driverAction.AccessibleDescription='Uses the protected Doxa Windows installer and asks for administrator approval only if installation is needed.'
+$install.Controls.Add($driverAction)
+# Application-only preparation is distinct from the protected vendor driver.
+$appInstall=UXButton 'Install or update Doxa Setup' 14 410 319 43
+$appInstall.Visible=$false # App maintenance belongs outside the driver-download page.
+$appInstall.AccessibleName='Install Doxa Setup application only, preserving the driver'
+$install.Controls.Add($appInstall)
+$appInstall.Add_Click({
+ $native=$script:bootstrapInstaller
+ if(-not $native -or -not(Test-Path -LiteralPath $native -PathType Leaf)){$native=Join-Path $env:ProgramFiles 'Standivarius\DoxaMaintenance\DoxaMaintenance-v2.exe'}
+ if(-not $native -or -not(Test-Path -LiteralPath $native -PathType Leaf)){
+  Say 'Doxa' (T 'Original Doxa installer unavailable. No changes made.' 'Instalatorul Doxa original este indisponibil. Nicio modificare.')
+  return
+ }
+ try{
+  $appInstall.Enabled=$false
+  $result=Start-Process -FilePath $native -ArgumentList '/prepare' -Verb RunAs -PassThru -Wait
+  if($result.ExitCode -eq 0){
+   Say 'Doxa' (T 'Doxa Setup application installed; display driver unchanged.' 'Aplicatia Doxa a fost instalata, fara modificarea driverului.')
+   RefreshState
+  }else{Say 'Doxa' ('Doxa Setup preparation returned Windows code '+$result.ExitCode)}
+ }catch{Say 'Doxa' ('Doxa Setup was not installed: '+$_.Exception.Message)}
+ finally{$appInstall.Enabled=$true}
+})
+$driverAction.Add_Click({
+ $native=Join-Path $env:ProgramFiles 'Standivarius\DoxaMaintenance\DoxaMaintenance-v2.exe'
+ if(-not(Test-Path -LiteralPath $native -PathType Leaf)){$native=$script:bootstrapInstaller}
+ if(-not $native -or -not(Test-Path -LiteralPath $native -PathType Leaf)){
+  Say 'Doxa' (T 'Original Doxa driver installer unavailable. No changes made.' 'Instalatorul original al driverului Doxa nu este disponibil.')
+  return
+ }
+  if(-not($script:current -and $script:current.observed.doxa_hardware_detected)){
+   Say 'Doxa' (T 'Connect Doxa power first and USB data second, then select Detect Doxa before installing the signed driver.' 'Conecteaza intai alimentarea Doxa, apoi cablul USB de date. Apasa Detecteaza Doxa inainte de instalarea driverului.')
+   return
+  }
+  try {
+   $driverAction.Enabled=$false
+   $process=Start-Process -FilePath $native -ArgumentList '/install' -Verb RunAs -PassThru -Wait
+   if($process.ExitCode -in @(0,3010)){
+    RefreshState
+    if($process.ExitCode -eq 3010){
+     Say 'Doxa' (T 'The signed driver installer requests a Windows restart. Save your work and restart when convenient; Doxa never restarts automatically.' 'Instalatorul driverului semnat solicita repornirea Windows. Salveaza lucrul si reporneste cand poti; Doxa nu reporneste automat.')
+    }else{
+     Say 'Doxa' (T 'The installer finished. Select Detect Doxa to verify driver binding and all three screens; installation success alone does not prove the displays work.' 'Instalarea s-a incheiat. Apasa Detecteaza Doxa pentru a verifica driverul si cele trei ecrane; succesul instalarii nu confirma ecranele.')
+    }
+   }else{
+   Say 'Doxa' (T 'Windows driver setup was not completed. Ask IT to check the Doxa installer logs.' 'Instalarea driverului nu s-a incheiat. Solicita IT sa verifice jurnalul instalatorului Doxa.')
+  }
+  }catch{
+   Say 'Doxa' (T 'Administrator approval was declined or setup could not start.' 'Aprobarea administratorului a fost refuzata sau instalarea nu a pornit.')
+  }finally{$driverAction.Enabled=$true}
+})
+$reinstall.Visible=$false
+$official.SetBounds(21,300,585,30);$official.Text='Download the Doxa driver from Silicon Motion';$official.LinkColor=$red;$install.Controls.Add($official)
+
+# Doxa Help stays present on the RIGHT for every task, not an interchangeable guide.
+$side.BorderStyle='None';$side.BackColor=$white
+$side.SetBounds(0,0,339,475);$sideHolder.Controls.Add($side)
+$helpHeading.Text='Doxa Help';$helpHeading.SetBounds(14,10,309,38)
+$assistantStatus.SetBounds(14,43,308,24)
+$offline.Visible=$false;$hint.Visible=$false
+$modeOff=New-Object Windows.Forms.RadioButton
+$modeOff.SetBounds(14,70,143,28);$modeOff.Text='Offline help';$modeOff.Checked=(-not $script:cloudConsent)
+$modeOn=New-Object Windows.Forms.RadioButton
+$modeOn.SetBounds(169,70,146,28);$modeOn.Text='Online AI';$modeOn.Checked=[bool]$script:cloudConsent
+$initialOnlinePolicy=(& $script:cloudPolicyScript|Out-String)|ConvertFrom-Json
+if(-not [bool]$initialOnlinePolicy.online_ai_selectable){
+ $modeOn.Enabled=$false
+ $modeOn.Checked=$false
+ $modeOff.Checked=$true
+ $script:cloudConsent=$false
+ $modeOn.AccessibleDescription=if([bool]$initialOnlinePolicy.cloud_ai_allowed){'Online AI is available after you opt in.'}else{'Disabled by organization policy.'}
+}
+$side.Controls.AddRange(@($modeOff,$modeOn))
+$chat.SetBounds(14,105,309,292)
+$ask.SetBounds(14,404,203,32);$send.SetBounds(228,404,95,32);$send.BackColor=$red
+$privacy=New-Object Windows.Forms.LinkLabel
+$privacy.Text='Privacy details for online AI';$privacy.SetBounds(14,440,188,31)
+$privacy.LinkColor=$red
+$privacy.Add_LinkClicked({
+ $f=Join-Path $PSScriptRoot 'AI-PRIVACY-NOTICE.txt'
+ try{
+  $dlg=New-Object Windows.Forms.Form;$dlg.Text=T 'Doxa privacy details' 'Confidentialitate Doxa'
+  $dlg.ClientSize=New-Object Drawing.Size(650,445);$dlg.StartPosition='CenterParent'
+  $txt=New-Object Windows.Forms.TextBox;$txt.Multiline=$true;$txt.ReadOnly=$true
+  $txt.ScrollBars='Vertical';$txt.Dock='Fill';$txt.Text=Get-Content -LiteralPath $f -Raw -Encoding UTF8
+  $dlg.Controls.Add($txt);[void]$dlg.ShowDialog($form);$dlg.Dispose()
+ }catch{[Windows.Forms.MessageBox]::Show((T 'Privacy notice unavailable.' 'Informarea nu este disponibila.'),'Doxa')|Out-Null}
+})
+$side.Controls.Add($privacy)
+# Authorized recovery lab is OFF unless a local operator explicitly configures
+# a per-session password hash; an LLM cannot enable it or execute commands.
+. (Join-Path $PSScriptRoot 'Doxa-RecoveryLab.ps1')
+$script:recoveryLabUnlocked=$false
+$recoveryLab=New-Object Windows.Forms.LinkLabel
+$recoveryLab.Text='Recovery lab'
+$recoveryLab.SetBounds(205,440,125,31)
+$recoveryLab.LinkColor=$red
+$recoveryLab.Visible=[bool](Get-DoxaRecoveryLabEnabled)
+$recoveryLab.AccessibleName='Recovery lab - simulated missing screen only'
+$side.Controls.Add($recoveryLab)
+$recoveryLab.Add_LinkClicked({
+ if($script:recoveryLabUnlocked){
+  $script:recoveryLabUnlocked=$false;$script:fault='none'
+  $recoveryLab.Text=T 'Recovery lab' 'Test recuperare'
+  RefreshState
+  Say 'Doxa' (T 'Recovery test ended. Actual Windows state restored to view; no display setting was changed.' 'Testul s-a incheiat. Afisam din nou starea reala; nicio setare Windows nu a fost schimbata.')
+  return
+ }
+ if(-not(Get-DoxaRecoveryLabEnabled)){return}
+ $dlg=New-Object Windows.Forms.Form
+ $dlg.Text=T 'Unlock recovery lab' 'Deblocheaza testul de recuperare'
+ $dlg.ClientSize=New-Object Drawing.Size(480,190)
+ $dlg.StartPosition='CenterParent'
+ $lbl=New-Object Windows.Forms.Label
+ $lbl.Text=T 'Local test code (never sent online):' 'Cod local de test (nu este trimis online):'
+ $lbl.SetBounds(18,14,440,43)
+ $code=New-Object Windows.Forms.TextBox
+ $code.UseSystemPasswordChar=$true
+ $code.SetBounds(18,65,440,30)
+ $code.AccessibleName=T 'Recovery test unlock code' 'Cod de deblocare test'
+ $ok=New-Object Windows.Forms.Button
+ $ok.Text=T 'Unlock simulated fault' 'Deblocheaza simularea'
+ $ok.SetBounds(248,125,210,40)
+ $ok.DialogResult=[Windows.Forms.DialogResult]::OK
+ $dlg.Controls.AddRange(@($lbl,$code,$ok))
+ $dlg.AcceptButton=$ok
+ try{
+  if($dlg.ShowDialog($form) -ne [Windows.Forms.DialogResult]::OK){return}
+  $accepted=Test-DoxaRecoveryLabUnlock ([string]$code.Text)
+  $code.Clear()
+  if(-not $accepted){
+   [Windows.Forms.MessageBox]::Show((T 'Wrong test code; no changes made.' 'Cod incorect; nu s-a schimbat nimic.'),'Doxa')|Out-Null
+   return
+  }
+ }finally{$code.Clear();$dlg.Dispose()}
+ $script:recoveryLabUnlocked=$true
+ $script:fault='display_missing' # in-memory diagnostic fixture only
+ $recoveryLab.Text=T 'End recovery test' 'Inchide testul'
+ RefreshState
+ Say 'Doxa' (T 'TEST: One Doxa screen is reported missing for recovery practice. Your actual Windows screens are unchanged. You can ask Doxa online AI about this explicitly simulated fault if online AI is enabled.' 'TEST: Simulam lipsa unui ecran Doxa, fara sa modificam ecranele Windows. Poti intreba AI online despre aceasta simulare daca ai activat asistenta AI.')
+})
+
+$script:previousAIApproval=[bool]$script:cloudConsent
+$modeOff.Add_CheckedChanged({
+ if(-not $modeOff.Checked){return}
+ $script:cloudConsent=$false;$script:previousAIApproval=$false
+ $script:queuedQuestion='';$script:quickAdviceShown=$false
+ if($script:aiJob){
+  $aiTimer.Stop();Stop-Job $script:aiJob -ErrorAction SilentlyContinue
+  Remove-Job $script:aiJob -Force -ErrorAction SilentlyContinue;$script:aiJob=$null;$send.Enabled=$true
+ }
+ $assistantStatus.Text=T 'Offline selected. Already-sent requests cannot be recalled.' 'Ajutor offline. Cererile deja trimise nu pot fi retrase.'
+})
+$modeOn.Add_CheckedChanged({
+ if(-not $modeOn.Checked){return}
+ $policy=(& $script:cloudPolicyScript | Out-String)|ConvertFrom-Json
+  if(-not [bool]$policy.online_ai_selectable){
+   $assistantStatus.Text=T 'Online AI is disabled by organisation policy. Offline help remains available.' 'AI online este dezactivat prin politica organizatiei. Ajutorul offline ramane disponibil.'
+   $modeOff.Checked=$true;return
+  }
+ if(-not $script:previousAIApproval){
+  $msg=T 'Online AI sends your typed question and limited Doxa/Windows diagnostics over HTTPS. No screenshots. Allow online AI this session?' 'AI online trimite intrebarea si diagnostice limitate Doxa/Windows prin HTTPS. Fara capturi de ecran. Permiti AI online in aceasta sesiune?'
+  $answer=[Windows.Forms.MessageBox]::Show($msg,'Doxa online AI',[Windows.Forms.MessageBoxButtons]::YesNo,[Windows.Forms.MessageBoxIcon]::Question,[Windows.Forms.MessageBoxDefaultButton]::Button2)
+  if($answer -ne [Windows.Forms.DialogResult]::Yes){$modeOff.Checked=$true;return}
+  $script:previousAIApproval=$true
+ }
+ $script:cloudConsent=$true;$assistantStatus.Text=T 'Online AI selected; connection checked when you Ask' 'AI online selectat; conexiunea este verificata la Intreaba'
+})
+
+function SelectDoxaPage([string]$page) {
+ $script:doxaCurrentPage=$page
+ foreach($p in @($detect,$setup,$install)){$p.Visible=$false}
+ switch($page){detect{$detect.Visible=$true}setup{$setup.Visible=$true}install{$install.Visible=$true}}
+ for($i=0;$i -lt 3;$i++){
+  $selected=@('detect','setup','install')[$i] -eq $page
+  $tabs[$i].BackColor=if($selected){$red}else{$white}
+  $tabs[$i].ForeColor=if($selected){$white}else{$ink}
+  $tabs[$i].FlatAppearance.BorderColor=if($selected){$red}else{$line}
+  $tabs[$i].AccessibleDescription=if($selected){T 'Selected task' 'Sarcina selectata'}else{T 'Other task' 'Alta sarcina'}
+ }
+ if($page -eq 'install'){
+  $driverAction.Visible=[bool]($script:current -and $script:current.observed.doxa_hardware_detected -and -not $script:current.observed.signed_driver_present)
+  $appInstall.Visible=$false # Driver page is information-only unless the verified missing-driver path is eligible.
+  $driverStatus.Text=if(-not $script:current){
+   T 'Select Detect Doxa to check the driver.' 'Apasa Detecteaza Doxa pentru a verifica driverul.'
+  }elseif($script:current.observed.signed_driver_present){
+   T 'Compatible signed Silicon Motion driver detected. No installation needed.' 'Driverul Silicon Motion semnat si compatibil este detectat. Nu necesita instalare.'
+  }elseif(-not $script:current.observed.doxa_hardware_detected){
+   if($script:current.observed.driver_package_in_store){
+    T 'Doxa is not connected. The driver package is present in Windows; connect Doxa to confirm it works.' 'Doxa nu este conectat. Pachetul driver este prezent in Windows; conecteaza Doxa pentru verificare.'
+   }else{
+    T 'Doxa is not connected. Connect Doxa, then select Detect Doxa to check the driver.' 'Doxa nu este conectat. Conecteaza Doxa, apoi apasa Detecteaza Doxa pentru verificarea driverului.'
+   }
+  }else{
+   T 'Doxa detected, but a healthy signed driver has not been confirmed. Check the driver before installing.' 'Doxa este detectat, dar driverul semnat nu este confirmat. Verifica driverul inainte de instalare.'
+  }
+ }
+ # Help chat is intentionally persistent and does not change into step prose.
+ $side.Visible=$true;$sideHolder.Visible=$true
+ $workspace.Invalidate()
+}
+$tabs[0].Add_Click({SelectDoxaPage 'detect'})
+$tabs[1].Add_Click({SelectDoxaPage 'setup'})
+$tabs[2].Add_Click({SelectDoxaPage 'install'})
+# Older button's illustrated help handler is not part of this workflow.
+# Compatibility reference points at the one visible setup tab, not an orphan.
+$guide=$tabs[1]
+function UpdateDoxaPanelTicks {
+ if(-not $script:current){return}
+ $observed=$script:current.observed
+ $profile=@('Generic Monitor (L)','Generic Monitor (T)','Generic Monitor (R)')
+ $present=@($observed.pnp_doxa_panels)
+ for($i=0;$i -lt 3;$i++) {
+  $script:doxaScreenChecks[$i]=[bool](-not $script:current.test_only -and $observed.doxa_hardware_detected -and ($present -contains $profile[$i]))
+ }
+ $screenDiagram.AccessibleDescription=(T 'Windows PnP recognition by screen: ' 'Identificare Windows PnP pe ecran: ')+
+  (@(for($i=0;$i -lt 3;$i++){($i+2).ToString()+': '+$(if($script:doxaScreenChecks[$i]){T 'identified' 'detectat'}else{T 'not identified' 'nedetectat'})}) -join ', ')+
+  (T '. Does not verify independent Extend mode.' '. Nu confirma extinderea independenta.')
+ $screenDiagram.Invalidate();$layoutDiagram.Invalidate()
+}
+# Initial diagnostic state and subsequent manual rechecks both call UpdateDoxaPanelTicks.
+# This helper is read-only and only uses validated observed data; no fake checks.
+function LayoutDoxa {
+ $width=[int]$form.ClientSize.Width
+ $narrow=($width -lt 1040)
+ if($narrow){
+  $workspace.SetBounds(19,119,663,578)
+  $sideHolder.SetBounds(19,711,663,577)
+  $side.SetBounds(0,0,661,573)
+  $chat.Width=628;$ask.Width=520;$send.Left=548;$send.Width=96
+  $privacy.Top=440
+  $recoveryLab.Left=[Math]::Max(205,$side.Width-135)
+ }else{
+  $workspace.SetBounds(19,119,663,578)
+  $sideHolder.SetBounds(699,119,($width-719),578)
+  $side.SetBounds(0,0,($sideHolder.Width-2),573)
+  $chat.Width=$side.Width-30;$ask.Width=$side.Width-136
+  $send.Left=$side.Width-111;$send.Width=96
+ }
+ $languageChoice.Left=[Math]::Max(535,$width-166)
+}
+$form.Add_ClientSizeChanged({LayoutDoxa})
+$brandTranslations=@{
+ 'Detect Doxa'='Detecteaza Doxa'
+  '1. Connect and Detect Doxa'='1. Conecteaza si detecteaza Doxa'
+  'If not yet done, connect Doxa to the computer.'='Daca nu ai facut-o deja, conecteaza Doxa la computer.'
+  'Recommended screen setup in Windows'='Configurare recomandata a ecranelor in Windows'
+  'After Doxa is detected, arrange the laptop and three external screens in Windows.'='Dupa detectarea Doxa, aranjeaza laptopul si cele trei ecrane externe in Windows.'
+  'Green labels = Windows sees Doxa monitor identities; this does not confirm Extend mode.'='Etichetele verzi = Windows recunoaste monitoarele Doxa, fara confirmarea modului Extindere.'
+ 'Check connection'='Verifica conexiunea'
+ '2. Set up screens'='2. Configureaza ecranele'
+ '3. Install signed driver'='3. Instaleaza driverul semnat'
+ 'Connect Doxa'='Conecteaza Doxa'
+ 'Rear of the central Doxa screen:'='In spatele ecranului Doxa central:'
+ 'POWER  -  upper USB-C socket'='ALIMENTARE  -  port USB-C superior'
+ 'DATA  -  lower USB-C socket'='DATE  -  port USB-C inferior'
+ 'Check the three screens'='Verifica cele trei ecrane'
+ 'Green ticks = Windows sees each Doxa monitor identity; this does not confirm Extend mode.'='Bife verzi = Windows identifica panourile Doxa; nu confirma modul Extindere.'
+ 'Arrange your four screens'='Aranjeaza cele patru ecrane'
+ 'After Windows detects Doxa, arrange the laptop and three external screens.'='Dupa detectarea Doxa, aranjeaza laptopul si cele trei ecrane externe.'
+ '1. In Windows Display settings, select Identify to see the real monitor numbers.'='1. In setarile Windows, alege Identificare pentru numerele reale.'
+ '2. Select Extend, then drag each Windows rectangle to match your desk.'='2. Alege Extindere, apoi trage dreptunghiurile conform ecranelor fizice.'
+ 'Open Windows Display settings'='Deschide setarile de afisare Windows'
+ 'Doxa display driver'='Driver de afisare Doxa'
+ 'The signed Silicon Motion driver for Doxa is included in this installer. You do not need to download it.'='Driverul Silicon Motion semnat pentru Doxa este inclus in acest program. Nu trebuie descarcat separat.'
+ 'Driver status: select Detect Doxa to check.'='Starea driverului: apasa Detecteaza Doxa pentru verificare.'
+ 'For a separate copy, use the official Doxa-compatible Silicon Motion driver link below.'='Pentru o copie separata, foloseste linkul de mai jos catre driverul Silicon Motion compatibil cu Doxa.'
+ 'Offline help'='Ajutor offline'
+ 'Online AI'='AI online'
+ 'Privacy details for online AI'='Confidentialitate AI online'
+  'Install included driver'='Instaleaza driverul inclus'
+  'Download the Doxa driver from Silicon Motion'='Descarca driverul Doxa de la Silicon Motion'
+  'Install or update Doxa Setup'='Instaleaza sau actualizeaza Doxa Setup'
+  'Recovery lab'='Test recuperare'
+  'End recovery test'='Inchide testul'
+ 'Doxa Help'='Asistenta Doxa'
+}
+function TranslateDoxa {
+ function Walk($root){
+  foreach($c in @($root.Controls)){
+   if($c -is [Windows.Forms.Label] -or $c -is [Windows.Forms.Button] -or $c -is [Windows.Forms.RadioButton] -or $c -is [Windows.Forms.LinkLabel]){
+    if($c.Tag -and [string]$c.Tag -like 'doxa-en:*'){$en=([string]$c.Tag).Substring(8)}
+    else{
+     $en=[string]$c.Text
+     if($brandTranslations.ContainsKey($en)){$c.Tag='doxa-en:'+$en}
+    }
+    if($brandTranslations.ContainsKey($en)){
+     $c.Text=if($script:lang -eq 'ro'){$brandTranslations[$en]}else{$en}
+     $c.AccessibleName=$c.Text
+    }
+   }
+   if($c.HasChildren){Walk $c}
+  }
+ }
+ Walk $form
+ $check.Text=T 'Detect Doxa' 'Detecteaza Doxa'
+   $check.AccessibleName=$check.Text
+  $driverAction.AccessibleDescription=T 'Checks the original signed embedded Windows driver; approval required if needed.' 'Verifica driverul Windows semnat inclus; daca este necesar, se solicita aprobarea.'
+  $settingsButton.AccessibleDescription=T 'Opens Windows display settings without changing them.' 'Deschide setarile ecranelor Windows fara sa le modifice.'
+  if($recoveryLab.Visible){$recoveryLab.Text=if($script:recoveryLabUnlocked){T 'End recovery test' 'Inchide testul'}else{T 'Recovery lab' 'Test recuperare'}}
+ SelectDoxaPage $script:doxaCurrentPage
+ $screenDiagram.Invalidate();$layoutDiagram.Invalidate();$ports.Invalidate()
+}
+foreach($b in $tabs){$b.AccessibleRole=[Windows.Forms.AccessibleRole]::PageTab}
+for($i=0;$i -lt 3;$i++){$tabs[$i].TabIndex=($i+1)}
+$check.TabIndex=5;$settingsButton.TabIndex=6;$modeOff.TabIndex=7;$modeOn.TabIndex=8;$ask.TabIndex=9;$send.TabIndex=10;$privacy.TabIndex=11
+$languageChoice.Add_SelectedIndexChanged({TranslateDoxa})
+$script:doxaCurrentPage='detect'
+SelectDoxaPage 'detect'
+LayoutDoxa
+TranslateDoxa
+$form.Tag=[pscustomobject]@{
+ stage='main';checkButton=$check;guideButton=$guide;statusLabel=$stateLabel
+ tabs=$tabs;workspace=$workspace;side_panel=$side;help_persistent=$true
+ detect_page=$detect;setup_page=$setup;install_page=$install
+ connection_ports=$ports;screen_diagram=$screenDiagram;screen_checks=$script:doxaScreenChecks
+ upper_port='power';lower_port='data';online_toggle=$modeOn;offline_toggle=$modeOff
+}

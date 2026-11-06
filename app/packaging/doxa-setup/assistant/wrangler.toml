@@ -1,0 +1,37 @@
+name = "doxa-installer-assistant"
+main = "worker.mjs"
+compatibility_date = "2026-10-16"
+
+# Standivarius Doxa Setup alpha; independent of Standivarius Vision.
+# Cloudflare AI binding requires no model API keys.
+[ai]
+binding = "AI"
+
+# Approximate per-installation and per-network limits; quotas are local to
+# Cloudflare colo, so the separate Durable Object enforces a global daily cap.
+[[ratelimits]]
+name = "DOXA_RATE"
+namespace_id = "739103"
+
+[ratelimits.simple]
+limit = 4
+period = 60
+
+[[ratelimits]]
+name = "DOXA_IP_RATE"
+namespace_id = "739104"
+
+[ratelimits.simple]
+limit = 20
+period = 60
+
+[[durable_objects.bindings]]
+name = "DOXA_BUDGET"
+class_name = "DoxaDailyBudget"
+
+[[migrations]]
+tag = "doxa-public-ai-budget-v1"
+new_sqlite_classes = ["DoxaDailyBudget"]
+
+[vars]
+DOXA_DAILY_AI_REQUEST_LIMIT = "300"

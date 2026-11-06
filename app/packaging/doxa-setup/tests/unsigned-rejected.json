@@ -1,0 +1,28 @@
+{
+  "os_build": 26300,
+  "drivers": [
+    {
+      "device_id": "USB\\VID_090C&PID_770A\\TEST_DEVICE",
+      "device_name": "SMI770 USB Display",
+      "inf": "oem101.inf",
+      "version": "4.7.6.0",
+      "provider": "SiliconMotion",
+      "signed": false,
+      "signer": "Microsoft Windows Hardware Compatibility Publisher"
+    }
+  ],
+  "monitors": [
+    {
+      "name": "Integrated Monitor"
+    },
+    {
+      "name": "Generic Monitor (L)"
+    },
+    {
+      "name": "Generic Monitor (T)"
+    },
+    {
+      "name": "Generic Monitor (R)"
+    }
+  ]
+}

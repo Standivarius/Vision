@@ -1,0 +1,26 @@
+{
+  "date": "2026-10-28",
+  "host": "MARIUS-DELL",
+  "project": "visual",
+  "scope": "read-only safety validation only",
+  "result": "PASS",
+  "catalog_items": 8,
+  "simulations_tested": 5,
+  "ccd_external_paths_validated": 3,
+  "primary_path": "\\\\.\\DISPLAY1",
+  "external_paths": [
+    "\\\\.\\DISPLAY31",
+    "\\\\.\\DISPLAY32",
+    "\\\\.\\DISPLAY33"
+  ],
+  "primary_protection_rejection": "PASS",
+  "source_mode_and_path_snapshot_roundtrip": "PASS",
+  "gui_created_without_showing": "PASS",
+  "windows_display_count_before": 4,
+  "windows_display_count_after": 4,
+  "live_disable_performed": false,
+  "automatic_rollback_physically_verified": false,
+  "windows_device_or_driver_changes": 0,
+  "signed_vendor_driver_version": "4.7.6.8001",
+  "notes": "Preflight only; physical disable and recovery require a local attended acceptance session. Test data is not proof of AI executing recovery."
+}
