@@ -13,12 +13,12 @@ try {
  New-Item -ItemType Directory -Force -Path $testAppData|Out-Null
  $env:LOCALAPPDATA=$testAppData
  $identityResult=(& $identity -PrepareEnrollment|Out-String)|ConvertFrom-Json
- if($identityResult.private_key_protection -ne 'Windows DPAPI CurrentUser' -or -not $identityResult.client_id -or $identityResult.approved_by_server){throw 'Isolated device enrollment preparation failed'}
+ if($identityResult.private_key_protection -ne 'Windows DPAPI CurrentUser' -or -not $identityResult.client_id -or -not $identityResult.automatic_enrolment -or $identityResult.manual_approval_required){throw 'Isolated automatic signing identity preparation failed'}
 
 function Invoke-RestMethod{
  param([string]$Method,[string]$Uri,$Headers,[string]$ContentType,$Body,[int]$TimeoutSec)
  if($Uri -ne 'https://doxa-installer-assistant.marius-moldovan.workers.dev/v1/ask'){throw 'Doxa must not route through Vision'}
- if(-not $Headers['x-doxa-signature'] -or -not $Headers['x-doxa-timestamp'] -or -not $Headers['x-doxa-client-id']){throw 'Missing signed per-device authentication'}
+ if(-not $Headers['x-doxa-signature'] -or -not $Headers['x-doxa-timestamp'] -or -not $Headers['x-doxa-client-id'] -or -not $Headers['x-doxa-public-jwk']){throw 'Missing automatic signed per-installation identity'}
  if($Headers.ContainsKey('Authorization')){throw 'Bearer token is forbidden in Doxa alpha'}
  $payload=[Text.Encoding]::UTF8.GetString($Body)|ConvertFrom-Json
  if($payload.intent -ne 'ask_doxa_installer'){throw 'Unexpected intent'}

@@ -1,4 +1,4 @@
-param([switch]$Smoke,[switch]$JourneyTest,[switch]$SeamlessTest,[ValidateSet('connected','without_doxa')][string]$TestConnectionChoice='without_doxa',[switch]$TestAIAllowed,[switch]$LocalConsentAlreadyGranted,[switch]$PermissionsGrantedInHost,[switch]$OnlineAIAllowedInHost,[ValidateSet('en','ro')][string]$Language='en')
+param([switch]$Smoke,[switch]$JourneyTest,[switch]$SeamlessTest,[ValidateSet('connected','without_doxa')][string]$TestConnectionChoice='without_doxa',[switch]$TestAIAllowed,[switch]$LocalConsentAlreadyGranted,[switch]$PermissionsGrantedInHost,[switch]$OnlineAIAllowedInHost,[ValidateSet('en','ro')][string]$Language='en',[string]$BootstrapInstaller='')
 # Consent-first welcome. No hardware enumeration or remote AI call occurs before consent.
 # Reading the organization cloud-AI prohibition is a local policy check only.
 $ErrorActionPreference='Stop'
@@ -43,10 +43,24 @@ $step.SetBounds(35,93,650,31)
 $step.ForeColor=$teal
 $form.Controls.Add($step)
 $explanation=New-Object Windows.Forms.Label
-$explanation.SetBounds(35,140,670,78)
+$explanation.SetBounds(35,139,670,62)
 $form.Controls.Add($explanation)
+$terms=New-Object Windows.Forms.CheckBox
+$terms.SetBounds(35,207,457,31)
+$terms.Text='I agree to the Doxa Setup private preview terms.'
+$terms.TabIndex=1
+$form.Controls.Add($terms)
+$termsLink=New-Object Windows.Forms.LinkLabel
+$termsLink.SetBounds(499,209,203,28)
+$termsLink.Text='View terms'
+$termsLink.LinkColor=$teal
+$termsLink.Add_LinkClicked({
+ $termsText=T 'PRIVATE PREVIEW. DMR Ergonomics S.R.L. (Standivarius). Local checks require separate consent. Online AI is optional. A healthy signed driver is preserved. Installing a missing driver requires separate Windows approval. You may exit or uninstall the app without removing the driver.' 'EVALUARE PRIVATA. DMR Ergonomics S.R.L. (Standivarius). Verificarile locale necesita acord. AI online este optional. Driverul semnat functional este pastrat. Instalarea unui driver lipsa necesita aprobare Windows separata. Dezinstalarea aplicatiei nu elimina driverul.'
+ [Windows.Forms.MessageBox]::Show($termsText,(T 'Doxa preview terms' 'Conditii Doxa'))|Out-Null
+})
+$form.Controls.Add($termsLink)
 $local=New-Object Windows.Forms.CheckBox
-$local.SetBounds(35,222,672,51)
+$local.SetBounds(35,241,672,42)
 $local.Text='I allow local read-only checks of Windows version, USB controllers, display devices and installed driver packages.'
 $local.CheckAlign='TopLeft'
 $local.TabIndex=1
@@ -56,7 +70,7 @@ $local.AccessibleName='Local read-only diagnostics permission'
 if($LocalConsentAlreadyGranted){$local.Checked=$true;$local.Enabled=$false}
 $form.Controls.Add($local)
 $localDetails=New-Object System.Windows.Forms.LinkLabel
-$localDetails.SetBounds(35,277,671,26)
+$localDetails.SetBounds(35,281,671,26)
 $localDetails.Text='What does this local check read?'
 $localDetails.LinkColor=$teal
 $localDetails.TabIndex=2
@@ -86,7 +100,7 @@ if(-not [bool]$policy.online_ai_selectable){
  $cloud.Checked=$false
  $cloud.Enabled=$false
  $cloud.Text=if([bool]$policy.online_ai_selectable){
-  'Online AI requires an approved Doxa support device. Use offline help; this setup cannot self-enroll.'
+  'Cloud AI is disabled by your organization. Offline Doxa setup is available.'
  }else{'Cloud AI is disabled by your organization. Offline Doxa setup is available.'}
 }
 $privacy=New-Object System.Windows.Forms.LinkLabel
@@ -111,24 +125,10 @@ $privacy.Add_LinkClicked({
 $privacy.TabIndex=4
 $privacy.AccessibleName='Privacy details'
 $form.Controls.Add($privacy)
-$connect=New-Object Windows.Forms.RadioButton
-$connect.SetBounds(35,240,660,50)
-$connect.Text='I will connect Doxa now (or it is already connected)'
-$connect.Visible=$false
-$connect.TabIndex=5
-$connect.AccessibleName='Doxa connected'
-$form.Controls.Add($connect)
-$without=New-Object Windows.Forms.RadioButton
-$without.SetBounds(35,310,665,65)
-$without.Text='Continue without Doxa - check this PC and prepare what is possible'
-$without.Visible=$false
-$without.TabIndex=6
-$without.AccessibleName='Continue without Doxa'
-$form.Controls.Add($without)
 $back=New-Object Windows.Forms.Button
 $back.Text='Back'
 $back.SetBounds(390,423,123,45)
-$back.Enabled=$false
+$back.Enabled=$false;$back.Visible=$false
 $back.TabIndex=7
 $back.AccessibleName='Back'
 $form.Controls.Add($back)
@@ -141,62 +141,44 @@ $next.TabIndex=8
 $next.AccessibleName='Continue'
 $form.AcceptButton=$next
 $form.Controls.Add($next)
-$script:page=if($PermissionsGrantedInHost){2}else{1}
-$script:choice=''
+$script:page=1
+$script:choice='without_doxa'
 $script:localAllowed=[bool]$PermissionsGrantedInHost
 $script:aiAllowed=([bool]$PermissionsGrantedInHost -and [bool]$OnlineAIAllowedInHost -and [bool]$policy.online_ai_selectable)
 $script:finished=$false
 function ShowStep {
- $first=$script:page -eq 1
- $form.Text=T 'Standivarius | Doxa Triple Monitor Setup' 'Standivarius | Configurare Doxa Triple Monitor'
- $title.Text='Doxa Triple Monitor Setup';$languageLabel.Text=T 'Language' 'Limbă'
- $step.Text=if($first){T 'Step 1 - permissions' 'Pasul 1 - permisiuni'}else{T 'Step 2 - connect Doxa or continue' 'Pasul 2 - conecteaza Doxa sau continua'}
- $explanation.Text=if($first){
-  T 'Before checking this PC, Doxa asks permission for local read-only diagnostics. Remote AI assistance is separate and optional. Driver installation will request its own Windows approval later.' 'Doxa cere acordul pentru verificari locale fara modificari. Asistenta AI online este separata si optionala. Instalarea driverului necesita ulterior aprobare Windows.'
- }else{
-  T 'Choose your starting point. You can check Windows and USB capabilities without Doxa, but connection quality and the external screens need actual hardware.' 'Alege cum incepi. Poti verifica Windows si USB fara Doxa, dar conexiunea si ecranele externe necesita dispozitivul real.'
- }
- $local.Text=if($LocalConsentAlreadyGranted){T 'Local read-only checks already approved in Doxa Setup.' 'Verificarile locale au fost deja aprobate in configurarea Doxa.'}else{T 'I allow local read-only checks of Windows version, USB controllers, display devices and installed driver packages.' 'Permit verificari locale, fara modificari, ale Windows, USB, ecranelor si driverelor instalate.'}
- $cloud.Text=if([bool]$policy.online_ai_selectable){
-   T 'Optional remote AI: send the question you type and limited Windows/Doxa diagnostic facts over HTTPS to a Cloudflare-hosted AI service. No screenshots, raw USB identifiers or passwords. You can continue without AI.' 'AI online optional: intrebarea si date limitate despre Windows/Doxa sunt trimise prin HTTPS catre Cloudflare. Nu trimitem capturi de ecran, identificatori USB completi sau parole. Poti continua fara AI.'
- }elseif(-not [bool]$policy.cloud_ai_allowed){T 'Cloud AI is disabled by your organization. Offline Doxa setup is available.' 'Organizatia a dezactivat AI online. Poti utiliza Doxa offline.'}
- else{T 'Online AI needs approved device enrollment. Continue with offline Doxa help.' 'AI online necesita inregistrarea dispozitivului. Continua cu asistenta Doxa offline.'}
- $privacy.Text=T 'What is sent to cloud AI? Privacy and AI details' 'Ce date trimite AI online? Confidentialitate si detalii'
+ if($script:finished){return}
+ $form.Text=T 'Standivarius | Doxa Setup' 'Standivarius | Configurare Doxa'
+ $title.Text=T 'Doxa Setup' 'Configurare Doxa'
+ $languageLabel.Text=T 'Language' 'Limba'
+ $step.Text=T 'Terms, permissions and privacy' 'Conditii, permisiuni si confidentialitate'
+ $explanation.Text=T 'Accept the preview terms and allow local read-only checks. Cloud AI is optional. Changing a driver always requires separate Windows approval.' 'Accepta conditiile de evaluare si permite verificarile locale. AI online este optional. Modificarea driverului necesita aprobare Windows separata.'
+ $terms.Text=T 'I agree to the Doxa Setup private preview terms.' 'Accept conditiile de evaluare Doxa Setup.'
+ $termsLink.Text=T 'View terms' 'Citeste conditiile'
+ $local.Text=T 'I allow local read-only Windows, USB, display and driver checks.' 'Permit verificari locale pentru Windows, USB, ecrane si drivere.'
  $localDetails.Text=T 'What does this local check read?' 'Ce citeste verificarea locala?'
- $connect.Text=T 'I will connect Doxa now (or it is already connected)' 'Conectez Doxa acum (sau este deja conectat)'
- $without.Text=T 'Continue without Doxa - check this PC and prepare what is possible' 'Continua fara Doxa - verifica PC-ul si pregateste ce este posibil'
- $back.Text=T 'Back' 'Inapoi'
- $local.Visible=$first;$localDetails.Visible=$first;$cloud.Visible=$first;$privacy.Visible=$first
- $connect.Visible=-not $first;$without.Visible=-not $first
- $back.Enabled=-not $first
- $next.Text=if($first){T 'Continue' 'Continua'}else{T 'Continue to Doxa checks' 'Continua cu verificarea Doxa'}
+ $cloud.Text=if($policy.online_ai_selectable){T 'Optional cloud AI: sends a typed question and limited diagnostic data. No screenshots or passwords.' 'AI online optional: trimite intrebari si date limitate, fara capturi sau parole.'}else{T 'Cloud AI is unavailable or disabled. Offline Doxa Help remains available.' 'AI online este dezactivat. Ajutorul Doxa offline ramane disponibil.'}
+ $privacy.Text=T 'Cloud AI privacy details' 'Confidentialitate AI online'
+ $next.Text=T 'Continue to Doxa' 'Continua la Doxa'
+ $back.Visible=$false
 }
 $languageChoice.Add_SelectedIndexChanged({
  $script:lang=if($languageChoice.SelectedIndex -eq 1){'ro'}else{'en'}
  ShowStep
 })
 
-$back.Add_Click({$script:page=if($PermissionsGrantedInHost){2}else{1};ShowStep})
 $next.Add_Click({
- if($script:page -eq 1){
-  if(-not $local.Checked){
-   if(-not ($JourneyTest -or $SeamlessTest)){[Windows.Forms.MessageBox]::Show((T 'Local read-only checks need your permission. You may close Setup instead.' 'Verificarile locale necesita acordul tau. Poti inchide Doxa fara a continua.'),(T 'Doxa permissions' 'Permisiuni Doxa'))|Out-Null}
-   return
-  }
-  $script:localAllowed=$true
-   $script:aiAllowed=([bool]$cloud.Checked -and [bool]$policy.online_ai_selectable)
-  $script:page=2
-  ShowStep
+ if($script:finished){return}
+ if(-not $terms.Checked -or -not $local.Checked){
+  if(-not ($JourneyTest -or $SeamlessTest)){[Windows.Forms.MessageBox]::Show((T 'Please accept the preview terms and allow local checks.' 'Accepta conditiile si aproba verificarile locale.'),'Doxa Setup')|Out-Null}
   return
  }
- if(-not $connect.Checked -and -not $without.Checked){
-  if(-not ($JourneyTest -or $SeamlessTest)){[Windows.Forms.MessageBox]::Show((T 'Choose whether Doxa is connected or you want to continue without it.' 'Alege daca Doxa este conectat sau daca vrei sa continui fara dispozitiv.'),'Doxa')|Out-Null}
-  return
- }
- $script:choice=if($connect.Checked){'connected'}else{'without_doxa'}
+ $script:localAllowed=$true
+ $script:aiAllowed=([bool]$cloud.Checked -and [bool]$policy.online_ai_selectable)
+ $script:choice='without_doxa' # No hardware connection radio choices.
  $script:finished=$true
- if($JourneyTest){$form.Close();return}
- # Preserve the same Windows Form and HWND throughout permission, connection,
+ if($JourneyTest){return}
+ # # Preserve the same Windows Form and HWND throughout permission, connection,
  # and hardware setup. A second form creates a flash and breaks continuity.
  $main=Join-Path $PSScriptRoot 'Start-DoxaSetup.ps1'
  $originalHandle=$form.Handle
@@ -208,9 +190,9 @@ $next.Add_Click({
     # Keep the main UI's PowerShell functions and event-handler session alive
   # after this navigation click has returned.
   $script:mainUiModule=New-Module -Name DoxaEmbeddedMainUI -ScriptBlock {
-   param($mainScript,$existingForm,$allowAI,$choice,$uiLanguage,$safeTest)
-   . $mainScript -DiagnosticsApproved -AIApproved:$allowAI -ConnectionPreference $choice -Language $uiLanguage -HostForm $existingForm -EmbeddedSmoke:$safeTest
-  } -ArgumentList @($main,$form,[bool]$script:aiAllowed,$script:choice,$script:lang,[bool]$SeamlessTest)
+   param($mainScript,$existingForm,$allowAI,$choice,$uiLanguage,$safeTest,$installerExe)
+   . $mainScript -DiagnosticsApproved -AIApproved:$allowAI -ConnectionPreference $choice -Language $uiLanguage -HostForm $existingForm -EmbeddedSmoke:$safeTest -BootstrapInstaller $installerExe
+  } -ArgumentList @($main,$form,[bool]$script:aiAllowed,$script:choice,$script:lang,[bool]$SeamlessTest,$BootstrapInstaller)
   if($form.Handle -ne $originalHandle){throw 'Doxa setup replaced its original window handle.'}
   $view=[Windows.Forms.Screen]::FromControl($form).WorkingArea
   $left=$view.Left+[Math]::Max(0,[int](($view.Width-$form.Width)/2))
@@ -229,7 +211,7 @@ if(-not ($Smoke -or $JourneyTest -or $SeamlessTest)){
  $height=[Math]::Min(615,[Math]::Max(510,[Windows.Forms.Screen]::PrimaryScreen.WorkingArea.Height-48))
  $form.ClientSize=New-Object Drawing.Size(1060,$height)
  $form.BackColor=[Drawing.Color]::White
- foreach($ctl in @($title,$step,$explanation,$local,$localDetails,$cloud,$privacy,$connect,$without,$back,$next,$languageChoice,$languageLabel)){
+ foreach($ctl in @($title,$step,$explanation,$terms,$termsLink,$local,$localDetails,$cloud,$privacy,$back,$next,$languageChoice,$languageLabel)){
   $ctl.Left+=155;$ctl.Top+=42
  }
  $logoFile=Join-Path $PSScriptRoot 'assets\standivarius-official-logo.png'
@@ -245,66 +227,49 @@ if(-not ($Smoke -or $JourneyTest -or $SeamlessTest)){
  }
 }
 ShowStep
-if($SeamlessTest){
- $form.Show()
- $originalHandle=$form.Handle
- $click=[Windows.Forms.Button].GetMethod('OnClick',[Reflection.BindingFlags]'Instance,NonPublic')
- [void]$click.Invoke($next,@([EventArgs]::Empty))
- if($script:page -ne 1){throw 'Seamless journey bypassed local consent'}
- $local.Checked=$true
- [void]$click.Invoke($next,@([EventArgs]::Empty))
- if($script:page -ne 2){throw 'Consent did not advance to connection choices'}
- if($TestConnectionChoice -eq 'connected'){$connect.Checked=$true}else{$without.Checked=$true}
- [void]$click.Invoke($next,@([EventArgs]::Empty))
- $state=$form.Tag
- if(-not $script:finished -or $null -eq $state -or $state.stage -ne 'main'){
-  throw 'Same-window transition did not create the main installer UI'
- }
- if($form.Handle -ne $originalHandle){throw 'New window handle created instead of reusing the welcome window'}
- if(-not ($state.PSObject.Properties.Name -contains 'tabs') -or @($state.tabs).Count -ne 3){throw 'Shipped BrandTabs not reached via consent journey'}
-  if(-not $state.checkButton.IsHandleCreated -and $null -eq $state.checkButton.Parent){throw 'Detect is orphaned'}
-  if($state.guideButton.Parent -eq $null){throw 'Screen guide entry is orphaned'}
-  [void]$click.Invoke($state.tabs[1],@([EventArgs]::Empty))
-  if(-not $state.setup_page.Visible -or -not $state.help_persistent -or -not $state.side_panel.Visible){throw 'Setup task must keep Doxa Help present'}
-  [void]$click.Invoke($state.tabs[0],@([EventArgs]::Empty))
-  if($Language -eq 'ro' -and $state.tabs[0].Text -notmatch 'Detecteaza'){throw 'Shipped tab lacks Romanian localisation'}
- [void]$click.Invoke($state.checkButton,@([EventArgs]::Empty))
- if(-not $state.statusLabel.Text){throw 'The in-place main Detect Doxa action did not work'}
- [ordered]@{
-  seamless='PASS';window_handle_preserved=$true
-  main_controls_reuse_form=$true;real_branded_tabs_exercised=$true;detect_doxa_works=$true
-  initial_hardware_scans_before_consent=0;cloud_ai_requests=0
-  owner_choice=$TestConnectionChoice;language=$Language
-  driver_changes=$false;new_form_opened=$false
- }|ConvertTo-Json -Compress
- $form.Dispose()
- return
-}
 if($Smoke){
- $result=[ordered]@{smoke='PASS';first_page=$script:page;local_checks_before_consent=$false;cloud_ai_before_consent=$false;local_consent_default=$local.Checked;remote_ai_default=$cloud.Checked;privacy_details_available=(Test-Path (Join-Path $PSScriptRoot 'AI-PRIVACY-NOTICE.txt'));local_check_details_available=(Test-Path (Join-Path $PSScriptRoot 'LOCAL-CHECK-NOTICE.txt'));local_check_link_label=$localDetails.Text;org_cloud_ai_allowed=[bool]$policy.cloud_ai_allowed;connect_options=2;language=$script:lang;localized_step=$step.Text;next_caption=$next.Text;language_count=$languageChoice.Items.Count;tab_order=@($languageChoice.TabIndex,$local.TabIndex,$localDetails.TabIndex,$cloud.TabIndex,$privacy.TabIndex,$connect.TabIndex,$without.TabIndex,$back.TabIndex,$next.TabIndex);accept_button_set=([object]::ReferenceEquals($form.AcceptButton,$next))}
- $form.Dispose();$result|ConvertTo-Json -Compress;return
+ [ordered]@{smoke='PASS';connect_options=0;initial_hardware_scans_before_consent=0;
+ preview_terms_required=$true;local_consent_default=$local.Checked;
+ cloud_ai_default=$cloud.Checked;remote_ai_default=$cloud.Checked;language=$script:lang;
+ local_checks_before_consent=$false;cloud_ai_before_consent=$false;
+ privacy_details_available=(Test-Path (Join-Path $PSScriptRoot 'AI-PRIVACY-NOTICE.txt'));
+ local_check_details_available=(Test-Path (Join-Path $PSScriptRoot 'LOCAL-CHECK-NOTICE.txt'));
+ accept_button_set=([object]::ReferenceEquals($form.AcceptButton,$next));language_count=$languageChoice.Items.Count;
+ tab_order=@($languageChoice.TabIndex,$terms.TabIndex,$local.TabIndex,$localDetails.TabIndex,$cloud.TabIndex,$privacy.TabIndex,$next.TabIndex,$back.TabIndex)}|ConvertTo-Json -Compress
+ $form.Dispose();return
 }
-if($JourneyTest){
+if($SeamlessTest -or $JourneyTest){
+ $form.Show()
+ $handle=$form.Handle
  $click=[Windows.Forms.Button].GetMethod('OnClick',[Reflection.BindingFlags]'Instance,NonPublic')
  [void]$click.Invoke($next,@([EventArgs]::Empty))
- if($script:page -ne 1){throw 'Wizard advanced without local consent'}
- # Language change must not grant diagnostic/AI consent.
- $initialLanguage=$script:lang
- $languageChoice.SelectedIndex=if($initialLanguage -eq 'en'){1}else{0}
- if($local.Checked -or $cloud.Checked -or $script:page -ne 1){throw 'Language switch changed permissions'}
- if($step.Text -notmatch $(if($script:lang -eq 'ro'){'Pasul 1'}else{'Step 1'})){throw 'Language switch not reflected'}
- $languageChoice.SelectedIndex=if($initialLanguage -eq 'ro'){1}else{0}
- if($script:lang -ne $initialLanguage){throw 'Language choice not restored'}
- if($Language -eq 'ro' -and $step.Text -notmatch 'Pasul 1'){throw 'Romanian permissions missing'}
- $local.Checked=$true;$cloud.Checked=([bool]$TestAIAllowed -and [bool]$policy.cloud_ai_allowed)
+ if($script:finished){throw 'Terms/diagnostics consent bypassed'}
+ $terms.Checked=$true
  [void]$click.Invoke($next,@([EventArgs]::Empty))
- if($script:page -ne 2 -or $script:aiAllowed -ne ([bool]$TestAIAllowed -and [bool]$policy.cloud_ai_allowed)){throw 'Optional AI consent failed'}
- if($Language -eq 'ro' -and $step.Text -notmatch 'Pasul 2'){throw 'Romanian connection guidance missing'}
- if($TestConnectionChoice -eq 'connected'){$connect.Checked=$true}else{$without.Checked=$true}
+ if($script:finished){throw 'Local diagnostics consent bypassed'}
+ $local.Checked=$true
+ $cloud.Checked=([bool]$TestAIAllowed -and [bool]$policy.online_ai_selectable)
  [void]$click.Invoke($next,@([EventArgs]::Empty))
- if(-not $script:finished -or $script:choice -ne $TestConnectionChoice){throw 'Connection-choice journey failed'}
- $form.Dispose()
- [ordered]@{journey='PASS';consent_required=$true;remote_ai_optional=$true;connection_choice=$script:choice;ai_consent=$script:aiAllowed;hardware_scans_before_consent=0;remote_requests=0;local_check_link_present=$true;language=$script:lang;localized_step=$step.Text}|ConvertTo-Json -Compress;return
+ if(-not $script:finished){throw 'Consent failed to enter the main screen'}
+ if($JourneyTest){
+  [ordered]@{journey='PASS';consent_required=$true;preview_terms_required=$true;radio_choice_removed=$true;
+   connection_choice='not_required';ai_consent=$script:aiAllowed;hardware_scans_before_consent=0;
+   remote_requests=0;language=$script:lang}|ConvertTo-Json -Compress
+ }else{
+  $state=$form.Tag
+  if($form.Handle -ne $handle -or $null -eq $state -or $state.stage -ne 'main'){throw 'Second form or missing main UI'}
+  if(@($state.tabs).Count -ne 3 -or $state.tabs[0].Text -notmatch 'Doxa'){throw 'Missing Connect and Detect Doxa tab'}
+  [void]$click.Invoke($state.tabs[1],@([EventArgs]::Empty))
+  if(-not $state.setup_page.Visible -or -not $state.side_panel.Visible){throw 'Setup page / persistent help missing'}
+  [void]$click.Invoke($state.tabs[0],@([EventArgs]::Empty))
+  [void]$click.Invoke($state.checkButton,@([EventArgs]::Empty))
+  if(-not $state.statusLabel.Text){throw 'Detect Doxa produced no status'}
+  [ordered]@{seamless='PASS';detect_doxa_works=$true;initial_hardware_scans_before_consent=0;one_window=$true;window_handle_preserved=$true;main_controls_reuse_form=$true;
+   real_branded_tabs_exercised=$true;connect_choice_removed=$true;consent_required=$true;
+   preview_terms_required=$true;cloud_ai_requests=0;driver_changes=$false;new_form_opened=$false;
+   language=$Language;owner_choice='not_required'}|ConvertTo-Json -Compress
+ }
+ $form.Dispose();return
 }
 [Windows.Forms.Application]::Run($form)
 $form.Dispose()

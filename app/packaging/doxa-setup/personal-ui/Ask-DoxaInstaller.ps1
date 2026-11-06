@@ -49,11 +49,19 @@ $body=[ordered]@{
  context=$ctx
 }|ConvertTo-Json -Depth 6
 try{
- $signature=(& (Join-Path $PSScriptRoot 'Get-DoxaDeviceSignature.ps1') -SignBody $body | Out-String)|ConvertFrom-Json
+ $identityScript=Join-Path $PSScriptRoot 'Get-DoxaDeviceSignature.ps1'
+ # Create the signing identity automatically on first online use. The private
+ # key stays DPAPI-encrypted in this Windows profile and is never transmitted.
+ $identity=(& $identityScript -PrepareEnrollment | Out-String)|ConvertFrom-Json
+ $signature=(& $identityScript -SignBody $body | Out-String)|ConvertFrom-Json
+ if([string]$identity.client_id -cne [string]$signature.client_id){throw 'Signing identity mismatch'}
+ $publicText=$identity.public_jwk|Select-Object kty,alg,n,e|ConvertTo-Json -Compress
+ $publicHeader=[Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes($publicText)).TrimEnd('=').Replace('+','-').Replace('/','_')
  $headers=@{
   'x-doxa-timestamp'=[string]$signature.timestamp
   'x-doxa-signature'=[string]$signature.signature
   'x-doxa-client-id'=[string]$signature.client_id
+  'x-doxa-public-jwk'=$publicHeader
  }
  $res=Invoke-RestMethod -Method Post -Uri $approved -Headers $headers -ContentType 'application/json; charset=utf-8' -Body ([Text.Encoding]::UTF8.GetBytes($body)) -TimeoutSec ([Math]::Max(1,[Math]::Min($TimeoutSec,40)))
  if([string]$res.status -in @('knowledge_gap','out_of_scope') -and [string]$res.answer){Result ([string]$res.status) ([string]$res.answer);return}
@@ -61,6 +69,18 @@ try{
  $answer=[string]$res.answer
  Result 'answered' ($answer.Substring(0,[Math]::Min(3000,$answer.Length)))
 }catch{
- # Do not write HTTP error bodies, request headers or secrets into setup UI/logs.
- Result 'offline' ''
+ # Report only a safe error category: never expose response bodies, signatures,
+ # request headers, personal diagnostic facts or device credentials.
+ $http=0
+ try{if($_.Exception.Response){$http=[int]$_.Exception.Response.StatusCode}}catch{}
+ $category=switch($http){
+  401 {'device_not_approved'}
+  403 {'device_not_approved'}
+  429 {'rate_limited'}
+  502 {'service_unavailable'}
+  503 {'service_unavailable'}
+  504 {'service_unavailable'}
+  default {if($_.Exception -is [System.Net.WebException]){'network_unavailable'}else{'online_request_failed'}}
+ }
+ Result $category ''
 }

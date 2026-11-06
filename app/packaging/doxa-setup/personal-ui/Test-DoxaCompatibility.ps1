@@ -31,6 +31,6 @@ try{
  $a=(& $wizard -JourneyTest|Out-String)|ConvertFrom-Json
  if($a.journey -ne 'PASS' -or $a.hardware_scans_before_consent -ne 0 -or $a.ai_consent){throw 'Consent-first wizard failed'}
  $b=(& $wizard -JourneyTest -TestConnectionChoice connected -TestAIAllowed|Out-String)|ConvertFrom-Json
- if($b.journey -ne 'PASS' -or $b.connection_choice -ne 'connected' -or -not $b.ai_consent){throw 'Connected and opted-in wizard failed'}
+ if($b.journey -ne 'PASS' -or $b.connection_choice -ne 'not_required' -or -not $b.radio_choice_removed -or -not $b.ai_consent){throw 'Connected and opted-in wizard failed'}
  'DOXA_COMPAT_CONNECTED_DISCONNECTED_UNSUPPORTED_AND_CONSENT=PASS'
 }finally{Remove-Item -LiteralPath $dir -Recurse -Force -ErrorAction SilentlyContinue}

@@ -7,7 +7,8 @@ import {dirname,join} from "node:path";
 import {fileURLToPath} from "node:url";
 import {retrieve,knowledgeIdentity} from "./curated-kb.mjs";
 import {classifyDoxaQuestion,scopeRefusal} from "./scope.mjs";
-import worker,{normalizeDiagnostics,handleRequest} from "./worker.mjs";
+import worker,{normalizeDiagnostics,handleRequest,DoxaDailyBudget} from "./worker.mjs";
+import {DatabaseSync} from "node:sqlite";
 const here=dirname(fileURLToPath(import.meta.url));
 const signer=join(here,"..","personal-ui","Get-DoxaDeviceSignature.ps1");
 const endpoint="https://doxa-installer-assistant.example/v1/ask";
@@ -17,6 +18,7 @@ execFileSync("powershell.exe",["-NoProfile","-File",signer,"-PrepareEnrollment"]
 const approval=JSON.parse(execFileSync("powershell.exe",["-NoProfile","-File",signer,"-PublicOnly"],{encoding:"utf8",timeout:15000,env:signingEnv}));
 process.on("exit",()=>rmSync(isolatedProfile,{recursive:true,force:true}));
 const approvedDevices=JSON.stringify({[approval.client_id]:approval.public_jwk});
+const publicHeader=Buffer.from(JSON.stringify({kty:approval.public_jwk.kty,alg:approval.public_jwk.alg,n:approval.public_jwk.n,e:approval.public_jwk.e}),"ascii").toString("base64url");
 const evidence={
  session_kind:"remote",signed_driver_present:true,driver_version:"4.7.6.0",
  pnp_doxa_panel_count:3,physical_display_topology_verified:true,hardware_ready:true,
@@ -33,7 +35,8 @@ function req(question,override={}){
  const body=payload(question);
  const auth=sign(body);
  return new Request(endpoint,{method:"POST",headers:{"content-type":"application/json",
-  "x-doxa-timestamp":String(auth.timestamp),"x-doxa-signature":auth.signature,"x-doxa-client-id":auth.client_id,...override},body});
+  "x-doxa-timestamp":String(auth.timestamp),"x-doxa-signature":auth.signature,"x-doxa-client-id":auth.client_id,
+  "x-doxa-public-jwk":publicHeader,"cf-connecting-ip":"198.51.100.17",...override},body});
 }
 const modelEnv=()=>{
  let calls=0;
@@ -47,7 +50,10 @@ const modelEnv=()=>{
  assert(!JSON.stringify(evidence).includes("NEVER_SEND_DEVICE_SERIAL"));
  assert(evidence.curated_knowledge.length>0);
  return {response:"Three Doxa panels and a signed driver are detected; RDP shows a virtual display, not the console layout."};
- }},DOXA_APPROVED_DEVICES_JSON:approvedDevices,DOXA_RATE:{async limit(){return {success:true};}}};
+ }},DOXA_APPROVED_DEVICES_JSON:approvedDevices,
+ DOXA_RATE:{async limit(){return {success:true};}},
+ DOXA_IP_RATE:{async limit(){return {success:true};}},
+ DOXA_BUDGET:{getByName(){return {fetch:async()=>new Response(JSON.stringify({allowed:true}),{status:200})};}}};
  return {env,numberOfCalls:()=>calls};
 };
 test("isolated Doxa curated sources",()=>{
@@ -74,7 +80,8 @@ test("health exposes no action and no secret dependence",async()=>{
  const res=await worker.fetch(new Request("https://doxa-installer-assistant.example/health"),{AI:{}});
  const body=await res.json();
  assert.equal(body.model_configured,true);
- assert.equal(body.authentication,"approved-device-signature");
+ assert.equal(body.authentication,"automatic-device-signature");
+ assert.equal(body.manual_device_approval,false);
  assert.equal(body.actions_enabled,false);
 });
 test("rejects requests without an approved's signed identity",async()=>{
@@ -95,7 +102,8 @@ test("signed requests without an acknowledged current AI disclosure do not reach
   const auth=sign(raw);
   const m=modelEnv();
   const response=await handleRequest(new Request(endpoint,{method:"POST",headers:{
-   "x-doxa-timestamp":String(auth.timestamp),"x-doxa-signature":auth.signature,"x-doxa-client-id":auth.client_id},body:raw}),m.env);
+   "x-doxa-timestamp":String(auth.timestamp),"x-doxa-signature":auth.signature,"x-doxa-client-id":auth.client_id,
+   "x-doxa-public-jwk":publicHeader,"cf-connecting-ip":"198.51.100.17"},body:raw}),m.env);
   assert.equal(response.status,403);
   assert.equal((await response.json()).error,"ai_disclosure_required");
   assert.equal(m.numberOfCalls(),0);
@@ -157,7 +165,8 @@ test("Romanian out-of-scope reply is from deterministic policy, not AI",async()=
    question:"Ce vreme este azi?",context:evidence});
  const sig=sign(raw);
  const r=await handleRequest(new Request(endpoint,{method:"POST",headers:{
-   "x-doxa-timestamp":String(sig.timestamp),"x-doxa-signature":sig.signature,"x-doxa-client-id":sig.client_id},body:raw}),m.env);
+   "x-doxa-timestamp":String(sig.timestamp),"x-doxa-signature":sig.signature,"x-doxa-client-id":sig.client_id,
+   "x-doxa-public-jwk":publicHeader,"cf-connecting-ip":"198.51.100.17"},body:raw}),m.env);
  assert.equal((await r.json()).answer,scopeRefusal("ro"));
  assert.equal(m.numberOfCalls(),0);
 });
@@ -171,17 +180,20 @@ test("missing AI binding refuses inference",async()=>{
  assert.equal(r.status,503);assert.equal((await r.json()).error,"ai_offline");
 });
 
-test("signed but unapproved new device is denied before model",async()=>{
+test("fresh installation works without any server allowlist",async()=>{
  const m=modelEnv();
  delete m.env.DOXA_APPROVED_DEVICES_JSON;
  const response=await handleRequest(req("Why does Remote Desktop show one screen?"),m.env);
- assert.equal(response.status,401);
- assert.equal(m.numberOfCalls(),0);
+ assert.equal(response.status,200);
+ assert.equal((await response.json()).status,"answered");
+ assert.equal(m.numberOfCalls(),1);
 });
-test("never trusts a request-supplied public identity",async()=>{
+test("self-registered public identity must match derived ID and signed body",async()=>{
  const m=modelEnv();
- m.env.DOXA_APPROVED_DEVICES_JSON=JSON.stringify({"invalid":approval.public_jwk});
- const response=await handleRequest(req("Why does Remote Desktop show one screen?"),m.env);
+ delete m.env.DOXA_APPROVED_DEVICES_JSON;
+ const response=await handleRequest(req("Why does Remote Desktop show one screen?",{
+  "x-doxa-client-id":"000000000000000000000001"
+ }),m.env);
  assert.equal(response.status,401);assert.equal(m.numberOfCalls(),0);
 });
 test("per-device rate limits use validated identity",async()=>{
@@ -191,4 +203,47 @@ test("per-device rate limits use validated identity",async()=>{
  const response=await handleRequest(req("Why does Remote Desktop show one screen?"),m.env);
  assert.equal(response.status,200);
  assert.equal(key,approval.client_id);
+});
+
+test("a new signing identity cannot avoid the network rate limit",async()=>{
+ const m=modelEnv();
+ let networkCalls=0;
+ m.env.DOXA_IP_RATE.limit=async()=>{networkCalls++;return {success:false};};
+ const r=await handleRequest(req("Why does Remote Desktop show one screen?"),m.env);
+ assert.equal(r.status,429);
+ assert.equal(networkCalls,1);
+ assert.equal(m.numberOfCalls(),0);
+});
+test("missing or untrusted network identity is blocked before paid AI",async()=>{
+ const m=modelEnv();
+ const r=await handleRequest(req("Why does Remote Desktop show one screen?",{"cf-connecting-ip":""}),m.env);
+ assert.equal(r.status,403);
+ assert.equal(m.numberOfCalls(),0);
+});
+test("global daily budget blocks inference when spent and fails closed",async()=>{
+ const m=modelEnv();
+ m.env.DOXA_BUDGET.getByName=()=>({fetch:async()=>new Response("",{status:429})});
+ let r=await handleRequest(req("Why does Remote Desktop show one screen?"),m.env);
+ assert.equal(r.status,429);
+ assert.equal(m.numberOfCalls(),0);
+ m.env.DOXA_BUDGET.getByName=()=>({fetch:async()=>{throw Error("offline")}});
+ r=await handleRequest(req("Why does Remote Desktop show one screen?"),m.env);
+ assert.equal(r.status,503);
+ assert.equal((await r.json()).code,"budget_unavailable");
+ assert.equal(m.numberOfCalls(),0);
+});
+test("SQLite daily allowance is atomic at its configured count",async()=>{
+ const db=new DatabaseSync(":memory:");
+ try{
+  const sql={exec:(query,...values)=>{
+   const rows=db.prepare(query);
+   if(/^UPDATE /i.test(query))return {toArray:()=>rows.all(...values)};
+   rows.run(...values);return {toArray:()=>[]};
+  }};
+  const budget=new DoxaDailyBudget({storage:{sql}},{DOXA_DAILY_AI_REQUEST_LIMIT:"2"});
+  const call=()=>budget.fetch(new Request("https://quota.internal/consume",{method:"POST"}));
+  assert.equal((await call()).status,200);
+  assert.equal((await call()).status,200);
+  assert.equal((await call()).status,429);
+ }finally{db.close();}
 });

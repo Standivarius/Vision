@@ -3,7 +3,7 @@ param(
  [switch]$DiagnosticsApproved,[switch]$AIApproved,
  [ValidateSet('connected','without_doxa')][string]$ConnectionPreference='without_doxa',
  [ValidateSet('en','ro')][string]$Language='en', [int]$CompactTestWidth=0,
- [object]$HostForm=$null,[switch]$EmbeddedSmoke,[switch]$BrandTest
+ [object]$HostForm=$null,[switch]$EmbeddedSmoke,[switch]$BrandTest,[string]$BootstrapInstaller=''
 )
 # Simulation flag only works in read-only UI smoke mode, never actual setup.
 if($CompactTestWidth -ne 0 -and ((-not $Smoke) -or $CompactTestWidth -lt 440 -or $CompactTestWidth -gt 522)){
@@ -14,6 +14,7 @@ if(-not $DiagnosticsApproved -and -not $Smoke -and -not $JourneyTest -and -not $
  & (Join-Path $PSScriptRoot 'Start-DoxaGuidedSetup.ps1') -Language $Language
  return
 }
+$script:bootstrapInstaller=$BootstrapInstaller
 $script:cloudConsent=[bool]$AIApproved
 $script:connectionChoice=$ConnectionPreference
 $ErrorActionPreference='Stop'
@@ -299,9 +300,9 @@ function RefreshStateNow([object]$preparedResult=$null,[object]$preparedCompatib
   }elseif($result.code -eq 'doxa_not_detected' -and $d.driver_package_in_store){
    T 'INFO   Silicon Motion driver package is still installed in Windows' 'INFO   Pachetul driver Silicon Motion este inca instalat in Windows'
   }elseif($result.code -eq 'doxa_not_detected'){
-   T 'INFO   Doxa not detected - driver cannot be verified yet' 'INFO   Doxa nu este detectat - driverul nu poate fi verificat'
+   T 'INFO   Connect Doxa to check driver and screens' 'INFO   Conecteaza Doxa pentru verificarea driverului si ecranelor'
   }else{
-   T 'CHECK   Doxa driver not verified' 'VERIFICA   Driver Doxa neconfirmat'
+   T 'CHECK   Signed driver is not confirmed for this Doxa device' 'VERIFICA   Driverul semnat nu este confirmat pentru acest dispozitiv Doxa'
   }
   $rows[1].Text=if($d.session_kind -eq 'remote'){
    'INFO   '+$d.active_desktops+(T ' remote-session desktop(s); physical topology not visible' ' ecrane in sesiunea remote; ecranele fizice nu se pot verifica')
@@ -341,7 +342,7 @@ function RefreshStateNow([object]$preparedResult=$null,[object]$preparedCompatib
     # Pre-check details are held in $script:compatibility; the right panel remains user-driven chat.
    }
     $sub.Text=T 'Detect Doxa and check the Windows screens.' 'Detecteaza Doxa si verifica ecranele Windows.'
-   $assistantStatus.Text=if($script:cloudConsent){T 'Online AI requested; device approval may be required' 'AI online solicitat; aprobarea dispozitivului poate fi necesara'}else{T 'Offline Doxa help is ready' 'Asistenta Doxa offline este disponibila'}
+   $assistantStatus.Text=if($script:cloudConsent){T 'Online AI selected; connection checked when you Ask' 'AI online selectat; conexiunea este verificata la Intreaba'}else{T 'Offline Doxa help is ready' 'Asistenta Doxa offline este disponibila'}
   }
  }catch{
   $rows[2].Text='!    Check failed'
@@ -465,22 +466,24 @@ $aiTimer.Add_Tick({
    Say 'Doxa AI' ([string]$reply.answer)
    $assistantStatus.Text=T 'Doxa AI online -- setup only' 'Doxa AI conectat -- doar instalare'
   }elseif($reply.status -in @('out_of_scope','knowledge_gap') -and $reply.answer){
-   Say 'Doxa' ([string]$reply.answer)
-   $assistantStatus.Text=T 'Doxa installation support only' 'Doar asistenta pentru instalarea Doxa'
+   # The server classified this request; it is not a local fallback.
+   Say 'Doxa AI' ([string]$reply.answer)
+   $assistantStatus.Text=T 'Doxa service: scope or knowledge limit' 'Serviciul Doxa: limita de domeniu sau informatii'
   }else{
-   if($script:quickAdviceShown){
-    Say 'Doxa' (T 'Online AI was unavailable. The verified offline guidance above remains available.' 'AI online nu a fost disponibil. Recomandarile offline de mai sus raman disponibile.')
-   }else{
-    Say 'Doxa' ((Answer $script:queuedQuestion)+' '+(T 'Online AI was unavailable; this is local guidance.' 'AI nu a fost disponibil; acesta este un raspuns local.'))
+   $reason=[string]$reply.status
+   $description=switch($reason){
+    'device_not_approved' {T 'Online AI rejected this device identity. Check device enrolment.' 'AI online a respins identitatea dispozitivului. Verifica inregistrarea.'}
+    'rate_limited' {T 'Online AI request limit reached. Try again later.' 'Limita de cereri AI online a fost atinsa. Incearca mai tarziu.'}
+    'service_unavailable' {T 'The Doxa AI service is temporarily unavailable.' 'Serviciul AI Doxa nu este disponibil momentan.'}
+    'network_unavailable' {T 'Could not reach Doxa AI. Check the internet connection.' 'Nu am putut contacta AI Doxa. Verifica internetul.'}
+    default {T 'Online AI did not return an answer. Select Offline help for local instructions.' 'AI online nu a oferit un raspuns. Selecteaza Ajutor offline pentru instructiuni locale.'}
    }
-   $assistantStatus.Text=T 'Local guidance -- Cloud AI unavailable' 'Asistenta locala -- AI indisponibil'
+   Say 'Doxa AI' $description
+   $assistantStatus.Text=(T 'Online AI unavailable: ' 'AI online indisponibil: ')+$reason
   }
  }catch{
-  if($script:quickAdviceShown){
-   Say 'Doxa' (T 'Online AI failed. Continue with the verified offline guidance above.' 'AI online a esuat. Continua cu recomandarile offline de mai sus.')
-  }else{
-   Say 'Doxa' ((Answer $script:queuedQuestion)+' '+(T 'Online AI was unavailable; using local guidance.' 'AI nu a fost disponibil; am folosit asistenta locala.'))
-  }
+  Say 'Doxa AI' (T 'Online AI response could not be read. No local answer has been substituted.' 'Raspunsul AI online nu a putut fi citit. Nu am afisat un raspuns local in loc.')
+  $assistantStatus.Text=T 'Online AI response error' 'Eroare raspuns AI online'
  }finally{
   Remove-Job -Job $script:aiJob -Force -ErrorAction SilentlyContinue
   $script:aiJob=$null
@@ -517,10 +520,12 @@ $send.Add_Click({
    $assistantStatus.Text=T 'Test mode -- Local explanation' 'Mod de test -- Explicatie locala'
    return
   }
- if($null -eq $script:current){
-  Say 'Doxa' (T 'Detect Doxa first, then ask about your equipment.' 'Verifica mai intai Doxa, apoi cere ajutor.')
+ if($null -eq $script:current -and -not $script:cloudConsent){
+  Say 'Doxa' (T 'Select Detect Doxa to check your equipment first.' 'Apasa Detecteaza Doxa pentru a verifica echipamentul mai intai.')
   return
  }
+ # Online questions may be asked before Detect Doxa; the signed client gathers
+ # a fresh, consented, read-only context for each request.
  if(-not $script:cloudConsent){
   Say 'Doxa' (Answer $q)
   $assistantStatus.Text=T 'Local help only - remote AI declined' 'Doar ajutor local - AI neaprobat'
@@ -528,30 +533,27 @@ $send.Add_Click({
  }
  $policy=(& $script:cloudPolicyScript|Out-String)|ConvertFrom-Json
   if(-not [bool]$policy.online_ai_selectable){
-  Say 'Doxa' (Answer $q)
-  $assistantStatus.Text='Offline only - remote AI disabled by your organization'
-  $offline.Visible=$false
+  Say 'Doxa AI' (T 'Online AI cannot be used on this device or is blocked by organisation policy. Select Offline help for local guidance.' 'AI online nu poate fi folosit pe acest dispozitiv sau este blocat de politica organizatiei. Selecteaza Ajutor offline pentru instructiuni locale.')
+  $assistantStatus.Text=T 'Online AI not authorised on this device' 'AI online nu este autorizat pe dispozitiv'
   $script:cloudConsent=$false
+  if(Get-Variable -Name modeOff -ErrorAction SilentlyContinue){$modeOff.Checked=$true}
   return
  }
- # Curated, source-backed advice appears before starting the optional AI job.
- # Cloud latency must never block the first useful troubleshooting steps.
- $script:quickAdviceShown=($scopeResult.status -eq 'curated_answer' -and [bool]$scopeResult.answer)
- if($script:quickAdviceShown){
-  Say (T 'Doxa - quick offline guidance' 'Doxa - recomandari offline rapide') ([string]$scopeResult.answer)
- }
+ # Only the online service may answer when Online AI is selected.
+ # Local instructions remain available exclusively under Offline help.
+ $script:quickAdviceShown=$false
  $script:queuedQuestion=$q
  $send.Enabled=$false
- $assistantStatus.Text=T 'Checking with Doxa AI... offline steps above are ready' 'Consultam Doxa AI... recomandarile offline sunt gata'
+ $assistantStatus.Text=T 'Contacting Doxa AI...' 'Contactam AI Doxa...'
  try{
   $script:aiJob=Start-Job -ScriptBlock {param($path,$question,$languageChoice) & $path -Question $question -Language $languageChoice -AIConsentGranted} -ArgumentList @($assistantScript,$cloudQuestion,$script:lang)
   $aiTimer.Start()
  }catch{
   $send.Enabled=$true
   $script:aiJob=$null
-  if(-not $script:quickAdviceShown){Say 'Doxa' (Answer $q)}
+  Say 'Doxa AI' (T 'Could not start the online request. Select Offline help for local instructions.' 'Nu am putut porni cererea online. Selecteaza Ajutor offline pentru instructiuni locale.')
   $script:quickAdviceShown=$false
-  $assistantStatus.Text=T 'Local guidance -- Cloud AI unavailable' 'Asistenta locala -- AI indisponibil'
+  $assistantStatus.Text=T 'Online AI request did not start' 'Cererea AI online nu a pornit'
  }
 })
 $form.Add_FormClosing({
@@ -661,14 +663,14 @@ if($BrandTest){
  $script:current=$savedCurrent
  if($savedCurrent){UpdateDoxaPanelTicks}
  $languageChoice.SelectedIndex=1
- if($tabs[0].Text -ne 'Detecteaza Doxa' -or $check.Text -ne 'Verifica conexiunea'){throw 'Romanian interface translation missing'}
+ if($tabs[0].Text -ne '1. Conecteaza si detecteaza Doxa' -or $check.Text -ne 'Detecteaza Doxa'){throw 'Romanian interface translation missing'}
  $languageChoice.SelectedIndex=0
- if($tabs[0].Text -ne 'Detect Doxa' -or $check.Text -ne 'Check connection'){throw 'English reversibility missing'}
+ if($tabs[0].Text -ne '1. Connect and Detect Doxa' -or $check.Text -ne 'Detect Doxa'){throw 'English reversibility missing'}
  $script:previousAIApproval=$true;$script:queuedQuestion='pending';$script:quickAdviceShown=$true
  $script:aiJob=Start-Job -ScriptBlock {Start-Sleep -Seconds 10;'late'}
  $modeOff.Checked=$false;$modeOff.Checked=$true
  if($script:previousAIApproval -or $script:queuedQuestion -or $script:quickAdviceShown -or $script:aiJob){throw 'Offline mode did not clear pending job/approval'}
- foreach($size in @(@(780,610),@(1060,610))){
+ foreach($size in @(@(780,710),@(1060,710))){
   $form.ClientSize=New-Object Drawing.Size([int]$size[0],[int]$size[1]);[Windows.Forms.Application]::DoEvents()
   if($tabs[2].Right -gt $form.ClientSize.Width -or $workspace.Right -gt $form.ClientSize.Width -or $sideHolder.Right -gt $form.ClientSize.Width){throw 'Horizontal overflow at '+$size[0]}
  }
@@ -686,6 +688,15 @@ if($BrandTest){
    $form.DrawToBitmap($bitmap,([Drawing.Rectangle]::new(0,0,$form.Width,$form.Height)))
    $bitmap.Save($SnapshotPath,[Drawing.Imaging.ImageFormat]::Png)
   }finally{$bitmap.Dispose()}
+  SelectDoxaPage 'setup'
+  [Windows.Forms.Application]::DoEvents()
+  $setupPreview=[IO.Path]::Combine([IO.Path]::GetDirectoryName($SnapshotPath),[IO.Path]::GetFileNameWithoutExtension($SnapshotPath)+'_setup.png')
+  $b2=New-Object Drawing.Bitmap($form.Width,$form.Height)
+  try{
+   $form.DrawToBitmap($b2,[Drawing.Rectangle]::new(0,0,$form.Width,$form.Height))
+   $b2.Save($setupPreview,[Drawing.Imaging.ImageFormat]::Png)
+  }finally{$b2.Dispose()}
+  SelectDoxaPage 'detect'
  }
  $result=[ordered]@{status='PASS';version='preview.12';single_form=$true;task_tabs_left_only=$true;chat_persistent=$true;duplicate_bottom_nav_removed=$true;connect_first=$true;arrange_only_windows_settings=$true;individual_pnp_ticks_tested=$true;upper_port='power';lower_port='data';romanian_tabs_tested=$true;online_revocation_tested=$true;driver_action_hidden=$true;horizontal_reflow_tested=$true;driver_changes=$false;network_requests=0}
  $form.Dispose();$result|ConvertTo-Json -Compress;return

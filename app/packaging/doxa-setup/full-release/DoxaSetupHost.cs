@@ -218,21 +218,33 @@ internal class DoxaHost {
   return path;
  }
  static string InstallAppTo(string root,string payload){
-  Directory.CreateDirectory(Path.GetDirectoryName(root));
-   if(Directory.Exists(root)){
-    if(IsValidApp(root))return "AppAlreadyInstalled";
-    // Preserve unexpected customer data; do not overwrite or remove it.
-    RemoveAppFrom(root);
-    Require(!Directory.Exists(root),"Modified application could not be retained for recovery");
-   }
-  string staged=Path.Combine(Path.GetDirectoryName(root),"doxa-staging-"+Guid.NewGuid().ToString("N"));
-  try{
-   ExtractApplication(payload,staged);
-   Directory.Move(staged,root);
-   return "AppInstalled";
-  }finally{if(Directory.Exists(staged))Directory.Delete(staged,true);}
- }
- static string RemoveAppFrom(string root){
+   string parent=Path.GetDirectoryName(root);
+   Directory.CreateDirectory(parent);
+   string staged=Path.Combine(parent,"doxa-staging-"+Guid.NewGuid().ToString("N"));
+   try{
+    // A new verified payload is prepared before changing the installed app.
+    ExtractApplication(payload,staged);
+    if(Directory.Exists(root)){
+     if(IsValidApp(root) && SHA(Path.Combine(root,"manifest.json")).Equals(
+       SHA(Path.Combine(staged,"manifest.json")),StringComparison.OrdinalIgnoreCase))
+       return "AppAlreadyInstalled";
+     // Retain prior known or modified app content for recovery, and restore if
+     // the atomic move of the replacement fails.
+     var prior=new DirectoryInfo(root);
+     Require((prior.Attributes & FileAttributes.ReparsePoint)==0,
+       "Redirected Doxa folder; refusing unsafe replacement");
+     string retained=Path.Combine(parent,"DoxaRetained-"+Guid.NewGuid().ToString("N"));
+     Directory.Move(root,retained);
+     try{Directory.Move(staged,root);}
+     catch{if(!Directory.Exists(root))Directory.Move(retained,root);throw;}
+     Trace("Doxa UI refreshed; previous version retained at "+retained);
+     return "AppUpdatedRetainedPrevious";
+    }
+    Directory.Move(staged,root);
+    return "AppInstalled";
+   }finally{if(Directory.Exists(staged))Directory.Delete(staged,true);}
+  }
+  static string RemoveAppFrom(string root){
   if(!Directory.Exists(root))return "AppAlreadyRemoved";
   var folder=new DirectoryInfo(root);
   Require((folder.Attributes & FileAttributes.ReparsePoint)==0,
@@ -450,7 +462,36 @@ internal class DoxaHost {
     throw new InvalidOperationException("Doxa guided setup could not start (Windows exit "+process.ExitCode+"). Your administrator may need to allow its signed scripts or adjust enterprise application policy.");
   }
  }
- static string SelfTest(){
+ // The EXE bootstraps one in-place guided WinForms window. There is no native
+  // welcome window followed by another process window.
+  static int OpenSingleWindow(){
+   string folder=Path.Combine(Path.GetTempPath(),"DoxaOneWindow-"+Guid.NewGuid().ToString("N"));
+   try{
+    Directory.CreateDirectory(folder);
+    string payload=ReadEmbedded("DoxaSetupPayload.zip","Doxa.App",folder);
+    string extracted=Path.Combine(folder,"app");
+    ExtractApplication(payload,extracted); // Full embedded manifest/hash validation.
+    string script=Path.Combine(extracted,"app","packaging","doxa-setup","personal-ui","Start-DoxaGuidedSetup.ps1");
+    Require(File.Exists(script),"Guided Doxa Setup is not in the verified application.");
+    string powershell=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows),
+       "System32","WindowsPowerShell","v1.0","powershell.exe");
+    var info=new ProcessStartInfo(powershell,
+       "-NoProfile -ExecutionPolicy Bypass -File \""+script+"\" -BootstrapInstaller \""+SourceExe+"\""){
+       UseShellExecute=false,CreateNoWindow=true,WorkingDirectory=extracted};
+    using(var process=Process.Start(info)){
+     Require(process!=null,"Could not launch Doxa's guided interface.");
+     process.WaitForExit();
+     Require(process.ExitCode==0,
+      "The Doxa window could not run (Windows code "+process.ExitCode+
+      "). This computer may require publisher-signed scripts. Do not lower its security policy.");
+    }
+    return 0;
+   }finally{
+    try{if(Directory.Exists(folder))Directory.Delete(folder,true);}
+    catch(IOException ex){Trace("Temporary Doxa UI retained: "+ex.Message);}
+   }
+  }
+  static string SelfTest(){
   string folder=Path.Combine(Path.GetTempPath(),"Doxa-Validation-"+Guid.NewGuid().ToString("N"));
   string testRoot=Path.Combine(folder,"installed");
   string testPayload=null;
@@ -541,7 +582,7 @@ internal class DoxaHost {
    }
    Console.WriteLine(Remove());return 0;
   }
-  if(arg=="/open"){Open();return 0;}
+  if(arg=="/open"){return OpenSingleWindow();}
   throw new ArgumentException("Unknown command");
  }
   static void UI(){
@@ -654,7 +695,7 @@ internal class DoxaHost {
 [STAThread] public static int Main(string[] args){
   string arg=args.Length>0?args[0].ToLowerInvariant():"";
   try{
-   if(arg==""){UI();return 0;}
+   if(arg==""){return OpenSingleWindow();}
    return Run(arg,args);
   }catch(Exception ex){
    Trace("Error "+ex.GetType().Name+": "+ex.Message);

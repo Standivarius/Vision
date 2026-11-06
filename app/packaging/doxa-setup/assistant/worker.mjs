@@ -45,8 +45,10 @@ export function normalizeDiagnostics(raw){
   package_signature_verified:obj.package_signature_verified===true,
  };
 }
-// Existing Dell key is still accepted. Additional Windows devices are permitted ONLY
-// when their public key is present in the server-side allowlist, not from request data.
+// Every installation generates its own RSA key pair. Public keys may be supplied
+// on the first signed request; no operator allowlist or shared embedded secret is
+// required. These keys identify a rate-limit subject, not licence/provenance proof.
+// The old Dell allowlist path is retained only for backward compatibility.
 export function approvedDeviceJwk(env,clientId){
  if(!clientId) return dellPublicKey; // backward-compatible existing Dell alpha
  if(!/^[a-f0-9]{24}$/.test(clientId))return null;
@@ -61,11 +63,27 @@ export function approvedDeviceJwk(env,clientId){
 }
 async function authorised(req,rawBody,env){
  const clientId=req.headers.get("x-doxa-client-id")||"";
- // A packed Dell client upgraded to the new code sends its derived ID,
- // while old Dell clients omit the ID. Both map to the same original public key.
+ // Retain old Dell client compatibility; new clients send only public signing
+ // material alongside a proof-of-possession signature and timestamp.
  const legacyHash=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(dellPublicKey.n));
  const legacyId=Array.from(new Uint8Array(legacyHash),x=>x.toString(16).padStart(2,"0")).join("").slice(0,24);
- const publicJwk=(clientId===legacyId)?dellPublicKey:approvedDeviceJwk(env,clientId);
+ let publicJwk=(clientId===legacyId)?dellPublicKey:approvedDeviceJwk(env,clientId);
+ const exported=req.headers.get("x-doxa-public-jwk");
+ if(exported){
+  if(!/^[A-Za-z0-9_-]{400,900}$/.test(exported) || !/^[a-f0-9]{24}$/.test(clientId))return null;
+  let candidate;
+  try{
+   const decoded=atob(exported.replace(/-/g,"+").replace(/_/g,"/"));
+   candidate=JSON.parse(decoded);
+  }catch{return null;}
+  if(candidate?.kty!=="RSA" || candidate?.alg!=="RS256" ||
+     !/^[A-Za-z0-9_-]{320,400}$/.test(candidate.n||"") ||
+     !/^[A-Za-z0-9_-]{2,8}$/.test(candidate.e||""))return null;
+  const checksum=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(candidate.n));
+  const derivedId=Array.from(new Uint8Array(checksum),x=>x.toString(16).padStart(2,"0")).join("").slice(0,24);
+  if(derivedId!==clientId)return null;
+  publicJwk={kty:"RSA",alg:"RS256",n:candidate.n,e:candidate.e,ext:true,key_ops:["verify"]};
+ }
  if(!publicJwk)return null;
  const timestamp=req.headers.get("x-doxa-timestamp")||"";
  const encoded=req.headers.get("x-doxa-signature")||"";
@@ -87,7 +105,7 @@ async function authorised(req,rawBody,env){
 export async function handleRequest(req,env){
  const uri=new URL(req.url);
  if(req.method==="GET" && uri.pathname==="/health"){
-   return json({service:"standivarius-doxa-installer-assistant",schema_version:1,knowledge:knowledgeIdentity(),model_configured:!!env?.AI,authentication:"approved-device-signature",actions_enabled:false});
+   return json({service:"standivarius-doxa-installer-assistant",schema_version:1,knowledge:knowledgeIdentity(),model_configured:!!env?.AI,authentication:"automatic-device-signature",manual_device_approval:false,actions_enabled:false});
  }
  if(uri.pathname!=="/v1/ask" || req.method!=="POST") return json({error:"not_found"},404);
  const len=Number(req.headers.get("content-length")||0);
@@ -103,7 +121,7 @@ export async function handleRequest(req,env){
    return json({error:"invalid_request"},400);
  }
  // UI acknowledgement is an explicit contract, not independent evidence of legal consent.
- // The current signed Dell client remains development-only; final first-use records are pending.
+ // Each Windows installation supplies its own public signing key; no shared secret.
  if(input.ai_notice_version!=="development-v0.1" || input.user_enabled_optional_ai!==true){
    return json({error:"ai_disclosure_required"},403);
  }
@@ -117,9 +135,24 @@ export async function handleRequest(req,env){
  if(matches.length===0){
    return json({schema_version:"1",status:"knowledge_gap",answer:"This question isn't covered by the current Doxa installation knowledge. I can check the signed driver, detected panels and installation result without changing Windows.",sources:[],mode:"curated_local",execution_performed:false});
  }
- if(!env.AI || !env.DOXA_RATE)return json({error:"ai_offline",code:"ai_binding_not_configured"},503);
+ if(!env.AI || !env.DOXA_RATE || !env.DOXA_IP_RATE || !env.DOXA_BUDGET)
+   return json({error:"ai_offline",code:"ai_binding_not_configured"},503);
+ // Key rotation must not bypass the network limit. IP is supplied by Cloudflare,
+ // hashed before use as an approximate rate-limiter key (no persisted IP logs).
+ const ip=req.headers.get("cf-connecting-ip")||"";
+ if(!/^[0-9a-fA-F:.]{3,45}$/.test(ip))return json({error:"no_trusted_network_identity"},403);
+ const hash=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(ip));
+ const ipKey=Array.from(new Uint8Array(hash),x=>x.toString(16).padStart(2,"0")).join("");
+ const ipLimit=await env.DOXA_IP_RATE.limit({key:ipKey});
+ if(!ipLimit.success)return json({error:"rate_limited"},429);
  const quota=await env.DOXA_RATE.limit({key:authenticatedDevice});
  if(!quota.success)return json({error:"rate_limited"},429);
+ // Durable global daily budget is fail-closed and runs before every paid model call.
+ let budgetResponse;
+ try{
+  budgetResponse=await env.DOXA_BUDGET.getByName("doxa-global-ai-budget").fetch("https://quota.internal/consume",{method:"POST"});
+ }catch{return json({error:"ai_offline",code:"budget_unavailable"},503);}
+ if(!budgetResponse.ok)return json({error:"daily_limit_reached"},429);
  let data;
  try{
    data=await env.AI.run(MODEL,{
@@ -139,5 +172,27 @@ export async function handleRequest(req,env){
    sources:matches.map(e=>({id:e.id,url:e.sources[0].url,title:e.title})),
    curated_knowledge_version:knowledgeIdentity().updated_utc
  });
+}
+// SQLite-backed Durable Object: one atomic worldwide daily AI-call allowance.
+// This counts authorised model attempts, not platform billing units. The stored
+// state contains only the UTC date and request count; never user data.
+export class DoxaDailyBudget {
+ constructor(ctx,env){
+  this.ctx=ctx;this.env=env;
+  this.ctx.storage.sql.exec("CREATE TABLE IF NOT EXISTS daily_budget (day TEXT PRIMARY KEY, used INTEGER NOT NULL)");
+ }
+ async fetch(req){
+  if(req.method!=="POST" || new URL(req.url).pathname!=="/consume")
+   return json({error:"not_found"},404);
+  const configured=Number(this.env.DOXA_DAILY_AI_REQUEST_LIMIT);
+  const limit=Number.isSafeInteger(configured) && configured>=1 && configured<=10000?configured:300;
+  const day=new Date().toISOString().slice(0,10);
+  this.ctx.storage.sql.exec("INSERT OR IGNORE INTO daily_budget(day,used) VALUES (?1,0)",day);
+  const rows=this.ctx.storage.sql.exec(
+   "UPDATE daily_budget SET used=used+1 WHERE day=?1 AND used<?2 RETURNING used",day,limit
+  ).toArray();
+  if(rows.length===0)return json({error:"daily_limit_reached"},429);
+  return json({allowed:true});
+ }
 }
 export default {async fetch(request,env){return handleRequest(request,env);}};

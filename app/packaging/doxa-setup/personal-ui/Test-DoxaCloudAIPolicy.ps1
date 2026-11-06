@@ -4,7 +4,7 @@ $path=Join-Path $env:TEMP ('doxa-policy-fixture-'+[Guid]::NewGuid().ToString('N'
 try {
  @{origin='fixture';disable_cloud_ai=0}|ConvertTo-Json|Set-Content -LiteralPath $path -Encoding UTF8
  $allow=(& $policy -EvidencePath $path|Out-String)|ConvertFrom-Json
- if(-not $allow.cloud_ai_allowed -or -not $allow.user_permission_still_required){throw 'AI grant policy incorrectly bypassed user choice'}
+ if(-not $allow.cloud_ai_allowed -or -not $allow.user_permission_still_required -or -not $allow.online_ai_selectable -or -not $allow.automatic_first_use_identity -or $allow.manual_device_approval_required){throw 'AI first-use availability or consent policy failed'}
  @{origin='fixture';disable_cloud_ai=1}|ConvertTo-Json|Set-Content -LiteralPath $path -Encoding UTF8
  $deny=(& $policy -EvidencePath $path|Out-String)|ConvertFrom-Json
  if($deny.cloud_ai_allowed -or -not $deny.cloud_ai_blocked_by_it -or $deny.machine_mutation_performed){throw 'Enterprise denial not enforced'}

@@ -3,9 +3,9 @@
  [switch]$PrepareEnrollment,
  [string]$SignBody
 )
-# Customer-ready enrollment preparation: no vendor endpoint mutation.
-# Every device maintains its own DPAPI-encrypted RSA private key in the Windows profile.
-# A server operator must independently approve the exported PUBLIC identity before AI works.
+# Automatic first-use identity: no vendor endpoint mutation and no manual approval.
+# Every installation maintains its own DPAPI-encrypted private signing key in
+# the Windows profile; only the public JWK may be transmitted to the AI service.
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
 Add-Type -AssemblyName System.Security
@@ -58,7 +58,7 @@ if(-not(Test-Path -LiteralPath $keyPath)){throw 'Public identity missing; refusi
 $jwk=ReadJwk $keyPath
 $clientId=DeviceId $jwk
 if($PublicOnly -or $PrepareEnrollment){
- [ordered]@{schema_version=1;client_id=$clientId;public_jwk=$jwk;private_key_protection='Windows DPAPI CurrentUser';approved_by_server=$false}|ConvertTo-Json -Depth 4 -Compress
+ [ordered]@{schema_version=2;client_id=$clientId;public_jwk=$jwk;private_key_protection='Windows DPAPI CurrentUser';manual_approval_required=$false;automatic_enrolment=$true}|ConvertTo-Json -Depth 4 -Compress
  return
 }
 if([string]::IsNullOrWhiteSpace($SignBody)){throw 'No request body to sign'}

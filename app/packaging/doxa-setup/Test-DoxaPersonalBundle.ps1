@@ -47,6 +47,23 @@ $welcomeText=[IO.File]::ReadAllText((Join-Path $testRoot 'app\packaging\doxa-set
 if($brandText.Contains('OpenFileDialog') -or $brandText.Contains('Choose the official Silicon Motion SMI770 MSI')){throw 'Obsolete MSI file picker is still embedded'}
 if(@($brandText,$tabsText,$welcomeText)|Where-Object{$_ -match 'TEST preview\.12'}){throw 'Customer window still shows TEST preview branding'}
 if(-not $tabsText.Contains('DoxaMaintenance-v2.exe') -or -not $tabsText.Contains("'/install'")){throw 'Protected embedded driver action is absent'}
+# Pin the owner's visual/wording corrections in the actual extracted customer payload.
+foreach($title in @('1. Connect and Detect Doxa','2. Set up screens','3. Install signed driver')){
+ if(-not $tabsText.Contains($title)){throw ('Numbered setup task missing: '+$title)}
+}
+if($tabsText.Contains("'Laptop 1'") -or -not $tabsText.Contains("'Screen 1'") -or -not $tabsText.Contains("'Laptop'")){throw 'Screen 1 / Laptop diagram labels incorrect'}
+if($tabsText.Contains('Driver not verified. Connect Doxa') -or -not $tabsText.Contains('Doxa is not connected.')){throw 'Driver detection wording is misleading'}
+if($brandText.Contains('Doxa - quick offline guidance') -or $brandText.Contains('Answer $script:queuedQuestion') -or -not $brandText.Contains('Contacting Doxa AI...')){
+ throw 'Online AI must not be substituted with local guidance'
+}
+$autoClient=[IO.File]::ReadAllText((Join-Path $testRoot 'app\packaging\doxa-setup\personal-ui\Ask-DoxaInstaller.ps1'))
+$autoPolicy=[IO.File]::ReadAllText((Join-Path $testRoot 'app\packaging\doxa-setup\personal-ui\Get-DoxaCloudAIPolicy.ps1'))
+$privacyText=[IO.File]::ReadAllText((Join-Path $testRoot 'app\packaging\doxa-setup\personal-ui\AI-PRIVACY-NOTICE.txt'))
+if(-not $autoClient.Contains('-PrepareEnrollment') -or -not $autoClient.Contains('x-doxa-public-jwk') -or
+   -not $autoPolicy.Contains('automatic_first_use_identity') -or -not $autoPolicy.Contains('manual_device_approval_required') -or
+   -not $privacyText.Contains('no manual device approval')){
+ throw 'Automatic first-use Online AI identity or privacy disclosure missing in shipped client'
+}
 $brandCheck=(& $mainBrand -BrandTest | Out-String)|ConvertFrom-Json
  if($brandCheck.status -ne 'PASS' -or -not $brandCheck.single_form -or $brandCheck.upper_port -ne 'power' -or $brandCheck.lower_port -ne 'data'){throw 'Packaged brand/tab contract failed'}
  $wizard=Join-Path $testRoot 'app\packaging\doxa-setup\personal-ui\Start-DoxaGuidedSetup.ps1'
@@ -56,7 +73,7 @@ $brandCheck=(& $mainBrand -BrandTest | Out-String)|ConvertFrom-Json
  $sameWindowRo=(& $wizard -SeamlessTest -Language ro -TestConnectionChoice without_doxa|Out-String)|ConvertFrom-Json
  if($sameWindowRo.seamless -ne 'PASS' -or -not $sameWindowRo.window_handle_preserved -or -not $sameWindowRo.detect_doxa_works){throw 'Packaged Romanian one-window journey failed'}
  $welcome=(& $wizard -JourneyTest | Out-String)|ConvertFrom-Json
- if($welcome.journey -ne 'PASS' -or $welcome.hardware_scans_before_consent -ne 0){throw 'Packaged consent wizard failed'}
+ if($welcome.journey -ne 'PASS' -or $welcome.hardware_scans_before_consent -ne 0 -or -not $welcome.preview_terms_required -or -not $welcome.radio_choice_removed){throw 'Packaged consent wizard failed'}
  $notice=Join-Path $testRoot 'app\packaging\doxa-setup\personal-ui\LOCAL-CHECK-NOTICE.txt'
  if(-not(Test-Path $notice) -or (Get-Content $notice -Raw) -notmatch 'What it inspects'){throw 'Missing local-data inspection notice'}
  $guide=Join-Path $testRoot 'app\packaging\doxa-setup\personal-ui\Show-DoxaConnectionGuide.ps1'
@@ -74,8 +91,8 @@ $brandCheck=(& $mainBrand -BrandTest | Out-String)|ConvertFrom-Json
   }
  }
  $welcomeRo=(& $wizard -JourneyTest -Language ro -TestConnectionChoice without_doxa | Out-String)|ConvertFrom-Json
- if($welcomeRo.journey -ne 'PASS' -or $welcomeRo.language -ne 'ro' -or $welcomeRo.localized_step -notmatch 'Pasul 2' -or $welcomeRo.hardware_scans_before_consent -ne 0 -or $welcomeRo.remote_requests -ne 0){throw 'Packaged Romanian consent journey failed'}
- # Customer must advance consent -> connection -> Detect Doxa in the SAME form;
+ if($welcomeRo.journey -ne 'PASS' -or $welcomeRo.language -ne 'ro' -or -not $welcomeRo.preview_terms_required -or $welcomeRo.hardware_scans_before_consent -ne 0 -or $welcomeRo.remote_requests -ne 0){throw 'Packaged Romanian consent journey failed'}
+ # Customer advances preview terms and local consent -> branded task tabs in the SAME form;
  # no second PowerShell/WinForms window may replace the original HWND.
  foreach($lang in @('en','ro')){
   $choice=if($lang -eq 'en'){'connected'}else{'without_doxa'}
@@ -113,7 +130,7 @@ $brandCheck=(& $mainBrand -BrandTest | Out-String)|ConvertFrom-Json
   New-Item -ItemType Directory -Path $tempAppData -Force | Out-Null
   $env:LOCALAPPDATA=$tempAppData
   $identity=(& $signer -PrepareEnrollment|Out-String)|ConvertFrom-Json
-  if($identity.approved_by_server -or $identity.private_key_protection -ne 'Windows DPAPI CurrentUser' -or $identity.client_id -notmatch '^[a-f0-9]{24}$' -or $identity.public_jwk.kty -ne 'RSA'){throw 'Test identity enrollment not isolated'}
+  if($identity.manual_approval_required -or -not $identity.automatic_enrolment -or $identity.private_key_protection -ne 'Windows DPAPI CurrentUser' -or $identity.client_id -notmatch '^[a-f0-9]{24}$' -or $identity.public_jwk.kty -ne 'RSA'){throw 'Test identity automatic enrolment not isolated'}
   $signature=(& $signer -SignBody '{"offline":true}' | Out-String)|ConvertFrom-Json
   if($signature.client_id -ne $identity.client_id -or $signature.signature.Length -lt 300){throw 'Offline test identity cannot sign'}
  }finally{$env:LOCALAPPDATA=$oldAppData}
