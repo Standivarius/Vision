@@ -19,7 +19,6 @@ if(-not $SkipIntune){
  $toolsign=Get-AuthenticodeSignature -LiteralPath $ContentPrepTool
  if($toolsign.Status -ne 'Valid' -or $toolsign.SignerCertificate.Subject -notmatch 'Microsoft Corporation'){throw 'Microsoft package tool not verified'}
 }
-$builder=Join-Path (Split-Path $PSScriptRoot -Parent) 'Build-DoxaPersonalBundle.ps1'
 # PSScriptRoot = doxa-setup/full-release => parent = doxa-setup
 $builder=Join-Path (Split-Path $PSScriptRoot -Parent) 'Build-DoxaPersonalBundle.ps1'
 $stamp=(Get-Date).ToUniversalTime().ToString('yyyyMMdd-HHmmss')
@@ -52,10 +51,10 @@ try{
  $testRun=(& (Join-Path $src 'DoxaDeploy.exe') '/selftest'|Out-String).Trim()
  if($LASTEXITCODE -ne 0 -or $testRun -notmatch '^PASS:'){throw 'Release candidate self test failed: '+$testRun}
  $readme=@'
-Standivarius Ã¢â‚¬â€ Doxa Setup for Windows
+STANDIVARIUS DOXA SETUP FOR WINDOWS
 PERSONAL:
   Extract Personal/Doxa-Complete-Windows-Setup.zip and launch DoxaSetup.exe.
-  Launch DoxaSetup.exe, select Set up Doxa, and approve Windows UAC to install the application only.
+  Run DoxaSetup.exe for the single bilingual consent window and three numbered setup tasks. Windows UAC is required only for an explicitly requested installation.
   In the guide connect power FIRST, then USB data. Detect Doxa, then install the signed driver ONLY if Doxa is connected and the driver is missing.
   A healthy existing signed driver is kept; no automatic downgrade or driver removal.
   This installer performs no automatic reboot or monitor topology writes.
@@ -70,7 +69,7 @@ INTUNE:
   When Doxa USB is absent, /install stages the app ONLY and defers the MSI until hardware is connected; /verify will fail until ready.
 MANAGEENGINE:
   Extract ManageEngine/Doxa-Complete-Managed.zip to an approved package repository.
-  Deliver all four package files side-by-side, using DoxaDeploy.exe /install as SYSTEM.
+  Use the reviewed managed package with DoxaDeploy.exe /install as SYSTEM; do not substitute an old preview or unsigned binary for commercial rollout.
   Detect / verify / uninstall as for Intune.
 SIGNING:
   Sign the generated DoxaSetup.exe and DoxaDeploy.exe using the publisher certificate,
@@ -78,7 +77,7 @@ SIGNING:
   reissue distribution archives and manifests AFTER signing. Do not remove the existing
   vendor signature from the vendor MSI.
 STATUS:
-  This is a private unsigned release CANDIDATE. Source and package checks have passed.
+  This is a private unsigned release CANDIDATE. Source and package checks passed; the separate Doxa Online AI Worker must be healthy before releasing a compatible client.
   Vendor MSI redistribution authorization, publisher signing and final customer AI privacy conditions are NOT approved. Do not distribute commercially.
   Do not mark full customer release passed without attended hardware installation,
   user-session graphics acceptance, managed-agent execution and signature verification.

@@ -83,14 +83,14 @@ STANDIVARIUS DOXA SETUP - EMBEDDED GUIDED APPLICATION COMPONENT
 2. Review local diagnostic permissions. Cloud AI is OPTIONAL; declining it does not block setup.
 3. Choose to connect Doxa now or to continue checking the computer without Doxa.
 4. The wizard explains which PC data is read, then checks Windows, USB, the signed driver package and connected Doxa panels with your consent.
-5. Use the three customer tabs: Detect Doxa, Set up screens (Connect / Arrange), and Install signed driver. The active tab highlights one framed work area including contextual help. Connector drawing: UPPER USB-C = power, LOWER USB-C = data/signal. Online AI requires separate permission and can be switched off again.
+5. Use the three numbered customer tabs: 1. Connect and Detect Doxa, 2. Set up screens, 3. Install signed driver. The persistent Doxa Help panel offers explicit Offline help or optional Online AI. UPPER USB-C = power; LOWER USB-C = data. Online AI is off until the user opts in.
 6. Driver installation uses only the original signed MSI embedded in the native DoxaSetup.exe. The customer is never asked to locate an MSI file.
 7. Driver-first installation on a clean computer still requires physical acceptance testing. Existing healthy signed drivers are preserved. Connect Doxa and use Detect Doxa to check the connected screens.
 
 LIMITS:
 - USB-C port shape, real transfer speed and reliable Doxa screen operation cannot be guaranteed from a controller scan alone.
 - No MSI or personal credentials are contained in this inner application ZIP. The original vendor-signed MSI is embedded separately in the native installer.
-- The Doxa AI cloud identity is enrolled to Dell for this personal preview. Other machines retain local offline help.
+- Doxa Online AI creates a per-user Windows DPAPI-protected signing identity automatically on first use. The private key stays local. No manual device approval or copied API credential is required. Enterprise IT can disable cloud AI.
 - No automatic reboot, firmware update, driver removal, security-policy bypass or uncontrolled installation.
 - This application component is not the customer delivery format. Public native installer signing is a separate release requirement.
 - Doxa hardware Setup is independent of the Standivarius Vision low-vision software.

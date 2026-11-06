@@ -24,6 +24,12 @@ try{
  }
  $generated=@($manifest.generated_files)
  if($generated.Count -ne 2){throw 'Missing hashed launcher/readme entries'}
+ $customerReadme=[IO.File]::ReadAllText((Join-Path $testRoot 'README-FIRST.txt'))
+ if($customerReadme -match 'enrolled to Dell|Other machines retain local offline help' -or
+    $customerReadme -notmatch 'No manual device approval' -or
+    $customerReadme -notmatch '1\. Connect and Detect Doxa'){
+   throw 'Stale one-device AI or legacy customer-tab documentation embedded in installer'
+ }
  foreach($item in $generated){
   if([string]$item.file -notin @('Open Doxa Setup.cmd','README-FIRST.txt')){throw 'Unexpected generated file'}
   $path=Join-Path $testRoot ([string]$item.file)
