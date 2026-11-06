@@ -1,0 +1,53 @@
+{
+    "schema_version":  1,
+    "captured_on":  "2026-11-06",
+    "source_environment":  "MARIUS-DELL; C:\\dev\\Vision",
+    "notes":  "Nine selected existing reports copied byte-for-byte; raw camera/log evidence remains on Dell, not included in GitHub",
+    "records":  [
+                    {
+                        "path":  "docs/project/programme/2026-11-04__doxa_17_field_comparative_synthesis_v1.2.md",
+                        "sha256":  "AD2240340CD31E45E48BED76AB3ABCF8E0969F724ADBBC51DB5BEE358F4E8CD9",
+                        "bytes":  10589
+                    },
+                    {
+                        "path":  "docs/project/programme/2026-11-04__doxa_17_field_execution_ledger_v1.1.csv",
+                        "sha256":  "4FB1407F02E9B898157DD7FE16A5538813354BE5250CF72825FB4C6EAD1D3724",
+                        "bytes":  21051
+                    },
+                    {
+                        "path":  "docs/project/programme/2026-11-04__doxa_qualification_report_microsoft_magnifier_v1.0.md",
+                        "sha256":  "10EFBD09C7DD3BB417F9BABCA2E429EF6030C384EF1D2701841E2A481FA61B64",
+                        "bytes":  7043
+                    },
+                    {
+                        "path":  "docs/project/programme/2026-11-04__doxa_qualification_report_nvda_v1.0.md",
+                        "sha256":  "265096579D807ED136932873C8292411BC4E86D84BAF801B3BC9DBB9FAE78FAD",
+                        "bytes":  5933
+                    },
+                    {
+                        "path":  "docs/project/programme/2026-11-04__doxa_qualification_report_zoomtext_v1.1.md",
+                        "sha256":  "30211A0CDB69B7B9B6616E1F91FC7AFFBC8E12809E92C6B81E8ADEE76D71FA91",
+                        "bytes":  13972
+                    },
+                    {
+                        "path":  "docs/project/programme/2026-11-04__gemini_execution_report_and_response_to_independent_review_v1.0.md",
+                        "sha256":  "03B3A39638DFA364EEC84248376A062F81C8D64B55820CB9957E5857C3108560",
+                        "bytes":  17098
+                    },
+                    {
+                        "path":  "docs/project/programme/2026-11-04__gemini_doxa_17_field_independent_acceptance_review_v0.1.md",
+                        "sha256":  "7A061EC97A255CE0AEC3B74B6C98F3AE23067E7116756CCE3F6237B01522A3C5",
+                        "bytes":  9151
+                    },
+                    {
+                        "path":  "docs/project/programme/2026-11-05__vision_gemini_resource_attribution_execution_summary_v1.0.md",
+                        "sha256":  "54B6D6CB9342EBFCAAC3D4497E6A5099FB9D08F873C294E7DBDD72ED91D87951",
+                        "bytes":  8035
+                    },
+                    {
+                        "path":  "docs/project/programme/2026-11-05__vision_resource_attribution_w0_decision_v0.1.md",
+                        "sha256":  "1B44C2E26941B77B0BDA7E37B269A0205FCF69B881E6ACAB864A9A866C73CAA0",
+                        "bytes":  4144
+                    }
+                ]
+}

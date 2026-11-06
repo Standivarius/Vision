@@ -1,0 +1,10 @@
+# Preserve byte-for-byte Dell evidence source files (recorded SHA-256 in curated manifest).
+docs/project/programme/2026-11-04__doxa_17_field_comparative_synthesis_v1.2.md -text
+docs/project/programme/2026-11-04__doxa_17_field_execution_ledger_v1.1.csv -text
+docs/project/programme/2026-11-04__doxa_qualification_report_microsoft_magnifier_v1.0.md -text
+docs/project/programme/2026-11-04__doxa_qualification_report_nvda_v1.0.md -text
+docs/project/programme/2026-11-04__doxa_qualification_report_zoomtext_v1.1.md -text
+docs/project/programme/2026-11-04__gemini_execution_report_and_response_to_independent_review_v1.0.md -text
+docs/project/programme/2026-11-04__gemini_doxa_17_field_independent_acceptance_review_v0.1.md -text
+docs/project/programme/2026-11-05__vision_gemini_resource_attribution_execution_summary_v1.0.md -text
+docs/project/programme/2026-11-05__vision_resource_attribution_w0_decision_v0.1.md -text
