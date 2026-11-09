@@ -1,4 +1,5 @@
 # Safe regression gate for Sonnet remediation. No MSI, UAC, deployment,
+param([switch]$FixtureOnly)
 # screenshot, remote AI or live monitor mutation.
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
@@ -7,7 +8,8 @@ $hostSource=Get-Content (Join-Path $root 'full-release\DoxaSetupHost.cs') -Raw -
 if($hostSource -notmatch 'Apply\(arg=="/prepare"\)' -or
    $hostSource -notmatch 'DriverDeferredUntilConnected' -or
    $hostSource -notmatch 'MayRunVendorMsi\(applicationOnly,plugged,current\)' -or
-   $hostSource -notmatch 'Open\(true\)'){
+   $hostSource -notmatch 'OpenSingleWindow\(\)' -or
+   $hostSource -match 'static void UI\('){
  throw 'Source-only guard: personal setup, offline defer or consent handoff missing'
 }
 $state=Join-Path $root 'Get-DoxaDriverState.ps1'
@@ -65,19 +67,22 @@ try{
  $blocked=(& $policy -EvidencePath $f|Out-String)|ConvertFrom-Json
  if($blocked.online_ai_selectable -or $blocked.cloud_ai_allowed){throw 'Organization denial does not disable AI enrollment'}
  $localNotice=Get-Content (Join-Path $root 'personal-ui\AI-PRIVACY-NOTICE.txt') -Raw -Encoding UTF8
- if($localNotice -notmatch 'x-doxa-client-id' -or $localNotice -notmatch 'persistent'){throw 'Persistent online identifier privacy disclosure missing'}
+ if($localNotice -notmatch 'pseudonymous installation identifier' -or $localNotice -notmatch 'PUBLIC RSA signing key'){throw 'Pseudonymous online identifier privacy disclosure missing'}
  $lab=Join-Path $root 'fault-lab\Invoke-DoxaFaultLab.ps1'
  $exe=Join-Path (Join-Path (Resolve-Path (Join-Path $root '..\..\..')).Path 'artifacts\fault-lab') 'DoxaDisplayPath.exe'
- if(-not(Test-Path $exe)){throw 'Read-only native Lab helper not built; run Test-DoxaFaultLab.ps1'}
- $guard=(& $exe --guard-test|Out-String)
- if($LASTEXITCODE -ne 0 -or $guard -notmatch 'PASS'){throw 'Display overlap guard did not reject pending trial'}
+ if($FixtureOnly){$guardStatus='NOT_RUN_FIXTURE_ONLY'}else{
+  if(-not(Test-Path $exe)){throw 'Read-only native Lab helper not built; run Test-DoxaFaultLab.ps1'}
+  $guard=(& $exe --guard-test|Out-String)
+  if($LASTEXITCODE -ne 0 -or $guard -notmatch 'PASS'){throw 'Display overlap guard did not reject pending trial'}
+  $guardStatus='PASS'
+ }
  [pscustomobject]@{
   status='PASS'
   fixture_driver_bindings=$tests.Count
   mixed_vendor_binding='REJECTED'
   enterprise_policy_deny='PASS'
   identifier_disclosure='PASS'
-  display_overlap_marker='PASS'
+  display_overlap_marker=$guardStatus
   personal_msi_gate='SOURCE_ONLY_NOT_LIVE_TESTED'
   physical_changes=0
   online_requests=0

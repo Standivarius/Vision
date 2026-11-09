@@ -9,6 +9,10 @@ param(
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
 $root=(Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..')).Path
+$sourceCommit=((& git -C $root rev-parse HEAD)|Out-String).Trim()
+if($LASTEXITCODE -ne 0 -or $sourceCommit -notmatch '^[a-f0-9]{40}$'){throw 'Committed release-source identity unavailable'}
+$changes=@(& git -C $root status --porcelain=v1 --untracked-files=normal)
+if($LASTEXITCODE -ne 0 -or $changes.Count){throw 'Complete Doxa release requires a clean, committed Git worktree'}
 if(-not $OutputDirectory){$OutputDirectory=Join-Path $root 'artifacts\releases\complete-release-20261028'}
 $expectedDriver='3379B46DA029423748E2D2E64DB2015B50136E310A492E31857CC726719192D4'
 if(-not(Test-Path $VendorMsiPath -PathType Leaf)){throw 'Missing known vendor MSI'}
@@ -135,7 +139,10 @@ STATUS:
  $appCheck|ConvertTo-Json -Depth 8|Set-Content (Join-Path $test 'app-extracted-check.json')
  $result=[ordered]@{
   status='REVIEW_BUILD_PASS'
-  source_commit=((& git -C $root rev-parse HEAD)|Out-String).Trim()
+  source_commit=$sourceCommit
+  preview_version='0.4.0-preview.13'
+  payload_reproducibility='REPRODUCIBLE_FROM_COMMITTED_SOURCE'
+  exe_reproducibility='NOT_ESTABLISHED_CLASSIC_CSC'
   tested_app_payload_sha256=(Get-FileHash (Join-Path $src 'DoxaSetupPayload.zip') -Algorithm SHA256).Hash
   vendor_msi_signature='Valid'
   host_self_test=$testRun

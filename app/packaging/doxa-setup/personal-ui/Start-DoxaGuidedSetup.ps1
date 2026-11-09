@@ -74,18 +74,23 @@ $termsLink.Add_LinkClicked({
  $window.BackColor=[Drawing.Color]::White
  $window.Font=New-Object Drawing.Font('Segoe UI',10)
  $window.Padding=New-Object Windows.Forms.Padding(22,18,22,14)
+ # Explicit two-row grid: the legal text can never overlap the Close footer.
+ $layout=New-Object Windows.Forms.TableLayoutPanel
+ $layout.Dock='Fill';$layout.ColumnCount=1;$layout.RowCount=2
+ [void]$layout.RowStyles.Add((New-Object Windows.Forms.RowStyle([Windows.Forms.SizeType]::Percent,100)))
+ [void]$layout.RowStyles.Add((New-Object Windows.Forms.RowStyle([Windows.Forms.SizeType]::Absolute,55)))
  $footer=New-Object Windows.Forms.Panel
- $footer.Dock='Bottom';$footer.Height=55
+ $footer.Dock='Fill'
  $close=New-Object Windows.Forms.Button
  $close.Text='Close'
  $close.SetBounds(646,10,106,34)
  $close.Anchor=([Windows.Forms.AnchorStyles]::Right -bor [Windows.Forms.AnchorStyles]::Top)
  $close.DialogResult=[Windows.Forms.DialogResult]::OK
- $footer.Controls.Add($close);$window.Controls.Add($footer)
+ $footer.Controls.Add($close)
  $window.AcceptButton=$close;$window.CancelButton=$close
  $copy=New-Object Windows.Forms.RichTextBox
  $copy.Dock='Fill';$copy.ReadOnly=$true;$copy.WordWrap=$true
- $copy.ScrollBars='Vertical';$copy.BorderStyle='None'
+ $copy.ScrollBars='Vertical';$copy.BorderStyle='None';$copy.DetectUrls=$false
  $copy.BackColor=[Drawing.Color]::White
  $copy.Font=New-Object Drawing.Font('Segoe UI',10.5)
  $copy.Text=$message
@@ -99,7 +104,11 @@ $termsLink.Add_LinkClicked({
   $copy.SelectionColor=$headingColor
  }
  $copy.Select(0,0)
- $window.Controls.Add($copy)
+ # The scrollable text and the footer occupy separate layout rows at any size.
+ [void]$layout.Controls.Add($copy,0,0)
+ [void]$layout.Controls.Add($footer,0,1)
+ $window.Controls.Add($layout)
+ $window.ActiveControl=$copy
  try{[void]$window.ShowDialog($form)}finally{$copy.Dispose();$window.Dispose()}
 })
 $form.Controls.Add($termsLink)

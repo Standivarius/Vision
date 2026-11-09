@@ -12,7 +12,7 @@ try{
  New-Item -ItemType Directory -Path $testRoot -Force|Out-Null
  Expand-Archive -LiteralPath $BundlePath -DestinationPath $testRoot -Force
  $manifest=Get-Content -LiteralPath (Join-Path $testRoot 'manifest.json') -Raw -Encoding UTF8|ConvertFrom-Json
- if($manifest.product -ne 'Standivarius Doxa Setup' -or $manifest.preview_version -ne '0.4.0-preview.12'){throw 'Wrong product/version'}
+ if($manifest.product -ne 'Standivarius Doxa Setup' -or $manifest.preview_version -ne '0.4.0-preview.13'){throw 'Wrong product/version'}
  if($manifest.signing_status -notmatch '^UNSIGNED preview'){throw 'Unexpected signing status'}
  if(@($manifest.files).Count -ne 22){throw 'Unexpected packaged file count'}
  $checked=0
@@ -179,7 +179,18 @@ $brandCheck=(& $mainBrand -BrandTest | Out-String)|ConvertFrom-Json
   if($signature.client_id -ne $identity.client_id -or $signature.signature.Length -lt 300){throw 'Offline test identity cannot sign'}
  }finally{$env:LOCALAPPDATA=$oldAppData}
  $compatScript=Join-Path $testRoot 'app\packaging\doxa-setup\personal-ui\Get-DoxaCompatibility.ps1'
- $compat=(& $compatScript -ConnectionChoice without_doxa|Out-String)|ConvertFrom-Json
+ # This is a packaged-source contract, never a live PnP enumeration test.
+  $fixturePath=Join-Path $testRoot 'doxa-compatibility-fixture.json'
+  $fixture=[ordered]@{
+    origin='fixture';windows_build=26100;architecture='64-bit'
+    usb_host_controller_count=1;usb3_controller_detected=$true
+    doxa_state=@{observed=@{
+      driver_package_in_store=$false;doxa_hardware_detected=$false
+      pnp_doxa_panels=@();signed_driver_present=$false;physical_display_topology_verified=$false
+    }}
+  }
+  [IO.File]::WriteAllText($fixturePath,($fixture|ConvertTo-Json -Depth 8),[Text.UTF8Encoding]::new($false))
+  $compat=(& $compatScript -ConnectionChoice without_doxa -EvidencePath $fixturePath|Out-String)|ConvertFrom-Json
  if(-not $compat.read_only -or $compat.prestage_msi_qualified -or $compat.usb_c_port_physically_verified){throw 'Portable PC precheck overclaimed compatibility'}
  $aiStatus='not_requested'
  if($LiveAI){

@@ -10,6 +10,8 @@ param(
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
 $root=(Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..')).Path
+$gitState=@(& git -C $root status --porcelain=v1 --untracked-files=normal)
+if($LASTEXITCODE -ne 0 -or $gitState.Count){throw 'Retail release requires a clean, committed Git worktree'}
 if(-not $OutputDirectory){$OutputDirectory=Join-Path $root 'artifacts\releases\retail-final'}
 if(Test-Path $OutputDirectory){throw 'Destination already exists; refusing overwrite'}
 $from=[IO.Path]::GetFullPath($CompleteCandidateDirectory)
@@ -19,11 +21,15 @@ $toolSig=Get-AuthenticodeSignature $ContentPrepTool
 if($toolSig.Status -ne 'Valid' -or $toolSig.SignerCertificate.Subject -notmatch 'Microsoft Corporation'){throw 'Microsoft content prep not signed correctly'}
 $stage=Join-Path $env:TEMP ('DoxaRetail-'+[guid]::NewGuid().ToString('N'))
 $source=Join-Path $PSScriptRoot 'DoxaSetupHost.cs'
-$productPhoto=Join-Path $PSScriptRoot '..\personal-ui\assets\doxa-pro3-front.jpg'
-if(-not(Test-Path -LiteralPath $productPhoto -PathType Leaf)){throw 'Doxa product photo missing'}
 if(-not(Test-Path $source -PathType Leaf)){throw 'Missing native installer source'}
 $sourceHash=(Get-FileHash $source -Algorithm SHA256).Hash
 $sourceCommit=((& git -C $root rev-parse HEAD)|Out-String).Trim()
+$completeManifestPath=Join-Path $from 'RELEASE-MANIFEST.json'
+if(-not(Test-Path $completeManifestPath -PathType Leaf)){throw 'Tested complete-candidate manifest is missing'}
+$candidate=Get-Content $completeManifestPath -Raw|ConvertFrom-Json
+if($candidate.status -ne 'REVIEW_BUILD_PASS' -or $candidate.source_commit -ne $sourceCommit){throw 'Complete candidate was not built from this exact source commit'}
+$bundleRecord=@($candidate.artifacts|Where-Object{$_.relative -eq 'Personal/Doxa-Complete-Windows-Setup.zip'})
+if($bundleRecord.Count -ne 1 -or (Get-FileHash $sourceBundle -Algorithm SHA256).Hash -ine [string]$bundleRecord[0].sha256){throw 'Complete source-bundle digest differs from reviewed candidate'}
 if($LASTEXITCODE -ne 0 -or $sourceCommit -notmatch '^[0-9a-f]{40}$'){throw 'Version-control identity unavailable'}
 $builderSourceHash=(Get-FileHash $PSCommandPath -Algorithm SHA256).Hash
 
@@ -33,6 +39,7 @@ try {
  Expand-Archive -LiteralPath $sourceBundle -DestinationPath $stage
  $msi=Join-Path $stage 'SMIUSBDisplaySW770.msi'
  $app=Join-Path $stage 'DoxaSetupPayload.zip'
+ if((Get-FileHash $app -Algorithm SHA256).Hash -ine [string]$candidate.tested_app_payload_sha256){throw 'Embedded application payload differs from tested complete candidate'}
  if((Get-FileHash $msi -Algorithm SHA256).Hash -ne '3379B46DA029423748E2D2E64DB2015B50136E310A492E31857CC726719192D4'){throw 'Driver payload changed'}
  $vendor=Get-AuthenticodeSignature $msi
  if($vendor.Status -ne 'Valid' -or $vendor.SignerCertificate.Subject -notmatch 'Silicon Motion'){throw 'Embedded driver signature failed'}
@@ -44,7 +51,7 @@ try {
  New-Item $personal,$managed,$intune,$tests -ItemType Directory -Force|Out-Null
  foreach($pair in @(@('winexe','DoxaSetup.exe'),@('exe','DoxaDeploy.exe'))){
    $target=if($pair[0] -eq 'winexe'){$personal}else{$managed}
-   & $csc @ref ("/target:$($pair[0])") ("/out:$(Join-Path $target $pair[1])") ("/resource:$msi,Doxa.Driver") ("/resource:$app,Doxa.App") ("/resource:$productPhoto,Doxa.ProductPhoto") $source
+   & $csc @ref ("/target:$($pair[0])") ("/out:$(Join-Path $target $pair[1])") ("/resource:$msi,Doxa.Driver") ("/resource:$app,Doxa.App") $source
    if($LASTEXITCODE){throw "Compiler failed for $($pair[1])"}
  }
  if((Get-FileHash $source -Algorithm SHA256).Hash -ne $sourceHash){throw 'Installer source changed during compilation; refusing release'}
@@ -120,6 +127,10 @@ are separately needed before any production go-live claim.
 
   embedded_package_source_sha256=(Get-FileHash $sourceBundle -Algorithm SHA256).Hash
   product='Standivarius Doxa Setup'
+  preview_version='0.4.0-preview.13'
+  complete_candidate_source_commit=$candidate.source_commit
+  payload_reproducibility='REPRODUCIBLE_FROM_COMMITTED_SOURCE'
+  exe_reproducibility='NOT_ESTABLISHED_CLASSIC_CSC'
   machine_install_and_signatures=$sigStatus
   validated_standalone=$true
   test_evidence='Evidence/windows-standalone.json'
