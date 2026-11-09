@@ -68,6 +68,16 @@ if($welcomeText -match 'private preview terms|PRIVATE PREVIEW|Doxa preview terms
    -not $welcomeText.Contains('Privacy details for Online AI Help')){
  throw 'Welcome terms, checkbox alignment or privacy link are stale'
 }
+# A plain multiline TextBox makes all legal sections appear as a single block.
+# Retain the original wording, but require a scrollable, formatted read-only view.
+$sectionCount=([regex]::Matches($termsContent,'(?m)^[1-8]\. [^\r\n]+')).Count
+if($sectionCount -ne 8 -or
+   -not $welcomeText.Contains('New-Object Windows.Forms.RichTextBox') -or
+   -not $welcomeText.Contains('$copy.SelectionFont') -or
+   -not $welcomeText.Contains('$copy.ReadOnly=$true') -or
+   -not $welcomeText.Contains('$window.MinimumSize')){
+ throw 'Formatted, accessible Terms of Use presentation is missing'
+}
 if($brandText.Contains('OpenFileDialog') -or $brandText.Contains('Choose the official Silicon Motion SMI770 MSI')){throw 'Obsolete MSI file picker is still embedded'}
 if(@($brandText,$tabsText,$welcomeText)|Where-Object{$_ -match 'TEST preview\.12'}){throw 'Customer window still shows TEST preview branding'}
 if(-not $tabsText.Contains('DoxaMaintenance-v2.exe') -or -not $tabsText.Contains("'/install'")){throw 'Protected embedded driver action is absent'}

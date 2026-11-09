@@ -68,13 +68,39 @@ $termsLink.Add_LinkClicked({
  $message=if(Test-Path -LiteralPath $file){Get-Content -LiteralPath $file -Raw -Encoding UTF8}else{'Terms of Use are unavailable. Close Doxa Setup until they can be read.'}
  $window=New-Object System.Windows.Forms.Form
  $window.Text='Doxa Setup - Terms of Use'
- $window.StartPosition='CenterParent';$window.ClientSize=New-Object Drawing.Size(760,520)
- $window.MinimumSize=New-Object Drawing.Size(510,350)
- $window.FormBorderStyle='Sizable';$window.Font=New-Object Drawing.Font('Segoe UI',10)
- $copy=New-Object System.Windows.Forms.TextBox
- $copy.Dock='Fill';$copy.Multiline=$true;$copy.ReadOnly=$true
- $copy.ScrollBars='Vertical';$copy.WordWrap=$true;$copy.Text=$message
- $window.Controls.Add($copy);[void]$window.ShowDialog($form);$window.Dispose()
+ $window.StartPosition='CenterParent';$window.ClientSize=New-Object Drawing.Size(800,580)
+ $window.MinimumSize=New-Object Drawing.Size(540,390)
+ $window.FormBorderStyle='Sizable'
+ $window.BackColor=[Drawing.Color]::White
+ $window.Font=New-Object Drawing.Font('Segoe UI',10)
+ $window.Padding=New-Object Windows.Forms.Padding(22,18,22,14)
+ $footer=New-Object Windows.Forms.Panel
+ $footer.Dock='Bottom';$footer.Height=55
+ $close=New-Object Windows.Forms.Button
+ $close.Text='Close'
+ $close.SetBounds(646,10,106,34)
+ $close.Anchor=([Windows.Forms.AnchorStyles]::Right -bor [Windows.Forms.AnchorStyles]::Top)
+ $close.DialogResult=[Windows.Forms.DialogResult]::OK
+ $footer.Controls.Add($close);$window.Controls.Add($footer)
+ $window.AcceptButton=$close;$window.CancelButton=$close
+ $copy=New-Object Windows.Forms.RichTextBox
+ $copy.Dock='Fill';$copy.ReadOnly=$true;$copy.WordWrap=$true
+ $copy.ScrollBars='Vertical';$copy.BorderStyle='None'
+ $copy.BackColor=[Drawing.Color]::White
+ $copy.Font=New-Object Drawing.Font('Segoe UI',10.5)
+ $copy.Text=$message
+ # Preserve the legal text; style only its existing title and section headers.
+ $headingColor=[Drawing.Color]::FromArgb(157,18,51)
+ $headings=[regex]::Matches($copy.Text,'(?m)^(DOXA SETUP - TERMS OF USE|Provider|[1-8]\. [^\r\n]+)\r?$')
+ foreach($heading in $headings){
+  $copy.Select($heading.Index,$heading.Length)
+  $size=if($heading.Value -like 'DOXA SETUP*'){15}else{11}
+  $copy.SelectionFont=New-Object Drawing.Font('Segoe UI',$size,[Drawing.FontStyle]::Bold)
+  $copy.SelectionColor=$headingColor
+ }
+ $copy.Select(0,0)
+ $window.Controls.Add($copy)
+ try{[void]$window.ShowDialog($form)}finally{$copy.Dispose();$window.Dispose()}
 })
 $form.Controls.Add($termsLink)
 $local=New-Object Windows.Forms.CheckBox
