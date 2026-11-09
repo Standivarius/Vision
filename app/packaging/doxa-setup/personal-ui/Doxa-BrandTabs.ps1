@@ -295,7 +295,7 @@ $side.Controls.AddRange(@($modeOff,$modeOn))
 $chat.SetBounds(14,105,309,292)
 $ask.SetBounds(14,404,203,32);$send.SetBounds(228,404,95,32);$send.BackColor=$red
 $privacy=New-Object Windows.Forms.LinkLabel
-$privacy.Text='Privacy details for online AI';$privacy.SetBounds(14,440,188,31)
+$privacy.Text='Privacy details for Online AI Help';$privacy.SetBounds(14,440,303,31)
 $privacy.LinkColor=$red
 $privacy.Add_LinkClicked({
  $f=Join-Path $PSScriptRoot 'AI-PRIVACY-NOTICE.txt'
@@ -314,7 +314,7 @@ $side.Controls.Add($privacy)
 $script:recoveryLabUnlocked=$false
 $recoveryLab=New-Object Windows.Forms.LinkLabel
 $recoveryLab.Text='Recovery lab'
-$recoveryLab.SetBounds(205,440,125,31)
+$recoveryLab.SetBounds(202,15,127,30)
 $recoveryLab.LinkColor=$red
 $recoveryLab.Visible=[bool](Get-DoxaRecoveryLabEnabled)
 $recoveryLab.AccessibleName='Recovery lab - simulated missing screen only'
@@ -488,7 +488,7 @@ $brandTranslations=@{
  'For a separate copy, use the official Doxa-compatible Silicon Motion driver link below.'='Pentru o copie separata, foloseste linkul de mai jos catre driverul Silicon Motion compatibil cu Doxa.'
  'Offline help'='Ajutor offline'
  'Online AI'='AI online'
- 'Privacy details for online AI'='Confidentialitate AI online'
+ 'Privacy details for Online AI Help'='Privacy details for Online AI Help'
   'Install included driver'='Instaleaza driverul inclus'
   'Download the Doxa driver from Silicon Motion'='Descarca driverul Doxa de la Silicon Motion'
   'Install or update Doxa Setup'='Instaleaza sau actualizeaza Doxa Setup'

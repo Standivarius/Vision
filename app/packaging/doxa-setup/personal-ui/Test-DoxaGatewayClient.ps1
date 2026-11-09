@@ -14,6 +14,16 @@ try {
  $env:LOCALAPPDATA=$testAppData
  $identityResult=(& $identity -PrepareEnrollment|Out-String)|ConvertFrom-Json
  if($identityResult.private_key_protection -ne 'Windows DPAPI CurrentUser' -or -not $identityResult.client_id -or -not $identityResult.automatic_enrolment -or $identityResult.manual_approval_required){throw 'Isolated automatic signing identity preparation failed'}
+ # Simulate an upgrade from a previous installer that left a private key but
+ # lost its corresponding public JWK. Recovery must not use the Dell fixture.
+ $pubFile=Join-Path $testAppData 'Standivarius\DeveloperAccess\DoxaSetup\client-public-key.json'
+ if(-not(Test-Path $pubFile)){throw 'Fresh public identity missing'}
+ Remove-Item -LiteralPath $pubFile -Force
+ $restored=(& $identity -PrepareEnrollment|Out-String)|ConvertFrom-Json
+ if(-not(Test-Path $pubFile) -or $restored.client_id -ne $identityResult.client_id){throw 'Public signing identity was not automatically reconstructed'}
+ $serverTime=[DateTimeOffset]::UtcNow.ToUnixTimeSeconds()+300
+ $clockSignature=(& $identity -SignBody '{"clock_test":true}' -TimestampOverride $serverTime|Out-String)|ConvertFrom-Json
+ if([long]$clockSignature.timestamp -ne $serverTime -or $clockSignature.client_id -ne $identityResult.client_id){throw 'Server-time signature fallback is not supported'}
 
 function Invoke-RestMethod{
  param([string]$Method,[string]$Uri,$Headers,[string]$ContentType,$Body,[int]$TimeoutSec)
