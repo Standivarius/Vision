@@ -22,6 +22,7 @@ $items=@(
  'app/packaging/doxa-setup/personal-ui/Start-DoxaGuidedSetup.ps1',
  'app/packaging/doxa-setup/personal-ui/Get-DoxaCloudAIPolicy.ps1',
  'app/packaging/doxa-setup/personal-ui/AI-PRIVACY-NOTICE.txt',
+ 'app/packaging/doxa-setup/personal-ui/DOXA-SETUP-TERMS.txt',
  'app/packaging/doxa-setup/personal-ui/LOCAL-CHECK-NOTICE.txt',
  'app/packaging/doxa-setup/personal-ui/Show-DoxaConnectionGuide.ps1',
  'app/packaging/doxa-setup/personal-ui/Get-DoxaCompatibility.ps1',

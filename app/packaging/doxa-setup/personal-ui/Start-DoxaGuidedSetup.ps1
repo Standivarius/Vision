@@ -27,7 +27,7 @@ $languageChoice.SetBounds(549,39,168,31)
 $languageChoice.DropDownStyle='DropDownList'
 $languageChoice.AccessibleName='Setup language / Limba instalarii'
 [void]$languageChoice.Items.Add('English')
-[void]$languageChoice.Items.Add('Română')
+[void]$languageChoice.Items.Add('Romana')
 $languageChoice.SelectedIndex=if($Language -eq 'ro'){1}else{0}
 $languageChoice.TabIndex=0
 $form.Controls.Add($languageChoice)
@@ -45,35 +45,57 @@ $form.Controls.Add($step)
 $explanation=New-Object Windows.Forms.Label
 $explanation.SetBounds(35,139,670,62)
 $form.Controls.Add($explanation)
+# Keep checkbox glyphs in their own equal-width column. Separate labels are
+# top-aligned, and clicking any label toggles its checkbox.
 $terms=New-Object Windows.Forms.CheckBox
-$terms.SetBounds(35,207,457,31)
-$terms.Text='I agree to the Doxa Setup private preview terms.'
+$terms.SetBounds(35,211,23,23)
+$terms.Text=''
+$terms.AccessibleName='I agree to the Doxa Setup Terms of Use'
 $terms.TabIndex=1
 $form.Controls.Add($terms)
+$termsLabel=New-Object Windows.Forms.Label
+$termsLabel.SetBounds(64,209,421,31)
+$termsLabel.Text='I agree to the Doxa Setup Terms of Use.'
+$termsLabel.Add_Click({$terms.Checked=(-not $terms.Checked)})
+$form.Controls.Add($termsLabel)
 $termsLink=New-Object Windows.Forms.LinkLabel
 $termsLink.SetBounds(499,209,203,28)
-$termsLink.Text='View terms'
+$termsLink.Text='Read Terms of Use'
 $termsLink.LinkColor=$teal
+$termsLink.TabIndex=2
 $termsLink.Add_LinkClicked({
- $termsText=T 'PRIVATE PREVIEW. DMR Ergonomics S.R.L. (Standivarius). Local checks require separate consent. Online AI is optional. A healthy signed driver is preserved. Installing a missing driver requires separate Windows approval. You may exit or uninstall the app without removing the driver.' 'EVALUARE PRIVATA. DMR Ergonomics S.R.L. (Standivarius). Verificarile locale necesita acord. AI online este optional. Driverul semnat functional este pastrat. Instalarea unui driver lipsa necesita aprobare Windows separata. Dezinstalarea aplicatiei nu elimina driverul.'
- [Windows.Forms.MessageBox]::Show($termsText,(T 'Doxa preview terms' 'Conditii Doxa'))|Out-Null
+ $file=Join-Path $PSScriptRoot 'DOXA-SETUP-TERMS.txt'
+ $message=if(Test-Path -LiteralPath $file){Get-Content -LiteralPath $file -Raw -Encoding UTF8}else{'Terms of Use are unavailable. Close Doxa Setup until they can be read.'}
+ $window=New-Object System.Windows.Forms.Form
+ $window.Text='Doxa Setup - Terms of Use'
+ $window.StartPosition='CenterParent';$window.ClientSize=New-Object Drawing.Size(760,520)
+ $window.MinimumSize=New-Object Drawing.Size(510,350)
+ $window.FormBorderStyle='Sizable';$window.Font=New-Object Drawing.Font('Segoe UI',10)
+ $copy=New-Object System.Windows.Forms.TextBox
+ $copy.Dock='Fill';$copy.Multiline=$true;$copy.ReadOnly=$true
+ $copy.ScrollBars='Vertical';$copy.WordWrap=$true;$copy.Text=$message
+ $window.Controls.Add($copy);[void]$window.ShowDialog($form);$window.Dispose()
 })
 $form.Controls.Add($termsLink)
 $local=New-Object Windows.Forms.CheckBox
-$local.SetBounds(35,241,672,42)
-$local.Text='I allow local read-only checks of Windows version, USB controllers, display devices and installed driver packages.'
-$local.CheckAlign='TopLeft'
-$local.TabIndex=1
-$local.AccessibleName='Local read-only diagnostics permission'
+$local.SetBounds(35,250,23,23)
+$local.Text=''
+$local.TabIndex=3
+$local.AccessibleName='Allow local read-only Windows USB display and driver checks'
 # Native host already asked for this exact permission. Keep visible for
 # transparency, but do not ask the person to approve it twice.
 if($LocalConsentAlreadyGranted){$local.Checked=$true;$local.Enabled=$false}
 $form.Controls.Add($local)
+$localLabel=New-Object Windows.Forms.Label
+$localLabel.SetBounds(64,247,641,40)
+$localLabel.Text='I allow local read-only Windows, USB, display and driver checks.'
+$localLabel.Add_Click({if($local.Enabled){$local.Checked=(-not $local.Checked)}})
+$form.Controls.Add($localLabel)
 $localDetails=New-Object System.Windows.Forms.LinkLabel
-$localDetails.SetBounds(35,281,671,26)
+$localDetails.SetBounds(64,291,641,26)
 $localDetails.Text='What does this local check read?'
 $localDetails.LinkColor=$teal
-$localDetails.TabIndex=2
+$localDetails.TabIndex=4
 $localDetails.AccessibleName='Read the local device-check information before agreeing'
 $localDetails.Add_LinkClicked({
  $file=Join-Path $PSScriptRoot 'LOCAL-CHECK-NOTICE.txt'
@@ -89,23 +111,28 @@ $localDetails.Add_LinkClicked({
 })
 $form.Controls.Add($localDetails)
 $cloud=New-Object Windows.Forms.CheckBox
-$cloud.SetBounds(35,312,674,71)
-$cloud.Text='Optional remote AI: send the question you type and limited Windows/Doxa diagnostic facts over HTTPS to a Cloudflare-hosted AI service. No screenshots, raw USB identifiers or passwords. You can continue without AI.'
-$cloud.TabIndex=3
-$cloud.AccessibleName='Optional online AI permission'
+$cloud.SetBounds(35,327,23,23)
+$cloud.Text=''
+$cloud.TabIndex=5
+$cloud.AccessibleName='Enable optional Online AI Help'
 $form.Controls.Add($cloud)
+$cloudLabel=New-Object Windows.Forms.Label
+$cloudLabel.SetBounds(64,321,641,57)
+$cloudLabel.Text='Optional Online AI Help: sends a typed question and limited diagnostic data. No screenshots or passwords.'
+$cloudLabel.Add_Click({if($cloud.Enabled){$cloud.Checked=(-not $cloud.Checked)}})
+$form.Controls.Add($cloudLabel)
 $policyScript=Join-Path $PSScriptRoot 'Get-DoxaCloudAIPolicy.ps1'
 $policy=(& $policyScript|Out-String)|ConvertFrom-Json
 if(-not [bool]$policy.online_ai_selectable){
  $cloud.Checked=$false
  $cloud.Enabled=$false
- $cloud.Text=if([bool]$policy.online_ai_selectable){
+ $cloudLabel.Text=if([bool]$policy.online_ai_selectable){
   'Cloud AI is disabled by your organization. Offline Doxa setup is available.'
  }else{'Cloud AI is disabled by your organization. Offline Doxa setup is available.'}
 }
 $privacy=New-Object System.Windows.Forms.LinkLabel
-$privacy.Text='What is sent to cloud AI? Privacy and AI details'
-$privacy.SetBounds(35,388,660,25)
+$privacy.Text='Privacy details for Online AI Help'
+$privacy.SetBounds(64,386,641,26)
 $privacy.LinkColor=$teal
 $privacy.Add_LinkClicked({
  $noticeFile=Join-Path $PSScriptRoot 'AI-PRIVACY-NOTICE.txt'
@@ -122,14 +149,14 @@ $privacy.Add_LinkClicked({
  [void]$window.ShowDialog($form)
  $window.Dispose()
 })
-$privacy.TabIndex=4
+$privacy.TabIndex=6
 $privacy.AccessibleName='Privacy details'
 $form.Controls.Add($privacy)
 $back=New-Object Windows.Forms.Button
 $back.Text='Back'
 $back.SetBounds(390,423,123,45)
 $back.Enabled=$false;$back.Visible=$false
-$back.TabIndex=7
+$back.TabIndex=8
 $back.AccessibleName='Back'
 $form.Controls.Add($back)
 $next=New-Object Windows.Forms.Button
@@ -137,7 +164,7 @@ $next.Text='Continue'
 $next.SetBounds(532,423,160,45)
 $next.BackColor=$teal
 $next.ForeColor=[Drawing.Color]::White
-$next.TabIndex=8
+$next.TabIndex=7
 $next.AccessibleName='Continue'
 $form.AcceptButton=$next
 $form.Controls.Add($next)
@@ -152,13 +179,13 @@ function ShowStep {
  $title.Text=T 'Doxa Setup' 'Configurare Doxa'
  $languageLabel.Text=T 'Language' 'Limba'
  $step.Text=T 'Terms, permissions and privacy' 'Conditii, permisiuni si confidentialitate'
- $explanation.Text=T 'Accept the preview terms and allow local read-only checks. Cloud AI is optional. Changing a driver always requires separate Windows approval.' 'Accepta conditiile de evaluare si permite verificarile locale. AI online este optional. Modificarea driverului necesita aprobare Windows separata.'
- $terms.Text=T 'I agree to the Doxa Setup private preview terms.' 'Accept conditiile de evaluare Doxa Setup.'
- $termsLink.Text=T 'View terms' 'Citeste conditiile'
- $local.Text=T 'I allow local read-only Windows, USB, display and driver checks.' 'Permit verificari locale pentru Windows, USB, ecrane si drivere.'
+ $explanation.Text=T 'Read the Terms of Use and allow local read-only checks. Online AI Help is optional. Driver changes require separate Windows approval.' 'Citeste conditiile si permite verificarile locale. Ajutorul AI online este optional. Driverul necesita aprobare Windows separata.'
+ $termsLabel.Text=T 'I agree to the Doxa Setup Terms of Use.' 'Accept Conditiile de utilizare Doxa Setup.'
+ $termsLink.Text=T 'Read Terms of Use' 'Citeste conditiile'
+ $localLabel.Text=T 'I allow local read-only Windows, USB, display and driver checks.' 'Permit verificari locale pentru Windows, USB, ecrane si drivere.'
  $localDetails.Text=T 'What does this local check read?' 'Ce citeste verificarea locala?'
- $cloud.Text=if($policy.online_ai_selectable){T 'Optional cloud AI: sends a typed question and limited diagnostic data. No screenshots or passwords.' 'AI online optional: trimite intrebari si date limitate, fara capturi sau parole.'}else{T 'Cloud AI is unavailable or disabled. Offline Doxa Help remains available.' 'AI online este dezactivat. Ajutorul Doxa offline ramane disponibil.'}
- $privacy.Text=T 'Cloud AI privacy details' 'Confidentialitate AI online'
+ $cloudLabel.Text=if($policy.online_ai_selectable){T 'Optional Online AI Help: sends a typed question and limited diagnostic data. No screenshots or passwords.' 'Ajutor AI online optional: trimite intrebarile si date limitate, fara capturi sau parole.'}else{T 'Online AI Help is unavailable or disabled. Offline Doxa Help remains available.' 'Ajutorul AI online este dezactivat. Ajutorul offline ramane disponibil.'}
+ $privacy.Text='Privacy details for Online AI Help'
  $next.Text=T 'Continue to Doxa' 'Continua la Doxa'
  $back.Visible=$false
 }
@@ -170,7 +197,7 @@ $languageChoice.Add_SelectedIndexChanged({
 $next.Add_Click({
  if($script:finished){return}
  if(-not $terms.Checked -or -not $local.Checked){
-  if(-not ($JourneyTest -or $SeamlessTest)){[Windows.Forms.MessageBox]::Show((T 'Please accept the preview terms and allow local checks.' 'Accepta conditiile si aproba verificarile locale.'),'Doxa Setup')|Out-Null}
+  if(-not ($JourneyTest -or $SeamlessTest)){[Windows.Forms.MessageBox]::Show((T 'Please accept the Terms of Use and allow local checks.' 'Accepta conditiile si aproba verificarile locale.'),'Doxa Setup')|Out-Null}
   return
  }
  $script:localAllowed=$true
@@ -211,7 +238,7 @@ if(-not ($Smoke -or $JourneyTest -or $SeamlessTest)){
  $height=[Math]::Min(615,[Math]::Max(510,[Windows.Forms.Screen]::PrimaryScreen.WorkingArea.Height-48))
  $form.ClientSize=New-Object Drawing.Size(1060,$height)
  $form.BackColor=[Drawing.Color]::White
- foreach($ctl in @($title,$step,$explanation,$terms,$termsLink,$local,$localDetails,$cloud,$privacy,$back,$next,$languageChoice,$languageLabel)){
+ foreach($ctl in @($title,$step,$explanation,$terms,$termsLabel,$termsLink,$local,$localLabel,$localDetails,$cloud,$cloudLabel,$privacy,$back,$next,$languageChoice,$languageLabel)){
   $ctl.Left+=155;$ctl.Top+=42
  }
  $logoFile=Join-Path $PSScriptRoot 'assets\standivarius-official-logo.png'
@@ -233,7 +260,15 @@ if($Smoke){
  cloud_ai_default=$cloud.Checked;remote_ai_default=$cloud.Checked;language=$script:lang;
  local_checks_before_consent=$false;cloud_ai_before_consent=$false;
  privacy_details_available=(Test-Path (Join-Path $PSScriptRoot 'AI-PRIVACY-NOTICE.txt'));
- local_check_details_available=(Test-Path (Join-Path $PSScriptRoot 'LOCAL-CHECK-NOTICE.txt'));
+ terms_of_use_available=(Test-Path (Join-Path $PSScriptRoot 'DOXA-SETUP-TERMS.txt'));
+  checkbox_alignment_pass=($terms.Left -eq $local.Left -and $local.Left -eq $cloud.Left -and
+    $termsLabel.Left -eq $localLabel.Left -and $localLabel.Left -eq $cloudLabel.Left -and
+    [Math]::Abs($terms.Top-$termsLabel.Top) -le 5 -and
+    [Math]::Abs($local.Top-$localLabel.Top) -le 5 -and
+    [Math]::Abs($cloud.Top-$cloudLabel.Top) -le 8);
+  terms_checkbox_text=$termsLabel.Text;
+  online_privacy_link_text=$privacy.Text;
+  local_check_details_available=(Test-Path (Join-Path $PSScriptRoot 'LOCAL-CHECK-NOTICE.txt'));
  accept_button_set=([object]::ReferenceEquals($form.AcceptButton,$next));language_count=$languageChoice.Items.Count;
  tab_order=@($languageChoice.TabIndex,$terms.TabIndex,$local.TabIndex,$localDetails.TabIndex,$cloud.TabIndex,$privacy.TabIndex,$next.TabIndex,$back.TabIndex)}|ConvertTo-Json -Compress
  $form.Dispose();return

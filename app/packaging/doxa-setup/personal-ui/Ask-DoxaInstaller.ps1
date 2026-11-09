@@ -53,17 +53,35 @@ try{
  # Create the signing identity automatically on first online use. The private
  # key stays DPAPI-encrypted in this Windows profile and is never transmitted.
  $identity=(& $identityScript -PrepareEnrollment | Out-String)|ConvertFrom-Json
- $signature=(& $identityScript -SignBody $body | Out-String)|ConvertFrom-Json
- if([string]$identity.client_id -cne [string]$signature.client_id){throw 'Signing identity mismatch'}
  $publicText=$identity.public_jwk|Select-Object kty,alg,n,e|ConvertTo-Json -Compress
  $publicHeader=[Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes($publicText)).TrimEnd('=').Replace('+','-').Replace('/','_')
- $headers=@{
-  'x-doxa-timestamp'=[string]$signature.timestamp
-  'x-doxa-signature'=[string]$signature.signature
-  'x-doxa-client-id'=[string]$signature.client_id
-  'x-doxa-public-jwk'=$publicHeader
+ $sendSigned={
+  param([long]$serverTimestamp=0)
+  $options=@{SignBody=$body}
+  if($serverTimestamp -gt 0){$options.TimestampOverride=$serverTimestamp}
+  $signature=(& $identityScript @options | Out-String)|ConvertFrom-Json
+  if([string]$identity.client_id -cne [string]$signature.client_id){throw 'Signing identity mismatch'}
+  $headers=@{
+   'x-doxa-timestamp'=[string]$signature.timestamp
+   'x-doxa-signature'=[string]$signature.signature
+   'x-doxa-client-id'=[string]$signature.client_id
+   'x-doxa-public-jwk'=$publicHeader
+  }
+  Invoke-RestMethod -Method Post -Uri $approved -Headers $headers -ContentType 'application/json; charset=utf-8' -Body ([Text.Encoding]::UTF8.GetBytes($body)) -TimeoutSec ([Math]::Max(1,[Math]::Min($TimeoutSec,40)))
  }
- $res=Invoke-RestMethod -Method Post -Uri $approved -Headers $headers -ContentType 'application/json; charset=utf-8' -Body ([Text.Encoding]::UTF8.GetBytes($body)) -TimeoutSec ([Math]::Max(1,[Math]::Min($TimeoutSec,40)))
+ try{$res=& $sendSigned 0}catch{
+  # A computer with an incorrect system clock can fail the server's 2-minute
+  # signature window. Retry ONCE using the trusted HTTPS response Date header;
+  # never change Windows time or skip proof-of-possession signing.
+  $http=0
+  try{if($_.Exception.Response){$http=[int]$_.Exception.Response.StatusCode}}catch{}
+  if($http -ne 401){throw}
+  $health=Invoke-WebRequest -UseBasicParsing -Method Get -Uri 'https://doxa-installer-assistant.marius-moldovan.workers.dev/health' -TimeoutSec 10
+  $dateValue=[string]$health.Headers['Date']
+  if([string]::IsNullOrWhiteSpace($dateValue)){throw 'Doxa AI time synchronisation unavailable'}
+  $serverNow=[DateTimeOffset]::Parse($dateValue,[Globalization.CultureInfo]::InvariantCulture).ToUnixTimeSeconds()
+  $res=& $sendSigned $serverNow
+ }
  if([string]$res.status -in @('knowledge_gap','out_of_scope') -and [string]$res.answer){Result ([string]$res.status) ([string]$res.answer);return}
  if([string]$res.mode -ne 'read_only_guidance' -or [string]::IsNullOrWhiteSpace([string]$res.answer)){Result 'unsupported_gateway_response' '';return}
  $answer=[string]$res.answer
@@ -74,8 +92,8 @@ try{
  $http=0
  try{if($_.Exception.Response){$http=[int]$_.Exception.Response.StatusCode}}catch{}
  $category=switch($http){
-  401 {'device_not_approved'}
-  403 {'device_not_approved'}
+  401 {'authentication_failed'}
+  403 {'request_denied'}
   429 {'rate_limited'}
   502 {'service_unavailable'}
   503 {'service_unavailable'}

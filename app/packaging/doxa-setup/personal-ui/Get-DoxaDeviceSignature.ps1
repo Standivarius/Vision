@@ -1,7 +1,8 @@
 ﻿param(
  [switch]$PublicOnly,
  [switch]$PrepareEnrollment,
- [string]$SignBody
+ [string]$SignBody,
+ [long]$TimestampOverride=0
 )
 # Automatic first-use identity: no vendor endpoint mutation and no manual approval.
 # Every installation maintains its own DPAPI-encrypted private signing key in
@@ -42,19 +43,35 @@ function NewDeviceKey {
   [Array]::Clear($raw,0,$raw.Length)
  }finally{$rsa.Dispose()}
 }
-if($PrepareEnrollment){
- if(-not(Test-Path -LiteralPath $keyFile)){NewDeviceKey}
- elseif(-not(Test-Path -LiteralPath $localPublic) -and -not(Test-Path -LiteralPath $legacyPublic)){
-  throw 'Key exists but public identity is missing; manual recovery required'
- }
+# Previous installer builds could leave an encrypted private key without its
+# matching public-key file. Recreate ONLY the public component from that key;
+# never substitute the bundled Dell public key or erase a private identity.
+function RestoreLocalPublicKey {
+ if(-not(Test-Path -LiteralPath $keyFile)){throw 'No signing key exists to recover'}
+ $encrypted=[IO.File]::ReadAllBytes($keyFile)
+ $plain=[Security.Cryptography.ProtectedData]::Unprotect($encrypted,$null,[Security.Cryptography.DataProtectionScope]::CurrentUser)
+ $rsa=New-Object Security.Cryptography.RSACryptoServiceProvider
+ try{
+  $rsa.PersistKeyInCsp=$false
+  $rsa.ImportCspBlob($plain)
+  $parameters=$rsa.ExportParameters($false)
+  $jwk=[ordered]@{kty='RSA';alg='RS256';n=(Base64Url $parameters.Modulus);e=(Base64Url $parameters.Exponent);ext=$true}
+  $temporary=$localPublic+'.'+[guid]::NewGuid().ToString('N')+'.tmp'
+  try{
+   [IO.File]::WriteAllText($temporary,($jwk|ConvertTo-Json -Compress),[Text.UTF8Encoding]::new($false))
+   if(-not(Test-Path -LiteralPath $localPublic)){[IO.File]::Move($temporary,$localPublic)}
+  }finally{if(Test-Path -LiteralPath $temporary){Remove-Item -LiteralPath $temporary -Force}}
+ }finally{$rsa.Dispose();[Array]::Clear($plain,0,$plain.Length)}
+}
+if($PrepareEnrollment -and -not(Test-Path -LiteralPath $keyFile)){NewDeviceKey}
+if(Test-Path -LiteralPath $keyFile){
+ if(-not(Test-Path -LiteralPath $localPublic)){RestoreLocalPublicKey}
 }
 if(-not(Test-Path -LiteralPath $keyFile)){
- throw 'Doxa online AI is not enrolled on this Windows profile. Offline setup is available; an operator must approve this device for online assistance.'
+ throw 'No Online AI identity exists in this Windows profile. Start Doxa Setup and select Online AI Help to create one automatically.'
 }
-# Existing Dell remains valid with the original bundle public JWK. New machines
-# export a different JWK inside the per-user vault; never overwrite bundled Dell identity.
-$keyPath=if(Test-Path -LiteralPath $localPublic){$localPublic}else{$legacyPublic}
-if(-not(Test-Path -LiteralPath $keyPath)){throw 'Public identity missing; refusing to sign'}
+$keyPath=$localPublic
+if(-not(Test-Path -LiteralPath $keyPath)){throw 'Online AI public identity could not be recovered'}
 $jwk=ReadJwk $keyPath
 $clientId=DeviceId $jwk
 if($PublicOnly -or $PrepareEnrollment){
@@ -71,7 +88,7 @@ try{
  # Fail closed if the private key is inconsistent with the persisted public identity.
  $pub=$rsa.ExportParameters($false)
  if((Base64Url $pub.Modulus) -cne [string]$jwk.n){throw 'Stored Doxa private/public key mismatch'}
- $timestamp=[DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
+ $timestamp=if($TimestampOverride -gt 0){$TimestampOverride}else{[DateTimeOffset]::UtcNow.ToUnixTimeSeconds()}
  $data=[Text.Encoding]::UTF8.GetBytes(([string]$timestamp)+[char]10+$SignBody)
  $signature=$rsa.SignData($data,[Security.Cryptography.SHA256]::Create())
  [ordered]@{client_id=$clientId;timestamp=$timestamp;signature=(Base64Url $signature)}|ConvertTo-Json -Compress

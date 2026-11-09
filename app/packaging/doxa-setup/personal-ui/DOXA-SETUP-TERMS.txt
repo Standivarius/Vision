@@ -1,0 +1,29 @@
+DOXA SETUP - TERMS OF USE
+Version: 9 November 2026
+
+Provider
+Doxa Setup is provided by DMR Ergonomics S.R.L., trading as Standivarius, Calea Circumvalatiunii 37, Sc B, 6th floor, Apt 27, 300671 Timisoara, Romania. For assistance contact office@standivarius.com.
+
+1. Purpose and permitted use
+Doxa Setup helps you connect, detect and configure Doxa portable monitors on a compatible Windows computer. You may use the installer and its documentation for your own Doxa equipment or for equipment you administer with permission. Do not modify or redistribute the installer except where separately authorised by the supplier or applicable law.
+
+2. What the installer does
+With your permission, Setup reads limited Windows, USB, display and driver information to identify whether Doxa and its driver are present. It does not automatically rearrange your Windows displays. Connecting Doxa power and USB data is a physical step under your control.
+
+3. Drivers and administrator permission
+The installer includes a Silicon Motion driver package that must retain its original digital signature. The driver is a third-party component subject to the manufacturer's applicable terms. Driver installation or repair is only proposed where appropriate; Windows may separately request administrator permission. You can decline it. Setup should not replace a healthy signed driver merely to complete an installation demonstration. Some installations or repairs may require a controlled restart by Windows or IT.
+
+4. Optional Online AI Help
+Doxa AI is an automated assistant, not a human technician. It can suggest setup or troubleshooting steps but may be wrong and cannot install drivers or change Windows settings. The feature is optional and requires a separate choice. If enabled, your typed question and limited diagnostic information are transmitted to a Cloudflare-hosted service. Review 'Privacy details for Online AI Help' before enabling it. Do not include passwords, confidential material or unnecessary personal information in questions. Offline help remains available when Online AI Help is disabled or unavailable.
+
+5. Updates and workplace use
+A newer installer or service update may become available. New software and driver changes are not installed automatically merely because Online AI Help is used. Your organisation's Windows application-control, deployment and security policies take precedence. IT administrators should validate signed versions before deploying them through Intune or ManageEngine.
+
+6. Compatibility and safe operation
+Doxa functionality depends on the computer, ports, cables, driver, Windows version, power and display configuration. Detection in Windows is not proof that every physical screen is correctly arranged or operating in Extend mode. Follow the on-screen checks, save your work before any installation, and contact support if driver or display behaviour is unexpected. Do not disable Windows security protection to install this software.
+
+7. Removal, support and rights
+Uninstalling the Doxa Setup application does not by itself remove a healthy Silicon Motion display driver. Contact office@standivarius.com for help, questions or complaints. Your rights under applicable consumer-protection, product-warranty and data-protection laws are not restricted by these terms. The terms do not replace any separate sales contract, hardware warranty, or enterprise agreement.
+
+8. Release status
+The current unsigned build is provided for controlled owner evaluation, not general commercial or unattended enterprise distribution. Public deployment requires a publisher-signed installer and the necessary vendor redistribution and legal approvals. This release-status limitation does not change the separate permissions requested for local diagnostics, Online AI Help or any Windows driver installation.

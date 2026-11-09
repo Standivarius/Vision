@@ -472,14 +472,15 @@ $aiTimer.Add_Tick({
   }else{
    $reason=[string]$reply.status
    $description=switch($reason){
-    'device_not_approved' {T 'Online AI rejected this device identity. Check device enrolment.' 'AI online a respins identitatea dispozitivului. Verifica inregistrarea.'}
+    'authentication_failed' {T 'Online AI could not verify this request (AI-401). No device registration is required. Check your PC date and time, then try again.' 'AI nu a putut verifica cererea (AI-401). Nu este necesara inregistrarea dispozitivului. Verifica data si ora PC-ului.'}
+     'request_denied' {T 'Online AI could not accept this request (AI-403). Please check permissions and try again; Offline help is available.' 'AI online nu poate accepta cererea (AI-403). Verifica permisiunile si incearca din nou.'}
     'rate_limited' {T 'Online AI request limit reached. Try again later.' 'Limita de cereri AI online a fost atinsa. Incearca mai tarziu.'}
     'service_unavailable' {T 'The Doxa AI service is temporarily unavailable.' 'Serviciul AI Doxa nu este disponibil momentan.'}
     'network_unavailable' {T 'Could not reach Doxa AI. Check the internet connection.' 'Nu am putut contacta AI Doxa. Verifica internetul.'}
     default {T 'Online AI did not return an answer. Select Offline help for local instructions.' 'AI online nu a oferit un raspuns. Selecteaza Ajutor offline pentru instructiuni locale.'}
    }
    Say 'Doxa AI' $description
-   $assistantStatus.Text=(T 'Online AI unavailable: ' 'AI online indisponibil: ')+$reason
+   $assistantStatus.Text=(T 'Online AI status: ' 'Stare AI online: ')+$reason
   }
  }catch{
   Say 'Doxa AI' (T 'Online AI response could not be read. No local answer has been substituted.' 'Raspunsul AI online nu a putut fi citit. Nu am afisat un raspuns local in loc.')

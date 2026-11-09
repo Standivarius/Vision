@@ -14,7 +14,7 @@ try{
  $manifest=Get-Content -LiteralPath (Join-Path $testRoot 'manifest.json') -Raw -Encoding UTF8|ConvertFrom-Json
  if($manifest.product -ne 'Standivarius Doxa Setup' -or $manifest.preview_version -ne '0.4.0-preview.12'){throw 'Wrong product/version'}
  if($manifest.signing_status -notmatch '^UNSIGNED preview'){throw 'Unexpected signing status'}
- if(@($manifest.files).Count -ne 21){throw 'Unexpected packaged file count'}
+ if(@($manifest.files).Count -ne 22){throw 'Unexpected packaged file count'}
  $checked=0
  foreach($item in $manifest.files){
   $path=Join-Path $testRoot ($item.file.Replace('/','\'))
@@ -39,7 +39,7 @@ try{
  $all=@(Get-ChildItem -LiteralPath $testRoot -Recurse -File)
  $forbidden=@($all|Where-Object {$_.Name -like '*.env' -or $_.Extension -in @('.msi','.dll','.cat','.sys','.dpapi','.pfx','.pem','.key') -or $_.Name -match '(token|secret|private.?key)'})
  if($forbidden.Count){throw 'Forbidden driver or credential content in ZIP'}
- if($all.Count -ne 24){throw 'Unexpected extra content in personal bundle'}
+ if($all.Count -ne 25){throw 'Unexpected extra content in personal bundle'}
  $logo=Join-Path $testRoot 'app\packaging\doxa-setup\personal-ui\assets\standivarius-official-logo.png'
  if(-not(Test-Path -LiteralPath $logo)){throw 'Official Standivarius logo missing from bundle'}
  $lab=Join-Path $testRoot 'app\packaging\doxa-setup\personal-ui\Doxa-RecoveryLab.ps1'
@@ -50,6 +50,24 @@ $mainBrand=Join-Path $testRoot 'app\packaging\doxa-setup\personal-ui\Start-DoxaS
 $brandText=[IO.File]::ReadAllText($mainBrand)
 $tabsText=[IO.File]::ReadAllText((Join-Path $testRoot 'app\packaging\doxa-setup\personal-ui\Doxa-BrandTabs.ps1'))
 $welcomeText=[IO.File]::ReadAllText((Join-Path $testRoot 'app\packaging\doxa-setup\personal-ui\Start-DoxaGuidedSetup.ps1'))
+$termsFile=Join-Path $testRoot 'app\packaging\doxa-setup\personal-ui\DOXA-SETUP-TERMS.txt'
+$noticeFile=Join-Path $testRoot 'app\packaging\doxa-setup\personal-ui\AI-PRIVACY-NOTICE.txt'
+if(-not(Test-Path $termsFile)){throw 'Terms of Use missing in customer installer'}
+$termsContent=[IO.File]::ReadAllText($termsFile)
+$noticeContent=[IO.File]::ReadAllText($noticeFile)
+if($termsContent.Length -lt 2500 -or $termsContent -notmatch 'TERMS OF USE' -or
+   $termsContent -notmatch 'Driver' -or $termsContent -notmatch 'Online AI Help' -or
+   $termsContent -notmatch 'applicable consumer-protection'){throw 'Customer terms are incomplete'}
+if($noticeContent -notmatch '^PRIVACY DETAILS FOR ONLINE AI HELP' -or
+   $noticeContent -match 'DEVELOPMENT DISCLOSURE|AI LA DISTANTA|INFORMARE DE DEZVOLTARE' -or
+   $noticeContent -notmatch 'PUBLIC RSA signing key'){throw 'Online AI Help privacy notice is stale or incomplete'}
+if($welcomeText -match 'private preview terms|PRIVATE PREVIEW|Doxa preview terms' -or
+   -not $welcomeText.Contains('DOXA-SETUP-TERMS.txt') -or
+   -not $welcomeText.Contains('$termsLabel') -or -not $welcomeText.Contains('$localLabel') -or
+   -not $welcomeText.Contains('$cloudLabel') -or
+   -not $welcomeText.Contains('Privacy details for Online AI Help')){
+ throw 'Welcome terms, checkbox alignment or privacy link are stale'
+}
 if($brandText.Contains('OpenFileDialog') -or $brandText.Contains('Choose the official Silicon Motion SMI770 MSI')){throw 'Obsolete MSI file picker is still embedded'}
 if(@($brandText,$tabsText,$welcomeText)|Where-Object{$_ -match 'TEST preview\.12'}){throw 'Customer window still shows TEST preview branding'}
 if(-not $tabsText.Contains('DoxaMaintenance-v2.exe') -or -not $tabsText.Contains("'/install'")){throw 'Protected embedded driver action is absent'}
@@ -59,6 +77,10 @@ foreach($title in @('1. Connect and Detect Doxa','2. Set up screens','3. Install
 }
 if($tabsText.Contains("'Laptop 1'") -or -not $tabsText.Contains("'Screen 1'") -or -not $tabsText.Contains("'Laptop'")){throw 'Screen 1 / Laptop diagram labels incorrect'}
 if($tabsText.Contains('Driver not verified. Connect Doxa') -or -not $tabsText.Contains('Doxa is not connected.')){throw 'Driver detection wording is misleading'}
+if($brandText.Contains('Doxa - quick offline guidance') -or $brandText.Contains('Answer $script:queuedQuestion') -or -not $brandText.Contains('Contacting Doxa AI...') -or
+   $brandText.Contains('Online AI rejected this device identity. Check device enrolment.')){
+ throw 'Online AI is substituting local answers or presenting obsolete enrolment claims'
+}
 if($brandText.Contains('Doxa - quick offline guidance') -or $brandText.Contains('Answer $script:queuedQuestion') -or -not $brandText.Contains('Contacting Doxa AI...')){
  throw 'Online AI must not be substituted with local guidance'
 }
@@ -73,7 +95,13 @@ if(-not $autoClient.Contains('-PrepareEnrollment') -or -not $autoClient.Contains
 $brandCheck=(& $mainBrand -BrandTest | Out-String)|ConvertFrom-Json
  if($brandCheck.status -ne 'PASS' -or -not $brandCheck.single_form -or $brandCheck.upper_port -ne 'power' -or $brandCheck.lower_port -ne 'data'){throw 'Packaged brand/tab contract failed'}
  $wizard=Join-Path $testRoot 'app\packaging\doxa-setup\personal-ui\Start-DoxaGuidedSetup.ps1'
- $sameWindow=(& $wizard -SeamlessTest -Language en -TestConnectionChoice connected|Out-String)|ConvertFrom-Json
+ $welcomeSmoke=(& $wizard -Smoke | Out-String)|ConvertFrom-Json
+  if(-not $welcomeSmoke.checkbox_alignment_pass -or -not $welcomeSmoke.terms_of_use_available -or
+     $welcomeSmoke.terms_checkbox_text -ne 'I agree to the Doxa Setup Terms of Use.' -or
+     $welcomeSmoke.online_privacy_link_text -ne 'Privacy details for Online AI Help'){
+    throw 'Packaged welcome checkbox alignment or terms/privacy labels failed'
+  }
+  $sameWindow=(& $wizard -SeamlessTest -Language en -TestConnectionChoice connected|Out-String)|ConvertFrom-Json
  if($sameWindow.seamless -ne 'PASS' -or -not $sameWindow.window_handle_preserved -or -not $sameWindow.detect_doxa_works -or
     -not $sameWindow.main_controls_reuse_form -or $sameWindow.driver_changes -or $sameWindow.new_form_opened){throw 'Packaged Doxa one-window journey failed'}
  $sameWindowRo=(& $wizard -SeamlessTest -Language ro -TestConnectionChoice without_doxa|Out-String)|ConvertFrom-Json
