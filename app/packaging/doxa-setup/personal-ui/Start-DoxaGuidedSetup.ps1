@@ -81,10 +81,11 @@ $termsLink.Add_LinkClicked({
  [void]$layout.RowStyles.Add((New-Object Windows.Forms.RowStyle([Windows.Forms.SizeType]::Absolute,55)))
  $footer=New-Object Windows.Forms.Panel
  $footer.Dock='Fill'
+ $footer.Padding=New-Object Windows.Forms.Padding(8,7,8,7)
  $close=New-Object Windows.Forms.Button
  $close.Text='Close'
- $close.SetBounds(646,10,106,34)
- $close.Anchor=([Windows.Forms.AnchorStyles]::Right -bor [Windows.Forms.AnchorStyles]::Top)
+ $close.Width=106
+ $close.Dock='Right'
  $close.DialogResult=[Windows.Forms.DialogResult]::OK
  $footer.Controls.Add($close)
  $window.AcceptButton=$close;$window.CancelButton=$close
@@ -98,8 +99,14 @@ $termsLink.Add_LinkClicked({
  $headingColor=[Drawing.Color]::FromArgb(157,18,51)
  $headings=[regex]::Matches($copy.Text,'(?m)^(DOXA SETUP - TERMS OF USE|Provider|[1-8]\. [^\r\n]+)\r?$')
  foreach($heading in $headings){
-  $copy.Select($heading.Index,$heading.Length)
-  $size=if($heading.Value -like 'DOXA SETUP*'){15}else{11}
+  # RichTextBox selection positions can differ from regex character indices
+  # because the Windows control normalises CRLF. Find the displayed text in
+  # the control before styling it; never accidentally emphasise body text.
+  $line=$heading.Value.TrimEnd([char]13)
+  $position=$copy.Find($line,[Windows.Forms.RichTextBoxFinds]::NoHighlight)
+  if($position -lt 0){throw ('Cannot style Terms of Use heading: '+$line)}
+  $copy.Select($position,$line.Length)
+  $size=if($line -like 'DOXA SETUP*'){15}else{11}
   $copy.SelectionFont=New-Object Drawing.Font('Segoe UI',$size,[Drawing.FontStyle]::Bold)
   $copy.SelectionColor=$headingColor
  }
