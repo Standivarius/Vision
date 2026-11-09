@@ -179,7 +179,7 @@ internal class DoxaHost {
      if(field=="files")source++;
     }
    }
-   if(source!=21||allowed.Count!=24)return false;
+   if(source!=22||allowed.Count!=25)return false;
    var files=Directory.GetFiles(folder,"*",SearchOption.AllDirectories);
    return files.Length==allowed.Count&&files.All(f=>allowed.Contains(f.Substring(folder.TrimEnd('\\').Length+1).Replace('\\','/')));
   }catch{return false;}
