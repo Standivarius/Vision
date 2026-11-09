@@ -1,0 +1,52 @@
+name: Doxa macOS guided installer
+
+on:
+  pull_request:
+    paths:
+      - 'app/packaging/doxa-setup/macos/**'
+      - '.github/workflows/doxa-macos-installer.yml'
+  push:
+    branches:
+      - master
+      - feature/doxa-macos-installer-20261109
+    paths:
+      - 'app/packaging/doxa-setup/macos/**'
+      - '.github/workflows/doxa-macos-installer.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-macos:
+    name: Native universal macOS unsigned prototype
+    runs-on: macos-15
+    timeout-minutes: 28
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check pinned vendor source and offline-only security scope
+        shell: bash
+        run: bash app/packaging/doxa-setup/macos/test-macos.sh --source-only
+      - name: Build universal native macOS application, PKG and DMG
+        shell: bash
+        run: bash app/packaging/doxa-setup/macos/build-macos.sh "$RUNNER_TEMP/doxa-macos-${GITHUB_RUN_ID}"
+      - name: Validate package file identities and provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT="$RUNNER_TEMP/doxa-macos-${GITHUB_RUN_ID}/dist"
+          test -s "$OUT/SHA256SUMS.txt"
+          test -s "$OUT/SOURCE-COMMIT.txt"
+          test "$(cat "$OUT/SOURCE-COMMIT.txt")" = "$GITHUB_SHA"
+          ! find "$OUT" -iname '*InstantView*' | grep -q .
+          find "$OUT" -maxdepth 1 -type f -print
+      - name: Upload macOS review-only build (not Apple notarised)
+        uses: actions/upload-artifact@v4
+        with:
+          name: Standivarius-Doxa-macOS-v0.1.0-UNSIGNED-REVIEW
+          path: |
+            ${{ runner.temp }}/doxa-macos-${{ github.run_id }}/dist/*.dmg
+            ${{ runner.temp }}/doxa-macos-${{ github.run_id }}/dist/*.pkg
+            ${{ runner.temp }}/doxa-macos-${{ github.run_id }}/dist/*.txt
+          retention-days: 14
+          if-no-files-found: error
