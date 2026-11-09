@@ -154,11 +154,11 @@ $brandCheck=(& $mainBrand -BrandTest | Out-String)|ConvertFrom-Json
  Set-Location -LiteralPath $env:TEMP
  try{
   $result=(& $runner -JourneyTest|Out-String)|ConvertFrom-Json
-  if($result.journey -ne 'PASS'){throw 'Extracted installer journey failed'}
+  if($result.journey -ne 'PASS' -or -not $result.fixture_only -or $result.hardware_scans -ne 0){throw 'Extracted installer journey must use a fixture and perform zero hardware scans'}
   if($result.fault_did_not_call_ai -ne $true){throw 'Simulation safety regression'}
   if($result.install_button -notin @('correct_driver_noop','connect_doxa_first')){throw 'Unsafe driver installation decision on this PC'}
   $mainRo=(& $runner -JourneyTest -Language ro | Out-String)|ConvertFrom-Json
-  if($mainRo.journey -ne 'PASS' -or $mainRo.language -ne 'ro' -or $mainRo.localized_intro -notmatch 'Pregateste' -or $mainRo.driver_changes -or $mainRo.fault_did_not_call_ai -ne $true){throw 'Packaged Romanian main UI journey failed'}
+  if($mainRo.journey -ne 'PASS' -or -not $mainRo.fixture_only -or $mainRo.hardware_scans -ne 0 -or $mainRo.language -ne 'ro' -or $mainRo.localized_intro -notmatch 'Pregateste' -or $mainRo.driver_changes -or $mainRo.fault_did_not_call_ai -ne $true){throw 'Packaged Romanian main UI journey failed'}
  }finally{Set-Location -LiteralPath $old}
  $localHelp=Join-Path $testRoot 'app\packaging\doxa-setup\personal-ui\Get-DoxaKnowledgeAnswer.ps1'
  $scopeOut=(& $localHelp -Question 'What is the weather today? Doxa driver'|Out-String)|ConvertFrom-Json
@@ -199,7 +199,7 @@ $brandCheck=(& $mainBrand -BrandTest | Out-String)|ConvertFrom-Json
   $aiStatus=[string]$reply.status
   if($aiStatus -ne 'answered'){throw ('Extracted client did not reach live Doxa AI: '+$aiStatus)}
  }
- [ordered]@{status='PASS';file_integrity_verified=$checked;archive_total_files=$all.Count;driver_payload_bundled=$false;credentials_bundled=$false;extracted_away_from_repository=$true;journey=$result.journey;simulated_fault_did_not_call_ai=$result.fault_did_not_call_ai;driver_install_prevented_safely='NOT_PHYSICALLY_TESTED';installation_button_result=$result.install_button;cloud_ai=$aiStatus;multidevice_identity_tested='PNP_FIXTURE_ONLY';bilingual_ui_verified='UI_FIXTURE_ONLY';consent_before_diagnostics=$true;same_window_navigation_passed=$true;single_window_transition=$true;single_window_transition_verified=$true}|ConvertTo-Json -Compress
+ [ordered]@{status='PASS';file_integrity_verified=$checked;archive_total_files=$all.Count;driver_payload_bundled=$false;credentials_bundled=$false;extracted_away_from_repository=$true;journey=$result.journey;simulated_fault_did_not_call_ai=$result.fault_did_not_call_ai;driver_install_prevented_safely='NOT_PHYSICALLY_TESTED';installation_button_result=$result.install_button;cloud_ai=$aiStatus;multidevice_identity_tested='PNP_FIXTURE_ONLY';journey_hardware_scans=0;bilingual_ui_verified='UI_FIXTURE_ONLY';consent_before_diagnostics=$true;same_window_navigation_passed=$true;single_window_transition=$true;single_window_transition_verified=$true}|ConvertTo-Json -Compress
 }finally{
  Set-Location -LiteralPath $before
  if(Test-Path -LiteralPath $testRoot){Remove-Item -LiteralPath $testRoot -Recurse -Force}
