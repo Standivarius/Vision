@@ -59,7 +59,7 @@ plutil -lint "$APP/Contents/Info.plist"
 # Ad-hoc only: structural signature, not identified/notarised customer software.
 codesign --force --sign - --timestamp=none "$APP"
 codesign --verify --deep --strict "$APP"
-lipo -verify_arch arm64 x86_64 "$APP/Contents/MacOS/DoxaSetup"
+lipo "$APP/Contents/MacOS/DoxaSetup" -verify_arch arm64 x86_64
 
 # PKG is unsigned and has no pre/postinstall scripts.
 PAYLOAD="$BUILD_DIR/package-root"

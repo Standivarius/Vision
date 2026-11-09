@@ -40,7 +40,7 @@ PKG="$DIST/$BASENAME.pkg"
 DMG="$DIST/$BASENAME.dmg"
 [[ -x "$APP/Contents/MacOS/DoxaSetup" ]]
 [[ -s "$PKG" && -s "$DMG" ]]
-lipo -verify_arch arm64 x86_64 "$APP/Contents/MacOS/DoxaSetup"
+lipo "$APP/Contents/MacOS/DoxaSetup" -verify_arch arm64 x86_64
 plutil -lint "$APP/Contents/Info.plist"
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Contents/Info.plist")" == "com.standivarius.doxa.setup" ]]
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist")" == "$VERSION" ]]
