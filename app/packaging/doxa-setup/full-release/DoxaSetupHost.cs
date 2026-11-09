@@ -20,6 +20,13 @@ using System.Windows.Forms;
 using System.ComponentModel;
 using Microsoft.Win32;
 
+[assembly: AssemblyTitle("Standivarius Doxa Setup")]
+[assembly: AssemblyDescription("Doxa Triple Monitor Windows Setup")]
+[assembly: AssemblyCompany("DMR Ergonomics S.R.L.")]
+[assembly: AssemblyProduct("Standivarius Doxa Setup")]
+[assembly: AssemblyVersion("0.4.0.13")]
+[assembly: AssemblyFileVersion("0.4.0.13")]
+[assembly: AssemblyInformationalVersion("0.4.0-preview.13")]
 internal class DoxaHost {
  const string Product="Standivarius Doxa Setup";
  const string Version="0.4.0-preview.13";
@@ -578,7 +585,7 @@ internal class DoxaHost {
    Trace("Error "+ex.GetType().Name+": "+ex.Message);
    Console.Error.WriteLine(ex.Message);
    if(Environment.UserInteractive && Process.GetCurrentProcess().SessionId!=0 &&
-     (arg=="/open" || arg=="/install" || arg=="/repair"))
+     (arg=="" || arg=="/open" || arg=="/install" || arg=="/repair"))
     MessageBox.Show(ex.Message,"Doxa Setup",MessageBoxButtons.OK,MessageBoxIcon.Warning);
 
    return 30;

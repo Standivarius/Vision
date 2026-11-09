@@ -13,7 +13,7 @@ $sourceCommit=((& git -C $root rev-parse HEAD)|Out-String).Trim()
 if($LASTEXITCODE -ne 0 -or $sourceCommit -notmatch '^[a-f0-9]{40}$'){throw 'Committed release-source identity unavailable'}
 $changes=@(& git -C $root status --porcelain=v1 --untracked-files=normal)
 if($LASTEXITCODE -ne 0 -or $changes.Count){throw 'Complete Doxa release requires a clean, committed Git worktree'}
-if(-not $OutputDirectory){$OutputDirectory=Join-Path $root 'artifacts\releases\complete-release-20261028'}
+if(-not $OutputDirectory){$OutputDirectory=Join-Path $env:TEMP ('DoxaCompleteRelease-'+[guid]::NewGuid().ToString('N'))}
 $expectedDriver='3379B46DA029423748E2D2E64DB2015B50136E310A492E31857CC726719192D4'
 if(-not(Test-Path $VendorMsiPath -PathType Leaf)){throw 'Missing known vendor MSI'}
 if((Get-FileHash $VendorMsiPath -Algorithm SHA256).Hash -ne $expectedDriver){throw 'Unexpected driver package fingerprint'}
@@ -26,6 +26,13 @@ if(-not $SkipIntune){
 # PSScriptRoot = doxa-setup/full-release => parent = doxa-setup
 $builder=Join-Path (Split-Path $PSScriptRoot -Parent) 'Build-DoxaPersonalBundle.ps1'
 $stamp=(Get-Date).ToUniversalTime().ToString('yyyyMMdd-HHmmss')
+# The release directory must be outside this Git worktree. Otherwise a
+# previous build would make the next clean-source validation fail.
+$checkout=([IO.Path]::GetFullPath($root)).TrimEnd('\')+'\'
+$destination=[IO.Path]::GetFullPath($OutputDirectory)
+if($destination.StartsWith($checkout,[StringComparison]::OrdinalIgnoreCase)){
+ throw 'Release output must be outside the source worktree'
+}
 if(Test-Path $OutputDirectory){throw 'Release destination already exists; refusing overwrite'}
 New-Item -ItemType Directory -Path $OutputDirectory -Force|Out-Null
 $stage=Join-Path $env:TEMP ('DoxaFullBuild-'+[Guid]::NewGuid().ToString('N'))

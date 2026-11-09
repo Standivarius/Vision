@@ -12,7 +12,14 @@ Set-StrictMode -Version Latest
 $root=(Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..')).Path
 $gitState=@(& git -C $root status --porcelain=v1 --untracked-files=normal)
 if($LASTEXITCODE -ne 0 -or $gitState.Count){throw 'Retail release requires a clean, committed Git worktree'}
-if(-not $OutputDirectory){$OutputDirectory=Join-Path $root 'artifacts\releases\retail-final'}
+if(-not $OutputDirectory){$OutputDirectory=Join-Path $env:TEMP ('DoxaRetailRelease-'+[guid]::NewGuid().ToString('N'))}
+# The release directory must be outside this Git worktree. Otherwise a
+# previous build would make the next clean-source validation fail.
+$checkout=([IO.Path]::GetFullPath($root)).TrimEnd('\')+'\'
+$destination=[IO.Path]::GetFullPath($OutputDirectory)
+if($destination.StartsWith($checkout,[StringComparison]::OrdinalIgnoreCase)){
+ throw 'Release output must be outside the source worktree'
+}
 if(Test-Path $OutputDirectory){throw 'Destination already exists; refusing overwrite'}
 $from=[IO.Path]::GetFullPath($CompleteCandidateDirectory)
 $sourceBundle=Join-Path $from 'Personal\Doxa-Complete-Windows-Setup.zip'

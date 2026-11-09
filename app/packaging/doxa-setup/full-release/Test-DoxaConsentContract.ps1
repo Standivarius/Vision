@@ -23,6 +23,8 @@ $checks=[ordered]@{
  'formatted_terms_read_only'=($guideText.Contains('Windows.Forms.RichTextBox') -and $guideText.Contains('$copy.ReadOnly=$true') -and $guideText.Contains('Windows.Forms.TableLayoutPanel') -and $guideText.Contains('RowStyles.Add') -and $guideText.Contains('Controls.Add($copy,0,0)') -and $guideText.Contains('Controls.Add($footer,0,1)') -and $guideText.Contains('$copy.DetectUrls=$false'))
  'signature_neutral_terms'=($termsText.Contains('pre-release version') -and -not $termsText.Contains('current unsigned build'))
  'preview_version_unique'=($hostText.Contains('0.4.0-preview.13') -and -not $hostText.Contains('0.4.0-preview.12'))
+ 'double_click_errors_visible'=($hostText.Contains('(arg=="" || arg=="/open" || arg=="/install" || arg=="/repair")') -and $hostText.Contains('MessageBox.Show(ex.Message'))
+ 'native_windows_file_metadata'=($hostText.Contains('AssemblyCompany("DMR Ergonomics S.R.L.")') -and $hostText.Contains('AssemblyFileVersion("0.4.0.13")') -and $hostText.Contains('AssemblyInformationalVersion("0.4.0-preview.13")'))
 }
 foreach($name in $checks.Keys){if(-not $checks[$name]){throw "Consent contract FAIL: $name"}}
 $parseErrors=$null;$tokens=$null
