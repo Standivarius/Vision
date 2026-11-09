@@ -68,13 +68,55 @@ $termsLink.Add_LinkClicked({
  $message=if(Test-Path -LiteralPath $file){Get-Content -LiteralPath $file -Raw -Encoding UTF8}else{'Terms of Use are unavailable. Close Doxa Setup until they can be read.'}
  $window=New-Object System.Windows.Forms.Form
  $window.Text='Doxa Setup - Terms of Use'
- $window.StartPosition='CenterParent';$window.ClientSize=New-Object Drawing.Size(760,520)
- $window.MinimumSize=New-Object Drawing.Size(510,350)
- $window.FormBorderStyle='Sizable';$window.Font=New-Object Drawing.Font('Segoe UI',10)
- $copy=New-Object System.Windows.Forms.TextBox
- $copy.Dock='Fill';$copy.Multiline=$true;$copy.ReadOnly=$true
- $copy.ScrollBars='Vertical';$copy.WordWrap=$true;$copy.Text=$message
- $window.Controls.Add($copy);[void]$window.ShowDialog($form);$window.Dispose()
+ $window.StartPosition='CenterParent';$window.ClientSize=New-Object Drawing.Size(800,580)
+ $window.MinimumSize=New-Object Drawing.Size(540,390)
+ $window.FormBorderStyle='Sizable'
+ $window.BackColor=[Drawing.Color]::White
+ $window.Font=New-Object Drawing.Font('Segoe UI',10)
+ $window.Padding=New-Object Windows.Forms.Padding(22,18,22,14)
+ # Explicit two-row grid: the legal text can never overlap the Close footer.
+ $layout=New-Object Windows.Forms.TableLayoutPanel
+ $layout.Dock='Fill';$layout.ColumnCount=1;$layout.RowCount=2
+ [void]$layout.RowStyles.Add((New-Object Windows.Forms.RowStyle([Windows.Forms.SizeType]::Percent,100)))
+ [void]$layout.RowStyles.Add((New-Object Windows.Forms.RowStyle([Windows.Forms.SizeType]::Absolute,55)))
+ $footer=New-Object Windows.Forms.Panel
+ $footer.Dock='Fill'
+ $footer.Padding=New-Object Windows.Forms.Padding(8,7,8,7)
+ $close=New-Object Windows.Forms.Button
+ $close.Text='Close'
+ $close.Width=106
+ $close.Dock='Right'
+ $close.DialogResult=[Windows.Forms.DialogResult]::OK
+ $footer.Controls.Add($close)
+ $window.AcceptButton=$close;$window.CancelButton=$close
+ $copy=New-Object Windows.Forms.RichTextBox
+ $copy.Dock='Fill';$copy.ReadOnly=$true;$copy.WordWrap=$true
+ $copy.ScrollBars='Vertical';$copy.BorderStyle='None';$copy.DetectUrls=$false
+ $copy.BackColor=[Drawing.Color]::White
+ $copy.Font=New-Object Drawing.Font('Segoe UI',10.5)
+ $copy.Text=$message
+ # Preserve the legal text; style only its existing title and section headers.
+ $headingColor=[Drawing.Color]::FromArgb(157,18,51)
+ $headings=[regex]::Matches($copy.Text,'(?m)^(DOXA SETUP - TERMS OF USE|Provider|[1-8]\. [^\r\n]+)\r?$')
+ foreach($heading in $headings){
+  # RichTextBox selection positions can differ from regex character indices
+  # because the Windows control normalises CRLF. Find the displayed text in
+  # the control before styling it; never accidentally emphasise body text.
+  $line=$heading.Value.TrimEnd([char]13)
+  $position=$copy.Find($line,[Windows.Forms.RichTextBoxFinds]::NoHighlight)
+  if($position -lt 0){throw ('Cannot style Terms of Use heading: '+$line)}
+  $copy.Select($position,$line.Length)
+  $size=if($line -like 'DOXA SETUP*'){15}else{11}
+  $copy.SelectionFont=New-Object Drawing.Font('Segoe UI',$size,[Drawing.FontStyle]::Bold)
+  $copy.SelectionColor=$headingColor
+ }
+ $copy.Select(0,0)
+ # The scrollable text and the footer occupy separate layout rows at any size.
+ [void]$layout.Controls.Add($copy,0,0)
+ [void]$layout.Controls.Add($footer,0,1)
+ $window.Controls.Add($layout)
+ $window.ActiveControl=$copy
+ try{[void]$window.ShowDialog($form)}finally{$copy.Dispose();$window.Dispose()}
 })
 $form.Controls.Add($termsLink)
 $local=New-Object Windows.Forms.CheckBox

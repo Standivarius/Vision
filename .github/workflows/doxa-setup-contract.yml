@@ -14,7 +14,7 @@ jobs:
   read-only-contracts:
     name: Doxa installer, AI and bilingual contract checks
     runs-on: windows-2022
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -45,6 +45,37 @@ jobs:
             & .\app\packaging\doxa-setup\personal-ui\Start-DoxaGuidedSetup.ps1 -SeamlessTest -Language $language
             if (-not $?) { throw "One-window test failed for $language" }
           }
+      - name: Active consent and Sonnet fixture regression contracts
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & .\app\packaging\doxa-setup\full-release\Test-DoxaConsentContract.ps1
+          if (-not $?) { throw 'Active first-use consent contract failed' }
+          & .\app\packaging\doxa-setup\tests\Test-DoxaSonnetRemediation.ps1 -FixtureOnly
+          if (-not $?) { throw 'Driver and AI-policy fixture contract failed' }
+      - name: Compile active native Windows host
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $csc=Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
+          if(-not(Test-Path $csc)){throw 'Windows Framework compiler missing'}
+          $output=Join-Path $env:RUNNER_TEMP 'DoxaHostContract.dll'
+          $refs=@('/nologo','/target:library','/platform:x64',
+            '/reference:System.Windows.Forms.dll','/reference:System.Drawing.dll',
+            '/reference:System.Management.dll','/reference:System.Web.Extensions.dll',
+            '/reference:System.IO.Compression.dll','/reference:System.IO.Compression.FileSystem.dll')
+          & $csc @refs ("/out:$output") .\app\packaging\doxa-setup\full-release\DoxaSetupHost.cs
+          if($LASTEXITCODE -ne 0 -or -not(Test-Path $output)){throw 'Native Doxa host compile failed'}
+      - name: Build and validate actual embedded application bundle (offline)
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $root='.\app\packaging\doxa-setup'
+          $out=Join-Path $env:RUNNER_TEMP 'doxa-source-contract'
+          $bundle=(& "$root\Build-DoxaPersonalBundle.ps1" -OutputDirectory $out -Reproducible | Out-String)|ConvertFrom-Json
+          if($bundle.status -ne 'created'){throw 'Application bundle build failed'}
+          $validation=(& "$root\Test-DoxaPersonalBundle.ps1" -BundlePath $bundle.path | Out-String)|ConvertFrom-Json
+          if($validation.status -ne 'PASS'){throw 'Extracted application bundle validation failed'}
       - name: Explain missing commercial gates
         shell: pwsh
         run: |

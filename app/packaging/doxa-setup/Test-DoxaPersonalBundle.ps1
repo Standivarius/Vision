@@ -12,7 +12,7 @@ try{
  New-Item -ItemType Directory -Path $testRoot -Force|Out-Null
  Expand-Archive -LiteralPath $BundlePath -DestinationPath $testRoot -Force
  $manifest=Get-Content -LiteralPath (Join-Path $testRoot 'manifest.json') -Raw -Encoding UTF8|ConvertFrom-Json
- if($manifest.product -ne 'Standivarius Doxa Setup' -or $manifest.preview_version -ne '0.4.0-preview.12'){throw 'Wrong product/version'}
+ if($manifest.product -ne 'Standivarius Doxa Setup' -or $manifest.preview_version -ne '0.4.0-preview.13'){throw 'Wrong product/version'}
  if($manifest.signing_status -notmatch '^UNSIGNED preview'){throw 'Unexpected signing status'}
  if(@($manifest.files).Count -ne 22){throw 'Unexpected packaged file count'}
  $checked=0
@@ -67,6 +67,16 @@ if($welcomeText -match 'private preview terms|PRIVATE PREVIEW|Doxa preview terms
    -not $welcomeText.Contains('$cloudLabel') -or
    -not $welcomeText.Contains('Privacy details for Online AI Help')){
  throw 'Welcome terms, checkbox alignment or privacy link are stale'
+}
+# A plain multiline TextBox makes all legal sections appear as a single block.
+# Retain the original wording, but require a scrollable, formatted read-only view.
+$sectionCount=([regex]::Matches($termsContent,'(?m)^[1-8]\. [^\r\n]+')).Count
+if($sectionCount -ne 8 -or
+   -not $welcomeText.Contains('New-Object Windows.Forms.RichTextBox') -or
+   -not $welcomeText.Contains('$copy.SelectionFont') -or
+   -not $welcomeText.Contains('$copy.ReadOnly=$true') -or
+   -not $welcomeText.Contains('$window.MinimumSize')){
+ throw 'Formatted, accessible Terms of Use presentation is missing'
 }
 if($brandText.Contains('OpenFileDialog') -or $brandText.Contains('Choose the official Silicon Motion SMI770 MSI')){throw 'Obsolete MSI file picker is still embedded'}
 if(@($brandText,$tabsText,$welcomeText)|Where-Object{$_ -match 'TEST preview\.12'}){throw 'Customer window still shows TEST preview branding'}
@@ -144,11 +154,11 @@ $brandCheck=(& $mainBrand -BrandTest | Out-String)|ConvertFrom-Json
  Set-Location -LiteralPath $env:TEMP
  try{
   $result=(& $runner -JourneyTest|Out-String)|ConvertFrom-Json
-  if($result.journey -ne 'PASS'){throw 'Extracted installer journey failed'}
+  if($result.journey -ne 'PASS' -or -not $result.fixture_only -or $result.hardware_scans -ne 0){throw 'Extracted installer journey must use a fixture and perform zero hardware scans'}
   if($result.fault_did_not_call_ai -ne $true){throw 'Simulation safety regression'}
   if($result.install_button -notin @('correct_driver_noop','connect_doxa_first')){throw 'Unsafe driver installation decision on this PC'}
   $mainRo=(& $runner -JourneyTest -Language ro | Out-String)|ConvertFrom-Json
-  if($mainRo.journey -ne 'PASS' -or $mainRo.language -ne 'ro' -or $mainRo.localized_intro -notmatch 'Pregateste' -or $mainRo.driver_changes -or $mainRo.fault_did_not_call_ai -ne $true){throw 'Packaged Romanian main UI journey failed'}
+  if($mainRo.journey -ne 'PASS' -or -not $mainRo.fixture_only -or $mainRo.hardware_scans -ne 0 -or $mainRo.language -ne 'ro' -or $mainRo.localized_intro -notmatch 'Pregateste' -or $mainRo.driver_changes -or $mainRo.fault_did_not_call_ai -ne $true){throw 'Packaged Romanian main UI journey failed'}
  }finally{Set-Location -LiteralPath $old}
  $localHelp=Join-Path $testRoot 'app\packaging\doxa-setup\personal-ui\Get-DoxaKnowledgeAnswer.ps1'
  $scopeOut=(& $localHelp -Question 'What is the weather today? Doxa driver'|Out-String)|ConvertFrom-Json
@@ -169,7 +179,18 @@ $brandCheck=(& $mainBrand -BrandTest | Out-String)|ConvertFrom-Json
   if($signature.client_id -ne $identity.client_id -or $signature.signature.Length -lt 300){throw 'Offline test identity cannot sign'}
  }finally{$env:LOCALAPPDATA=$oldAppData}
  $compatScript=Join-Path $testRoot 'app\packaging\doxa-setup\personal-ui\Get-DoxaCompatibility.ps1'
- $compat=(& $compatScript -ConnectionChoice without_doxa|Out-String)|ConvertFrom-Json
+ # This is a packaged-source contract, never a live PnP enumeration test.
+  $fixturePath=Join-Path $testRoot 'doxa-compatibility-fixture.json'
+  $fixture=[ordered]@{
+    origin='fixture';windows_build=26100;architecture='64-bit'
+    usb_host_controller_count=1;usb3_controller_detected=$true
+    doxa_state=@{observed=@{
+      driver_package_in_store=$false;doxa_hardware_detected=$false
+      pnp_doxa_panels=@();signed_driver_present=$false;physical_display_topology_verified=$false
+    }}
+  }
+  [IO.File]::WriteAllText($fixturePath,($fixture|ConvertTo-Json -Depth 8),[Text.UTF8Encoding]::new($false))
+  $compat=(& $compatScript -ConnectionChoice without_doxa -EvidencePath $fixturePath|Out-String)|ConvertFrom-Json
  if(-not $compat.read_only -or $compat.prestage_msi_qualified -or $compat.usb_c_port_physically_verified){throw 'Portable PC precheck overclaimed compatibility'}
  $aiStatus='not_requested'
  if($LiveAI){
@@ -178,7 +199,7 @@ $brandCheck=(& $mainBrand -BrandTest | Out-String)|ConvertFrom-Json
   $aiStatus=[string]$reply.status
   if($aiStatus -ne 'answered'){throw ('Extracted client did not reach live Doxa AI: '+$aiStatus)}
  }
- [ordered]@{status='PASS';file_integrity_verified=$checked;archive_total_files=$all.Count;driver_payload_bundled=$false;credentials_bundled=$false;extracted_away_from_repository=$true;journey=$result.journey;simulated_fault_did_not_call_ai=$result.fault_did_not_call_ai;driver_install_prevented_safely='NOT_PHYSICALLY_TESTED';installation_button_result=$result.install_button;cloud_ai=$aiStatus;multidevice_identity_tested='PNP_FIXTURE_ONLY';bilingual_ui_verified='UI_FIXTURE_ONLY';consent_before_diagnostics=$true;same_window_navigation_passed=$true;single_window_transition=$true;single_window_transition_verified=$true}|ConvertTo-Json -Compress
+ [ordered]@{status='PASS';file_integrity_verified=$checked;archive_total_files=$all.Count;driver_payload_bundled=$false;credentials_bundled=$false;extracted_away_from_repository=$true;journey=$result.journey;simulated_fault_did_not_call_ai=$result.fault_did_not_call_ai;driver_install_prevented_safely='NOT_PHYSICALLY_TESTED';installation_button_result=$result.install_button;cloud_ai=$aiStatus;multidevice_identity_tested='PNP_FIXTURE_ONLY';journey_hardware_scans=0;bilingual_ui_verified='UI_FIXTURE_ONLY';consent_before_diagnostics=$true;same_window_navigation_passed=$true;single_window_transition=$true;single_window_transition_verified=$true}|ConvertTo-Json -Compress
 }finally{
  Set-Location -LiteralPath $before
  if(Test-Path -LiteralPath $testRoot){Remove-Item -LiteralPath $testRoot -Recurse -Force}

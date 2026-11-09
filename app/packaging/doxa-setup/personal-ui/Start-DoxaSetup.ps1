@@ -22,6 +22,18 @@ Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 [Windows.Forms.Application]::EnableVisualStyles()
 $diagnose=Join-Path $PSScriptRoot 'Get-DoxaSetupExperience.ps1'
+# Journey test is deterministic and cannot query PnP or replace a healthy driver.
+$script:journeyEvidencePath=$null
+if($JourneyTest -or $EmbeddedSmoke){
+ $script:journeyEvidencePath=Join-Path $env:TEMP ('doxa-journey-fixture-'+[guid]::NewGuid().ToString('N')+'.json')
+ $fixture=[ordered]@{
+  origin='fixture';session_kind='console';status='driver_missing'
+  active_windows_desktop_count=1;active_windows_desktop_names=@('DISPLAY1')
+  doxa_panels_detected=@();doxa_panels_missing=@();matched_device_count=0
+  windows_build=26100;driver=$null
+ }
+ [IO.File]::WriteAllText($script:journeyEvidencePath,($fixture|ConvertTo-Json -Depth 5),[Text.UTF8Encoding]::new($false))
+}
 $assistantScript=Join-Path $PSScriptRoot 'Ask-DoxaInstaller.ps1'
 $compatibilityScript=Join-Path $PSScriptRoot 'Get-DoxaCompatibility.ps1'
 $repo=(Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..')).Path
@@ -31,6 +43,10 @@ $teal=[Drawing.Color]::FromArgb(16,140,137)
 $slate=[Drawing.Color]::FromArgb(67,82,99)
 $light=[Drawing.Color]::FromArgb(231,238,245)
 $form=if($HostForm){$HostForm}else{New-Object Windows.Forms.Form}
+if($script:journeyEvidencePath){
+ $fixtureForCleanup=$script:journeyEvidencePath
+ $form.Add_Disposed({if(Test-Path -LiteralPath $fixtureForCleanup){Remove-Item -LiteralPath $fixtureForCleanup -Force -ErrorAction SilentlyContinue}})
+}
 $form.Text='Standivarius | Doxa Setup'
 $script:developerMode=[bool]($DeveloperTests -or $JourneyTest)
 $form.StartPosition='CenterScreen'
@@ -286,7 +302,7 @@ function Say([string]$speaker,[string]$body){
 function RefreshStateNow([object]$preparedResult=$null,[object]$preparedCompatibility=$null) {
  try{
   $assistantStatus.Text=T 'Checking Windows and Doxa (read-only)...' 'Verificam Windows si Doxa (fara modificari)...'
-  $result=if($null -ne $preparedResult){$preparedResult}else{& $diagnose -Fault $script:fault -Language $script:lang | Out-String | ConvertFrom-Json}
+  $result=if($null -ne $preparedResult){$preparedResult}elseif($JourneyTest -or $EmbeddedSmoke){& $diagnose -Fault $script:fault -Language $script:lang -EvidencePath $script:journeyEvidencePath | Out-String | ConvertFrom-Json}else{& $diagnose -Fault $script:fault -Language $script:lang | Out-String | ConvertFrom-Json}
   $script:current=$result
   $d=$result.observed
   $stateKey=($result.code+'|'+[string]$d.driver_version+'|'+[string]$d.active_desktops+'|'+[string]@($d.pnp_doxa_panels).Count+'|'+[string]$script:fault)
@@ -331,7 +347,7 @@ function RefreshStateNow([object]$preparedResult=$null,[object]$preparedCompatib
    $advice+=' '+(T 'The Silicon Motion driver package is still installed in Windows. Do not reinstall it; reconnect Doxa and check again.' 'Pachetul driver Silicon Motion este inca instalat in Windows. Nu il reinstala; reconecteaza Doxa si verifica din nou.')
   }
   # Hardware state belongs in the Detect Doxa status panel, not in conversation history.
-  if(-not $result.test_only){
+  if(-not $result.test_only -and -not ($JourneyTest -or $EmbeddedSmoke)){
    # Refresh the expensive Windows USB compatibility census only when relevant state changed.
    if($stateChanged){
      $preflight=if($null -ne $preparedCompatibility){$preparedCompatibility}else{(& $compatibilityScript -ConnectionChoice $script:connectionChoice -Language $script:lang|Out-String)|ConvertFrom-Json}
@@ -389,7 +405,7 @@ function RefreshState {
    $ErrorActionPreference='Stop'
    $result=(& $d -Fault $fault -Language $language | Out-String)|ConvertFrom-Json
    $compatibility=$null
-   if(-not $result.test_only){
+   if(-not $result.test_only -and -not ($JourneyTest -or $EmbeddedSmoke)){
     $compatibility=(& $c -ConnectionChoice $choice -Language $language|Out-String)|ConvertFrom-Json
    }
    [pscustomobject]@{result=$result;compatibility=$compatibility}|ConvertTo-Json -Depth 14 -Compress
@@ -735,8 +751,9 @@ if($JourneyTest){
   }elseif($script:current.observed.signed_driver_present){
    $installSkip='correct_driver_noop'
   }
-$result=[ordered]@{journey='PASS';initial_code=$initialCode;fault_did_not_call_ai=$true;install_button=$installSkip;driver_changes=$false;official_source=$official.Text;language_options=$languageChoice.Items.Count;device_illustration_present=($deviceArt.Width -gt 300);connection_steps_offline=$true;repeat_detect_does_not_spam=$repeatDetectNoChatFlood;language=$script:lang;localized_intro=$intro.Text}
+$result=[ordered]@{journey='PASS';fixture_only=$true;hardware_scans=0;initial_code=$initialCode;fault_did_not_call_ai=$true;install_button=$installSkip;driver_changes=$false;official_source=$official.Text;language_options=$languageChoice.Items.Count;device_illustration_present=($deviceArt.Width -gt 300);connection_steps_offline=$true;repeat_detect_does_not_spam=$repeatDetectNoChatFlood;language=$script:lang;localized_intro=$intro.Text}
  $form.Dispose()
+ if($script:journeyEvidencePath -and (Test-Path $script:journeyEvidencePath)){Remove-Item -LiteralPath $script:journeyEvidencePath -Force}
  $result|ConvertTo-Json -Compress
  return
 }
