@@ -91,5 +91,5 @@ else
   git -C "$REPO" rev-parse HEAD > "$OUTPUT/SOURCE-COMMIT.txt"
 fi
 
-"$SCRIPT_DIR/test-macos.sh" "$BUILD_DIR"
+bash "$SCRIPT_DIR/test-macos.sh" "$BUILD_DIR"
 echo "MACOS_UNSIGNED_PREVIEW_BUILD_PASS: $OUTPUT"
