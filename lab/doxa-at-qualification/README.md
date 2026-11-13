@@ -70,3 +70,8 @@ Approved adapter cases: WideNone, WideMagnifier, WideNVDA, WideZoomText, AppsMag
 - Original 10 Nov/12 Nov reports and all 11–13 November JPEG, JSON, ETW and log files remain in place.
 - The existing Vision Test Farm is documented in lab/automation-harness/README.md. Its original scenarios remain untouched; this qualification package is a small domain adapter, not a second test farm.
 
+
+## Test scaffolding inventory
+
+The full scoped folder inventory, retained historical suites, execution-risk classification and migration/stop rules are documented in lab/doxa-at-qualification/INVENTORY_AND_MIGRATION.md. Existing experimental scripts are not automatically executable through the new pipeline.
+
