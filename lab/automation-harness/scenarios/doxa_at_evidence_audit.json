@@ -1,0 +1,62 @@
+{
+  "schema_version": "0.1",
+  "id": "doxa_at_evidence_audit",
+  "version": "1.0",
+  "title": "DOXA SM770 AT final evidence audit (read-only)",
+  "category": "synthetic",
+  "tags": [
+    "doxa",
+    "at",
+    "evidence",
+    "read_only",
+    "qualification"
+  ],
+  "description": "Validate canonical 24-case Doxa SM770 acceptance ledger, historical evidence paths and hashes. No hardware or AT application is launched.",
+  "flags": {
+    "deterministic": true,
+    "interactive_desktop": false,
+    "visual_review": false,
+    "physical_only": false,
+    "privileged": false,
+    "destructive": false,
+    "not_yet_automatable": false
+  },
+  "capabilities_required": {
+    "min_displays": 1,
+    "requires_physical_console": false,
+    "requires_dev_binary": false
+  },
+  "fixture": {
+    "type": "python",
+    "entrypoint": "lab/doxa-at-qualification/pipeline.py",
+    "args": [
+      "audit"
+    ]
+  },
+  "timeout_sec": 60,
+  "assertions": [
+    {
+      "id": "audit_exit_zero",
+      "name": "Historical evidence present",
+      "type": "exit_code",
+      "op": "eq",
+      "expected": 0,
+      "critical": true
+    },
+    {
+      "id": "no_missing_proofs",
+      "name": "No missing evidence",
+      "type": "regex_match",
+      "target": "stdout",
+      "op": "regex",
+      "expected": "missing_files",
+      "critical": true
+    }
+  ],
+  "requested_evidence": [
+    "stdout",
+    "stderr",
+    "summary"
+  ]
+}
+
