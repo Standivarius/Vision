@@ -1,0 +1,39 @@
+﻿name: DOXA SM770 qualification tooling (software contracts only)
+
+on:
+  push:
+    paths:
+      - "lab/doxa-at-qualification/**"
+      - ".github/workflows/doxa-at-qualification.yml"
+  pull_request:
+    paths:
+      - "lab/doxa-at-qualification/**"
+      - ".github/workflows/doxa-at-qualification.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  test-ledger:
+    name: Validate catalogue and evidence pipeline code
+    runs-on: windows-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install lightweight testing dependency
+        run: python -m pip install "pytest>=9,<10"
+      - name: Pure tests only (no physical AT software)
+        run: python -m pytest lab/doxa-at-qualification/test_pipeline.py -q --junitxml=qualification-tooling-tests.xml
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qualification-tooling-junit
+          path: qualification-tooling-tests.xml
+
+# Raw Dell ETLs/photos are deliberately not uploaded.
+# This workflow does not run ZoomText, NVDA, Doxa hardware or any other AT application.
+

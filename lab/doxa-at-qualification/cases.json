@@ -1,0 +1,258 @@
+﻿{
+  "schema_version": "1.0",
+  "programme": "Vision / Doxa SM770 physical assistive technology qualification",
+  "rig": "MARIUS-DELL, Windows 11 Insider 26340, laptop plus three independent Doxa SMI770 USB displays",
+  "owner_acceptance_date": "2026-11-13",
+  "scope": "Physical four-screen qualification of Windows Magnifier, NVDA 2026.2, ZoomText 2027 and CPU diagnostics",
+  "cases": [
+    {
+      "id": "M1",
+      "technology": "Windows Magnifier",
+      "title": "Four-display ordinary interaction",
+      "outcome": "PASS",
+      "basis": "observed",
+      "evidence": [
+        "artifacts/2026-11-10__sm770_closure/three_real_apps_magnifier_result_v2.json"
+      ]
+    },
+    {
+      "id": "M2",
+      "technology": "Windows Magnifier",
+      "title": "Independent Doxa magnification",
+      "outcome": "PASS",
+      "basis": "observed",
+      "evidence": [
+        "artifacts/2026-11-11__sm770_functional_completion/2026-11-11__specialist_test_closure_v1.0.md"
+      ]
+    },
+    {
+      "id": "M3",
+      "technology": "Windows Magnifier",
+      "title": "Physical four-screen presentation",
+      "outcome": "PASS",
+      "basis": "observed",
+      "evidence": [
+        "artifacts/2026-11-10__sm770_closure/wide_magnifier_result.json"
+      ]
+    },
+    {
+      "id": "M4",
+      "technology": "Windows Magnifier",
+      "title": "Word at 4x",
+      "outcome": "PASS",
+      "basis": "observed",
+      "evidence": [
+        "artifacts/2026-11-10__sm770_at_qualification_FINAL_v1.0.md"
+      ]
+    },
+    {
+      "id": "M5",
+      "technology": "Windows Magnifier",
+      "title": "Colour and viewport control accepted scope",
+      "outcome": "PASS",
+      "basis": "owner_accepted",
+      "evidence": [
+        "artifacts/2026-11-04__doxa_at_suite/results/s3_viewport_lock_rigorous.json",
+        "artifacts/2026-11-11__sm770_functional_completion/2026-11-12__owner_accepted_functionality_and_performance_open_v1.0.md"
+      ]
+    },
+    {
+      "id": "N1",
+      "technology": "NVDA",
+      "title": "Four-display navigation and application input",
+      "outcome": "PASS",
+      "basis": "observed",
+      "evidence": [
+        "artifacts/2026-11-10__sm770_closure/three_real_apps_nvda_result_v4.json"
+      ]
+    },
+    {
+      "id": "N2",
+      "technology": "NVDA",
+      "title": "Independent per-monitor magnification native equivalent",
+      "outcome": "NOT_APPLICABLE",
+      "basis": "not_offered",
+      "evidence": [
+        "artifacts/2026-11-11__sm770_functional_completion/2026-11-12__owner_accepted_functionality_and_performance_open_v1.0.md"
+      ]
+    },
+    {
+      "id": "N3",
+      "technology": "NVDA",
+      "title": "Native source-to-fixed-centre magnification equivalent",
+      "outcome": "NOT_APPLICABLE",
+      "basis": "not_offered",
+      "evidence": [
+        "artifacts/2026-11-11__sm770_functional_completion/2026-11-12__owner_accepted_functionality_and_performance_open_v1.0.md"
+      ]
+    },
+    {
+      "id": "N4",
+      "technology": "NVDA",
+      "title": "Doxa spanning window input",
+      "outcome": "PASS",
+      "basis": "observed",
+      "evidence": [
+        "artifacts/2026-11-10__sm770_closure/wide_nvda_result.json"
+      ]
+    },
+    {
+      "id": "N5",
+      "technology": "NVDA",
+      "title": "Directional viewport panning and overview accepted scope",
+      "outcome": "PASS",
+      "basis": "observed",
+      "evidence": [
+        "artifacts/2026-11-11__sm770_functional_completion/2026-11-12__nvda_panning_corrected_pass_v1.0.md"
+      ]
+    },
+    {
+      "id": "Z1",
+      "technology": "ZoomText 2027",
+      "title": "Four-screen magnified operation",
+      "outcome": "PASS",
+      "basis": "observed",
+      "evidence": [
+        "artifacts/2026-11-10__sm770_closure/wide_zoomtext_result.json"
+      ]
+    },
+    {
+      "id": "Z2",
+      "technology": "ZoomText 2027",
+      "title": "Explicit left/right source to fixed centre",
+      "outcome": "PASS",
+      "basis": "observed",
+      "evidence": [
+        "artifacts/2026-11-11__sm770_functional_completion/20261112_centre_view_left_routed.jpg",
+        "artifacts/2026-11-11__sm770_functional_completion/20261112_centre_view_right_routed.jpg"
+      ]
+    },
+    {
+      "id": "Z3",
+      "technology": "ZoomText 2027",
+      "title": "Laptop 2x with Doxa panels at 1x",
+      "outcome": "PASS",
+      "basis": "observed",
+      "evidence": [
+        "artifacts/2026-11-11__sm770_functional_completion/20261112_laptop2_doxa1.jpg"
+      ]
+    },
+    {
+      "id": "Z4",
+      "technology": "ZoomText 2027",
+      "title": "Word, Edge and Excel input/readback",
+      "outcome": "PASS",
+      "basis": "observed",
+      "evidence": [
+        "artifacts/2026-11-10__sm770_closure/three_real_apps_zoomtext_result_v2.json"
+      ]
+    },
+    {
+      "id": "Z5",
+      "technology": "ZoomText 2027",
+      "title": "Colour transformation, restoration and view control",
+      "outcome": "PASS",
+      "basis": "owner_accepted",
+      "evidence": [
+        "artifacts/2026-11-11__sm770_functional_completion/2026-11-12__owner_accepted_functionality_and_performance_open_v1.0.md"
+      ]
+    },
+    {
+      "id": "WIDE",
+      "technology": "Cross-technology",
+      "title": "One real window spans three Doxa screens",
+      "outcome": "PASS",
+      "basis": "observed",
+      "evidence": [
+        "artifacts/2026-11-10__sm770_closure/wide_none_result.json",
+        "artifacts/2026-11-10__sm770_closure/wide_zoomtext_result.json",
+        "artifacts/2026-11-10__sm770_closure/wide_magnifier_result.json",
+        "artifacts/2026-11-10__sm770_closure/wide_nvda_result.json"
+      ]
+    },
+    {
+      "id": "APPS",
+      "technology": "Cross-technology",
+      "title": "Three genuine applications on independent screens",
+      "outcome": "PASS",
+      "basis": "observed",
+      "evidence": [
+        "artifacts/2026-11-10__sm770_closure/three_real_apps_zoomtext_result_v2.json",
+        "artifacts/2026-11-10__sm770_closure/three_real_apps_magnifier_result_v2.json",
+        "artifacts/2026-11-10__sm770_closure/three_real_apps_nvda_result_v4.json"
+      ]
+    },
+    {
+      "id": "ZT-SPAN",
+      "technology": "ZoomText 2027",
+      "title": "Span",
+      "outcome": "PASS",
+      "basis": "observed",
+      "evidence": [
+        "artifacts/2026-11-11__sm770_functional_completion/20261112_zt_modes_hw_span_right_source_routed.jpg"
+      ]
+    },
+    {
+      "id": "ZT-CLONE",
+      "technology": "ZoomText 2027",
+      "title": "Clone",
+      "outcome": "PASS",
+      "basis": "observed",
+      "evidence": [
+        "artifacts/2026-11-11__sm770_functional_completion/20261112_zt_modes_hw_clone_right_source_routed.jpg"
+      ]
+    },
+    {
+      "id": "ZT-OVERVIEW",
+      "technology": "ZoomText 2027",
+      "title": "Overview and source selection",
+      "outcome": "PASS",
+      "basis": "observed",
+      "evidence": [
+        "artifacts/2026-11-11__sm770_functional_completion/20261112_zt_modes_hw_overview_span_left_real_motion_selected.jpg"
+      ]
+    },
+    {
+      "id": "ZT-FREEZE",
+      "technology": "ZoomText 2027",
+      "title": "Freeze creation, toggling and persistence",
+      "outcome": "PASS",
+      "basis": "owner_accepted",
+      "evidence": [
+        "artifacts/2026-11-11__sm770_functional_completion/2026-11-12__owner_accepted_functionality_and_performance_open_v1.0.md",
+        "artifacts/2026-11-11__sm770_functional_completion/20261112_zt_modes_hw_freeze_persists_after_left_route.jpg"
+      ]
+    },
+    {
+      "id": "PERF-30M",
+      "technology": "Performance",
+      "title": "ZoomText sustained 30-minute resource characterisation",
+      "outcome": "MEASURED",
+      "basis": "measured",
+      "evidence": [
+        "artifacts/2026-11-09__doxa_zoomtext2027_30min/report_on30.md"
+      ]
+    },
+    {
+      "id": "PERF-ABBA",
+      "technology": "Performance",
+      "title": "Quality versus Best Performance repeat",
+      "outcome": "MEASURED",
+      "basis": "measured",
+      "evidence": [
+        "artifacts/2026-11-13__zoomtext_performance_closure/eight_validated_intervals.csv",
+        "artifacts/2026-11-13__zoomtext_performance_closure/final_restoration.json"
+      ]
+    },
+    {
+      "id": "PERF-GPU",
+      "technology": "Performance",
+      "title": "SM770 GPU allocation and paging analysis",
+      "outcome": "MEASURED",
+      "basis": "measured",
+      "evidence": [
+        "artifacts/2026-11-13__zoomtext_trace_deep_analysis/2026-11-13__zoomtext_smi770_gpu_allocation_root_cause_analysis_v1.1.md"
+      ]
+    }
+  ]
+}
