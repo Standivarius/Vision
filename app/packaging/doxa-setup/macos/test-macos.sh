@@ -5,7 +5,11 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SOURCE="$SCRIPT_DIR/StandivariusDoxaSetup.swift"
 BUILD_DIR="${1:---source-only}"
 VERSION="0.1.0"
-BASENAME="Standivarius-Doxa-Installer-v${VERSION}-MAC-UNSIGNED"
+if [[ "${DOXA_MACOS_RELEASE:-0}" == "1" ]]; then
+  BASENAME="Standivarius-Doxa-Installer-v${VERSION}"
+else
+  BASENAME="Standivarius-Doxa-Installer-v${VERSION}-MAC-UNSIGNED"
+fi
 
 # Explicitly pin the vendor download URL, don't include vendor binaries.
 grep -Fq 'https://www.siliconmotion.com/downloads/SM770-drivers.html' "$SOURCE"
@@ -45,6 +49,12 @@ plutil -lint "$APP/Contents/Info.plist"
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Contents/Info.plist")" == "com.standivarius.doxa.setup" ]]
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist")" == "$VERSION" ]]
 codesign --verify --deep --strict "$APP"
+if [[ "${DOXA_MACOS_RELEASE:-0}" == "1" ]]; then
+  codesign -dv --verbose=4 "$APP" 2>&1 | grep -Fq 'Authority=Developer ID Application:'
+  pkgutil --check-signature "$PKG" | grep -Fq 'Developer ID Installer:'
+  xcrun stapler validate "$PKG"
+  xcrun stapler validate "$DMG"
+fi
 
 EXPANDED="$(mktemp -d)"
 trap 'rm -rf "$EXPANDED"' EXIT
