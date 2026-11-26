@@ -86,16 +86,18 @@ PAYLOAD="$BUILD_DIR/package-root"
 mkdir -p "$PAYLOAD/Applications"
 ditto "$APP" "$PAYLOAD/Applications/$PRODUCT.app"
 PKG="$OUTPUT/$BASENAME.pkg"
-PKG_SIGN_ARGS=()
+# macOS runners still use Bash 3.2; with set -u, expanding an empty
+# bash array is an error. Keep the two invocations explicit.
 if [[ "$RELEASE" == "1" ]]; then
-  PKG_SIGN_ARGS=(--sign "$DOXA_MAC_DEVELOPER_ID_INSTALLER" --timestamp)
+  pkgbuild --root "$PAYLOAD" \
+    --identifier "$BUNDLE_ID" --version "$VERSION" \
+    --install-location "/" \
+    --sign "$DOXA_MAC_DEVELOPER_ID_INSTALLER" --timestamp "$PKG"
+else
+  pkgbuild --root "$PAYLOAD" \
+    --identifier "$BUNDLE_ID" --version "$VERSION" \
+    --install-location "/" "$PKG"
 fi
-pkgbuild --root "$PAYLOAD" \
-  --identifier "$BUNDLE_ID" \
-  --version "$VERSION" \
-  --install-location "/" \
-  "${PKG_SIGN_ARGS[@]}" \
-  "$PKG"
 
 # DMG provides a drag-to-Applications experience without root.
 DMG_ROOT="$BUILD_DIR/dmg-root"
