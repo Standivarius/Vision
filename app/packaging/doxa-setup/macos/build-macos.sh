@@ -6,7 +6,20 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
 VERSION="0.1.0"
 PRODUCT="Standivarius Doxa Setup"
-BASENAME="Standivarius-Doxa-Installer-v${VERSION}-MAC-UNSIGNED"
+# Explicit release mode never silently falls back to ad-hoc signing.
+RELEASE="${DOXA_MACOS_RELEASE:-0}"
+if [[ "$RELEASE" != "0" && "$RELEASE" != "1" ]]; then
+  echo "ERROR: DOXA_MACOS_RELEASE must be 0 or 1." >&2
+  exit 2
+fi
+if [[ "$RELEASE" == "1" ]]; then
+  : "${DOXA_MAC_DEVELOPER_ID_APP:?Set Developer ID Application identity}"
+  : "${DOXA_MAC_DEVELOPER_ID_INSTALLER:?Set Developer ID Installer identity}"
+  : "${DOXA_MAC_NOTARY_PROFILE:?Set local notarytool keychain profile}"
+  BASENAME="Standivarius-Doxa-Installer-v${VERSION}"
+else
+  BASENAME="Standivarius-Doxa-Installer-v${VERSION}-MAC-UNSIGNED"
+fi
 BUNDLE_ID="com.standivarius.doxa.setup"
 BUILD_DIR="${1:-${RUNNER_TEMP:-/tmp}/doxa-macos-build}"
 APP="$BUILD_DIR/$PRODUCT.app"
@@ -56,9 +69,16 @@ cat > "$APP/Contents/Info.plist" <<EOF
 EOF
 
 plutil -lint "$APP/Contents/Info.plist"
-# Ad-hoc only: structural signature, not identified/notarised customer software.
-codesign --force --sign - --timestamp=none "$APP"
-codesign --verify --deep --strict "$APP"
+if [[ "$RELEASE" == "1" ]]; then
+  # Hardened runtime and secure timestamp are mandatory for distribution.
+  codesign --force --options runtime --timestamp \
+    --sign "$DOXA_MAC_DEVELOPER_ID_APP" "$APP"
+  codesign --verify --deep --strict --verbose=2 "$APP"
+else
+  # Review build only: ad-hoc signature is not a publisher signature.
+  codesign --force --sign - --timestamp=none "$APP"
+  codesign --verify --deep --strict "$APP"
+fi
 lipo "$APP/Contents/MacOS/DoxaSetup" -verify_arch arm64 x86_64
 
 # PKG is unsigned and has no pre/postinstall scripts.
@@ -66,11 +86,18 @@ PAYLOAD="$BUILD_DIR/package-root"
 mkdir -p "$PAYLOAD/Applications"
 ditto "$APP" "$PAYLOAD/Applications/$PRODUCT.app"
 PKG="$OUTPUT/$BASENAME.pkg"
-pkgbuild --root "$PAYLOAD" \
-  --identifier "$BUNDLE_ID" \
-  --version "$VERSION" \
-  --install-location "/" \
-  "$PKG"
+# macOS runners still use Bash 3.2; with set -u, expanding an empty
+# bash array is an error. Keep the two invocations explicit.
+if [[ "$RELEASE" == "1" ]]; then
+  pkgbuild --root "$PAYLOAD" \
+    --identifier "$BUNDLE_ID" --version "$VERSION" \
+    --install-location "/" \
+    --sign "$DOXA_MAC_DEVELOPER_ID_INSTALLER" --timestamp "$PKG"
+else
+  pkgbuild --root "$PAYLOAD" \
+    --identifier "$BUNDLE_ID" --version "$VERSION" \
+    --install-location "/" "$PKG"
+fi
 
 # DMG provides a drag-to-Applications experience without root.
 DMG_ROOT="$BUILD_DIR/dmg-root"
@@ -79,6 +106,17 @@ ditto "$APP" "$DMG_ROOT/$PRODUCT.app"
 ln -s /Applications "$DMG_ROOT/Applications"
 DMG="$OUTPUT/$BASENAME.dmg"
 hdiutil create -quiet -fs HFS+ -format UDZO -volname "$PRODUCT" -srcfolder "$DMG_ROOT" -ov "$DMG"
+
+if [[ "$RELEASE" == "1" ]]; then
+  # Apple must accept both independently distributed containers.
+  pkgutil --check-signature "$PKG"
+  for artifact in "$PKG" "$DMG"; do
+    xcrun notarytool submit "$artifact" \
+      --keychain-profile "$DOXA_MAC_NOTARY_PROFILE" --wait
+    xcrun stapler staple "$artifact"
+    xcrun stapler validate "$artifact"
+  done
+fi
 
 cp "$SCRIPT_DIR/README.md" "$OUTPUT/README-MACOS.txt"
 (
@@ -92,4 +130,8 @@ else
 fi
 
 bash "$SCRIPT_DIR/test-macos.sh" "$BUILD_DIR"
-echo "MACOS_UNSIGNED_PREVIEW_BUILD_PASS: $OUTPUT"
+if [[ "$RELEASE" == "1" ]]; then
+  echo "MACOS_SIGNED_NOTARISED_BUILD_PASS: $OUTPUT"
+else
+  echo "MACOS_UNSIGNED_PREVIEW_BUILD_PASS: $OUTPUT"
+fi
